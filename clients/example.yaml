@@ -1,3 +1,4 @@
+name: Example
 active: True
 gitlab:
   salt_project:

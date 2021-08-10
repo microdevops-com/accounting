@@ -1,3 +1,5 @@
+gitlab:
+  url: https://gitlab.example.com
 jobs:
   # Check minions
   test_ping:

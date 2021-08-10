@@ -1,9 +1,6 @@
 stages:
 - build
 - push
-- execute_yaml_check
-- execute_db_structure
-- execute_server_labels
 - execute_run_cmd
 
 variables:

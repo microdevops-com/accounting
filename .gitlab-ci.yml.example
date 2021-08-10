@@ -1,0 +1,58 @@
+stages:
+- build
+- push
+- execute_yaml_check
+- execute_db_structure
+- execute_server_labels
+- execute_run_cmd
+
+variables:
+  GIT_SUBMODULE_STRATEGY: none
+  ACCOUNTING_IMAGE: $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_REF_SLUG
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - echo ACCOUNTING_IMAGE - ${ACCOUNTING_IMAGE}
+
+build:
+  tags:
+    - __dev_runner__
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - docker build --pull -t $ACCOUNTING_IMAGE .
+  except:
+    variables:
+      - $RUN_CMD
+
+push:
+  tags:
+    - __dev_runner__
+  stage: push
+  script:
+    - docker push $ACCOUNTING_IMAGE
+  except:
+    variables:
+      - $RUN_CMD
+
+execute_run_cmd:
+  tags:
+    - __prod_runner__
+  stage: execute_run_cmd
+  script:
+    - docker pull $ACCOUNTING_IMAGE
+    - |
+      docker run --rm \
+        --env GL_ADMIN_PRIVATE_TOKEN \
+        --mount type=bind,source=/opt/sysadmws/accounting/log,target=/opt/sysadmws/accounting/log \
+        --mount type=bind,source=/etc/timezone,target=/etc/timezone \
+        --mount type=bind,source=/etc/localtime,target=/etc/localtime \
+        --mount type=bind,source=/opt/sysadmws/accounting/.jobs,target=/opt/sysadmws/accounting/.jobs \
+        --mount type=bind,source=/opt/sysadmws/accounting/.locks,target=/opt/sysadmws/accounting/.locks \
+        $ACCOUNTING_IMAGE $RUN_CMD
+  only:
+    refs:
+      - master
+    variables:
+      - $RUN_CMD

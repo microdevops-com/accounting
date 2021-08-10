@@ -1,0 +1,13 @@
+active: True
+gitlab:
+  salt_project:
+    path: example/devops/example-salt
+configuration_management:
+  type: salt-ssh
+  salt-ssh:
+    version: 3001
+servers:
+  - fqdn: server1.example.com
+    location: Hetzner
+    active: True
+    os: focal

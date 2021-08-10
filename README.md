@@ -15,6 +15,7 @@ ln -s .accounting/Dockerfile
 ln -s .accounting/jobs.py
 ln -s .accounting/requirements.txt
 ln -s .accounting/sysadmws_common.py
+ln -s .accounting/accounting_db_structure.sql
 ```
 
 Install python3 requirements:
@@ -31,3 +32,5 @@ Substitute runner tag placeholders `__dev_runner__` and `__prod_runner__` with r
 Add runners with docker via shell to project.
 
 Add GL_ADMIN_PRIVATE_TOKEN cd-cd var to project to access GitLab via API.
+
+Add `accounting.yaml` based on `accounting.yaml.example`

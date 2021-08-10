@@ -1,0 +1,229 @@
+jobs:
+  # Check minions
+  test_ping:
+    type: salt_cmd
+    cmd: test.ping
+    timeout: 60
+    tz: Europe/Kiev
+    each:
+      hours: 4
+    licenses:
+      - monitoring
+    os:
+      exclude:
+        - 2008ServerR2
+  # 0:10
+  ufw_simple:
+    type: salt_cmd
+    cmd: state.apply ufw_simple.ufw_simple queue=True
+    timeout: 900
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 10
+    licenses:
+      - firewall
+    os:
+      exclude:
+        - 2008ServerR2
+        - unknown
+  # 0:20
+  sysadmws-utils:
+    type: salt_cmd
+    cmd: state.apply sysadmws-utils.sysadmws-utils queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 20
+  # 0:30
+  bulk_log:
+    type: salt_cmd
+    cmd: state.apply bulk_log.bulk_log queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 30
+  # 0:30
+  disk_alert:
+    type: salt_cmd
+    cmd: state.apply disk_alert.disk_alert queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 30
+  # 0:30
+  mysql_queries_log:
+    type: salt_cmd
+    cmd: state.apply mysql_queries_log.mysql_queries_log queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 30
+  # 0:30
+  mysql_replica_checker:
+    type: salt_cmd
+    cmd: state.apply mysql_replica_checker.mysql_replica_checker queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 30
+  # 0:40
+  cmd_check_alert:
+    type: salt_cmd
+    cmd: state.apply cmd_check_alert queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 40
+  # 0:50
+  notify_devilry:
+    type: salt_cmd
+    cmd: state.apply notify_devilry.notify_devilry queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 0
+    minutes:
+      - 50
+    licenses:
+      - monitoring
+  # 1:00
+  ssh-auth-keys:
+    type: salt_cmd
+    cmd: |
+      state.apply pkg.pkg pillar='{pkg_filter: ssh-auth-keys}' queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 1
+    minutes:
+      - 0
+  # 1:10
+  forward_root_email:
+    type: salt_cmd
+    cmd: |
+      state.apply pkg.pkg pillar='{pkg_filter: forward_root_email}' queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 1
+    minutes:
+      - 10
+    licenses:
+      - monitoring
+  # 1:20
+  netdata:
+    type: salt_cmd
+    cmd: state.apply netdata.netdata queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      weeks: 1
+    hours:
+      - 1
+    minutes:
+      - 20
+    licenses:
+      - monitoring
+  # 1:30
+  heartbeat_mesh_sender:
+    type: salt_cmd
+    cmd: state.apply heartbeat_mesh.sender queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 1
+    minutes:
+      - 30
+    licenses:
+      - monitoring
+  # 1:40
+  users_unix:
+    type: salt_cmd
+    cmd: state.apply users.unix queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 1
+    minutes:
+      - 40
+  # 1:50
+  users_windows:
+    type: salt_cmd
+    cmd: state.apply users.windows queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 1
+    minutes:
+      - 50
+    os:
+      include:
+        - 2008ServerR2
+  # 2:00
+  put_check_files:
+    type: salt_cmd
+    cmd: state.apply rsnapshot_backup.put_check_files queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 2
+    minutes:
+      - 0
+  # 3:00
+  rsnapshot_backup:
+    type: rsnapshot_backup_ssh
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 3
+    minutes:
+      - 0
+    licenses:
+      - backup
+    os:
+      exclude:
+        - 2008ServerR2
+        - unknown

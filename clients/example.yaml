@@ -11,3 +11,8 @@ servers:
     location: Hetzner
     active: True
     os: focal
+    tariffs:
+      - activated: 1970-01-01
+        added: 1970-01-01
+        tariffs:
+          - file: free-1.yaml

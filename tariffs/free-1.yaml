@@ -1,0 +1,16 @@
+service: DevOps
+plan: Free
+revision: 1
+monthly:
+  rate: 0
+  currency: USD
+hourly:
+  rate: 0
+  currency: USD
+storage:
+  rate: 0
+  currency: USD
+licenses:
+  - monitoring
+  - backup
+  - firewall

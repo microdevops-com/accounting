@@ -23,7 +23,7 @@ Install python3 requirements:
 pip3 install -r requirements.txt
 ```
 
-Add `clients/*.yaml`.
+Add client yaml `clients/xxx.yaml` based on `clients/example.yaml`. You can use `free-1.yaml` tariff as a reference.
 
 Add `.gitlab-ci.yaml` based on `.gitlab-ci.yml.example`.
 

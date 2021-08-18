@@ -10,6 +10,7 @@ from logging.handlers import RotatingFileHandler
 from collections import OrderedDict
 import json
 import argparse
+#import pdb
 
 # Custom Exceptions
 class DictError(Exception):
@@ -44,7 +45,7 @@ def load_yaml(f, l):
     l.info("Loading YAML from file {0}".format(f))
     try:
         with open(f, 'r') as yaml_file:
-            yaml_dict = yaml.load(yaml_file)
+            yaml_dict = yaml.load(yaml_file, Loader=yaml.SafeLoader)
     except:
         raise LoadError("Reading YAML from file '{0}' failed".format(f))
     return yaml_dict

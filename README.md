@@ -14,6 +14,11 @@ Add `gitlab-server-job` Submodule:
 git submodule add --name .gitlab-server-job -b master -- https://github.com/sysadmws/gitlab-server-job .gitlab-server-job
 ```
 
+Add `salt-project-template` Submodule:
+```
+git submodule add --name .salt-project-template -b master -- https://github.com/sysadmws/salt-project-template .salt-project-template
+```
+
 Make links:
 ```
 ln -s .accounting/Dockerfile
@@ -52,6 +57,16 @@ mkdir .ssh
 touch .ssh/.keep
 ```
 
+Make empty `.salt-project-private-template/install.sh` (or fill with private data addons):
+```
+mkdir -p .salt-project-private-template
+cat << EOF > .salt-project-private-template/install.sh
+#!/bin/bash
+true
+EOF
+chmod +x .salt-project-private-template/install.sh
+```
+
 Push project repository to GitLab and make sure pipeline ran, image is built and pushed to registry.
 
 Make `.env` for local tests like:
@@ -74,7 +89,10 @@ Setup client project in GitLab:
 ./projects.py --setup-projects-for-client example
 ```
 
-
+Template client project in GitLab:
+```
+./projects.py --template-salt-project-for-client example
+```
 
 Locally run test.ping pipeline job via `pipeline_salt_cmd.sh`:
 ```

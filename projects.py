@@ -526,12 +526,48 @@ if __name__ == "__main__":
                         subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                     
                     # Prepare the roster file
+                    if "skip_roster" in client_dict["configuration_management"] and client_dict["configuration_management"]["skip_roster"]:
+                        logger.info("Skipping roster update")
 
-                    # It is needed for both salt and salt-ssh types
-                    client_server_list = ""
-                    if "servers" in client_dict:
-                        for server in sorted(client_dict["servers"], key = lambda x: (x["tariffs"][0]["activated"], x["fqdn"])):
-                            if server["active"]:
+                    else:
+
+                        # It is needed for both salt and salt-ssh types
+                        client_server_list = ""
+                        if "servers" in client_dict:
+                            for server in sorted(client_dict["servers"], key = lambda x: (x["tariffs"][0]["activated"], x["fqdn"])):
+                                if server["active"]:
+                                    client_server_list += textwrap.dedent(
+                                        """
+                                        echo "{fqdn}:" >> etc/salt/roster
+                                        echo "  host: {host}" >> etc/salt/roster
+                                        echo "  port: {port}" >> etc/salt/roster
+                                        echo "  priv: __ROSTER_PRIV__" >> etc/salt/roster
+                                        """
+                                    ).format(fqdn=server["fqdn"],
+                                        host=server["ssh"]["host"] if ("ssh" in server and "host" in server["ssh"]) else server["fqdn"],
+                                        port=server["ssh"]["port"] if ("ssh" in server and "port" in server["ssh"]) else "22"
+                                    )
+                                    if "ssh" in server and "jump" in server["ssh"]:
+                                        if "port" in server["ssh"]["jump"]:
+                                            client_server_list += textwrap.dedent(
+                                                """
+                                                echo "  ssh_options:" >> etc/salt/roster
+                                                echo "    - ProxyJump={jump_host}:{jump_port}" >> etc/salt/roster
+                                                """
+                                            ).format(jump_host=server["ssh"]["jump"]["host"],
+                                                jump_port=server["ssh"]["jump"]["port"]
+                                            )
+                                        else:
+                                            client_server_list += textwrap.dedent(
+                                                """
+                                                echo "  ssh_options:" >> etc/salt/roster
+                                                echo "    - ProxyJump={jump_host}" >> etc/salt/roster
+                                                """
+                                            ).format(jump_host=server["ssh"]["jump"]["host"])
+
+                        # Also add salt masters for salt type
+                        if client_dict["configuration_management"]["type"] == "salt":
+                            for salt_master in client_dict["configuration_management"]["salt"]["masters"]:
                                 client_server_list += textwrap.dedent(
                                     """
                                     echo "{fqdn}:" >> etc/salt/roster
@@ -539,61 +575,28 @@ if __name__ == "__main__":
                                     echo "  port: {port}" >> etc/salt/roster
                                     echo "  priv: __ROSTER_PRIV__" >> etc/salt/roster
                                     """
-                                ).format(fqdn=server["fqdn"],
-                                    host=server["ssh"]["host"] if ("ssh" in server and "host" in server["ssh"]) else server["fqdn"],
-                                    port=server["ssh"]["port"] if ("ssh" in server and "port" in server["ssh"]) else "22"
+                                ).format(fqdn=salt_master["fqdn"],
+                                    host=salt_master["ssh"]["host"] if ("ssh" in salt_master and "host" in salt_master["ssh"]) else salt_master["fqdn"],
+                                    port=salt_master["ssh"]["port"] if ("ssh" in salt_master and "port" in salt_master["ssh"]) else "22"
                                 )
-                                if "ssh" in server and "jump" in server["ssh"]:
-                                    if "port" in server["ssh"]["jump"]:
-                                        client_server_list += textwrap.dedent(
-                                            """
-                                            echo "  ssh_options:" >> etc/salt/roster
-                                            echo "    - ProxyJump={jump_host}:{jump_port}" >> etc/salt/roster
-                                            """
-                                        ).format(jump_host=server["ssh"]["jump"]["host"],
-                                            jump_port=server["ssh"]["jump"]["port"]
-                                        )
-                                    else:
-                                        client_server_list += textwrap.dedent(
-                                            """
-                                            echo "  ssh_options:" >> etc/salt/roster
-                                            echo "    - ProxyJump={jump_host}" >> etc/salt/roster
-                                            """
-                                        ).format(jump_host=server["ssh"]["jump"]["host"])
+                                salt_master_names.append(salt_master["fqdn"])
+                                salt_master_ips.append(salt_master["ip"])
+                                salt_master_ext_ips.append(salt_master["external_ip"])
 
-                    
-                    # Also add salt masters for salt type
-                    if client_dict["configuration_management"]["type"] == "salt":
-                        for salt_master in client_dict["configuration_management"]["salt"]["masters"]:
-                            client_server_list += textwrap.dedent(
-                                """
-                                echo "{fqdn}:" >> etc/salt/roster
-                                echo "  host: {host}" >> etc/salt/roster
-                                echo "  port: {port}" >> etc/salt/roster
-                                echo "  priv: __ROSTER_PRIV__" >> etc/salt/roster
-                                """
-                            ).format(fqdn=salt_master["fqdn"],
-                                host=salt_master["ssh"]["host"] if ("ssh" in salt_master and "host" in salt_master["ssh"]) else salt_master["fqdn"],
-                                port=salt_master["ssh"]["port"] if ("ssh" in salt_master and "port" in salt_master["ssh"]) else "22"
-                            )
-                            salt_master_names.append(salt_master["fqdn"])
-                            salt_master_ips.append(salt_master["ip"])
-                            salt_master_ext_ips.append(salt_master["external_ip"])
-
-                    script = textwrap.dedent(
-                        """
-                        set -e
-                        cd {PROJECTS_SUBDIR}/{path_with_namespace}
-                        > etc/salt/roster
-                        {client_server_list}
-                        """
-                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR,
-                        path_with_namespace=project.path_with_namespace,
-                        client_server_list=client_server_list
-                    )
-                    logger.info("Running bash script:")
-                    logger.info(script)
-                    subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
+                        script = textwrap.dedent(
+                            """
+                            set -e
+                            cd {PROJECTS_SUBDIR}/{path_with_namespace}
+                            > etc/salt/roster
+                            {client_server_list}
+                            """
+                        ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR,
+                            path_with_namespace=project.path_with_namespace,
+                            client_server_list=client_server_list
+                        )
+                        logger.info("Running bash script:")
+                        logger.info(script)
+                        subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
                     # Template salt.master_pki and salt.minion_pki pillar
                     

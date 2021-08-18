@@ -1,6 +1,8 @@
 name: Example
 active: True
 gitlab:
+  admin_project:
+    path: example/devops/example-admin
   salt_project:
     path: example/devops/example-salt
 configuration_management:

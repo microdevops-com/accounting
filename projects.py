@@ -188,8 +188,9 @@ if __name__ == "__main__":
                             project.resolve_outdated_diff_discussions = True
                             project.build_timeout = 86400
                             # Maintainer group
-                            if not any(shared_group["group_id"] == acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"] for shared_group in project.shared_with_groups):
-                                project.share(acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"], gitlab.MAINTAINER_ACCESS)
+                            if "maintainers_group_id" in acc_yaml_dict["gitlab"]["salt_project"]:
+                                if not any(shared_group["group_id"] == acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"] for shared_group in project.shared_with_groups):
+                                    project.share(acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"], gitlab.MAINTAINER_ACCESS)
                             # Deploy keys
                             for deploy_key in client_dict["gitlab"]["salt_project"]["deploy_keys"]:
                                 key = project.keys.create({'title': deploy_key["title"], 'key': deploy_key["key"]})

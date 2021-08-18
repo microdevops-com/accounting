@@ -18,6 +18,7 @@ Make links:
 ```
 ln -s .accounting/Dockerfile
 ln -s .accounting/jobs.py
+ln -s .accounting/projects.py
 ln -s .accounting/requirements.txt
 ln -s .accounting/sysadmws_common.py
 ln -s .accounting/accounting_db_structure.sql
@@ -31,17 +32,19 @@ pip3 install -r requirements.txt
 
 Add `accounting.yaml` based on `accounting.yaml.example`
 
-Add client yaml `clients/xxx.yaml` based on `clients/example.yaml`. You can use `free-1.yaml` tariff as a reference.
+Add client yaml `clients/xxx.yaml` based on `clients/example.yaml`:
+- You can use `free-1.yaml` tariff as a reference.
+- XXX
 
 Copy or symlink `tariffs`.
 
 Add `.gitlab-ci.yaml` based on `.gitlab-ci.yml.example`.
 
-Substitute runner tag placeholders `__dev_runner__` and `__prod_runner__` with real runner tags.
+Substitute runner tag placeholders `__dev_runner__` and `__prod_runner__` with real runner tags in `.gitlab-ci.yaml`.
 
-Add runners with docker via shell to project.
+Add those runners to project, both runners should have shell executor with docker command available.
 
-Add GL_ADMIN_PRIVATE_TOKEN cd-cd var to project to access GitLab via API.
+Add `GL_ADMIN_PRIVATE_TOKEN` CI-CD var to project to access GitLab via API.
 
 Make empty `.ssh` for later usage in Dockerfile:
 ```
@@ -49,7 +52,7 @@ mkdir .ssh
 touch .ssh/.keep
 ```
 
-Push project repository to GitLab and make sure image is built and pushed to registry.
+Push project repository to GitLab and make sure pipeline ran, image is built and pushed to registry.
 
 Make `.env` for local tests like:
 ```
@@ -57,14 +60,34 @@ export GL_URL=https://gitlab.example.com
 export ACC_WORKDIR=/some/path/accounting
 export ACC_LOGDIR=/some/path/accounting/log
 export GL_ADMIN_PRIVATE_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxx
+export GL_USER_PRIVATE_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Make local test log dir:
+Make local test dirs:
 ```
 mkdir $ACC_LOGDIR
+mkdir ${ACC_WORKDIR}/.jobs
 ```
 
-Locally run test.ping job via pipelines:
+Setup client project in GitLab:
+```
+./projects.py --setup-projects-for-client example
+```
+
+
+
+Locally run test.ping pipeline job via `pipeline_salt_cmd.sh`:
+```
+.gitlab-server-job/pipeline_salt_cmd.sh nowait example/devops/example-salt 60 server1.example.com test.ping
+```
+
+Locally run test.ping pipeline job via `jobs.py`:
 ```
 ./jobs.py --force-run-job example server1.example.com test_ping
 ```
+
+xxxx
+Add those runners to project:
+- Dev runner should have shell executor with docker command available (to build images).
+- Prod runner should have docker executor.
+

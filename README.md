@@ -37,9 +37,7 @@ pip3 install -r requirements.txt
 
 Add `accounting.yaml` based on `accounting.yaml.example`
 
-Add client yaml `clients/xxx.yaml` based on `clients/example.yaml`:
-- You can use `free-1.yaml` tariff as a reference.
-- XXX
+Add client yaml based on `clients/example.yaml`.
 
 Copy or symlink `tariffs`.
 
@@ -91,7 +89,7 @@ Setup client project in GitLab:
 
 Template client project in GitLab:
 ```
-./projects.py --template-salt-project-for-client example
+./projects.py --git-push --template-salt-project-for-client example
 ```
 
 Locally run test.ping pipeline job via `pipeline_salt_cmd.sh`:
@@ -103,9 +101,3 @@ Locally run test.ping pipeline job via `jobs.py`:
 ```
 ./jobs.py --force-run-job example server1.example.com test_ping
 ```
-
-xxxx
-Add those runners to project:
-- Dev runner should have shell executor with docker command available (to build images).
-- Prod runner should have docker executor.
-

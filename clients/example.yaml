@@ -1,3 +1,4 @@
+vendor: Example
 name: Example
 active: True
 gitlab:
@@ -5,8 +6,32 @@ gitlab:
     path: example/devops/example-admin
   salt_project:
     path: example/devops/example-salt
+    runners:
+      dev: gitlab-runner1.dev.example.com # shell executor with docker command
+      prod: saltssh1.example.com # docker executor
+    variables:
+      SALTSSH_ROOT_ED25519_PRIV: |
+        -----BEGIN OPENSSH PRIVATE KEY-----
+        ...
+        -----END OPENSSH PRIVATE KEY-----
+      SALTSSH_ROOT_ED25519_PUB: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx devops@example.com
+    deploy_keys: []
 configuration_management:
   type: salt-ssh
+  skip_roster: True
+  templates:
+    root_email: mon@example.com
+    telegram_token: 1111111111:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    telegram_chat_id: -111111111
+    alerta_url: https://alerta.example.com/api/alert
+    alerta_api_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    default_tz: Etc_UTC
+    client_domain: example.com
+    heartbeat_mesh:
+      sender:
+        receiver: alerta1.example.com
+        token: xxx
+    runner_source_ip: 1.1.1.1
   salt-ssh:
     version: 3001
 servers:

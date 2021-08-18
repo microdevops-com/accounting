@@ -55,8 +55,8 @@ if __name__ == "__main__":
     group.add_argument("--setup-projects-for-all-clients", dest="setup_projects_for_all_clients", help="ensure -salt, -admin project created in GitLab, their settings setup for all clients excluding --exclude-clients or only for --include-clients", action="store_true")
     group.add_argument("--template-salt-project-for-client", dest="template_salt_project_for_client", help="apply templates for salt project for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
     group.add_argument("--template-salt-project-for-all-clients", dest="template_salt_project_for_all_clients", help="apply templates for salt project for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
-    #group.add_argument("--update-admin-project-wiki-for-client", dest="update_admin_project_wiki_for_client", help="update admin project wiki (server list, memo etc) for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
-    #group.add_argument("--update-admin-project-wiki-for-all-clients", dest="update_admin_project_wiki_for_all_clients", help="update admin project wiki (server list, memo etc) for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
+    group.add_argument("--update-admin-project-wiki-for-client", dest="update_admin_project_wiki_for_client", help="update admin project wiki (server list, memo etc) for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
+    group.add_argument("--update-admin-project-wiki-for-all-clients", dest="update_admin_project_wiki_for_all_clients", help="update admin project wiki (server list, memo etc) for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
 
     if len(sys.argv) > 1:
         args = parser.parse_args()
@@ -725,6 +725,9 @@ if __name__ == "__main__":
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
         if args.update_admin_project_wiki_for_client is not None or args.update_admin_project_wiki_for_all_clients:
+
+            logger.error("Not ready yet")
+            sys.exit(1)
 
             # Connect to GitLab
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)

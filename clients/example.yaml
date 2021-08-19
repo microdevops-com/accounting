@@ -10,6 +10,7 @@ gitlab:
       dev: gitlab-runner1.dev.example.com # shell executor with docker command
       prod: saltssh1.example.com # docker executor
     variables:
+      # ssh-keygen -N "" -t ed25519 -f ./tmp/saltssh-root -C root@example.com
       SALTSSH_ROOT_ED25519_PRIV: |
         -----BEGIN OPENSSH PRIVATE KEY-----
         ...

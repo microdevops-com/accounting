@@ -47,7 +47,12 @@ Substitute runner tag placeholders `__dev_runner__` and `__prod_runner__` with r
 
 Add those runners to project, both runners should have shell executor with docker command available.
 
-Add `GL_ADMIN_PRIVATE_TOKEN` CI-CD var to project to access GitLab via API.
+Add following CI-CD vars to project to access GitLab via API.
+- `GL_ADMIN_PRIVATE_TOKEN` - Needed for tag cleaning - use admin token with full access
+- `GL_USER_PRIVATE_TOKEN` - Pipelines will be run from this user by token, the same as above may be used
+- `GL_URL` like `https://gitlab.example.com`
+
+Add `GL_URL` CI-CD var to project to access GitLab via API. Pipelines will be run from this user token.
 
 Make empty `.ssh` for later usage in Dockerfile:
 ```
@@ -101,3 +106,22 @@ Locally run test.ping pipeline job via `jobs.py`:
 ```
 ./jobs.py --force-run-job example server1.example.com test_ping
 ```
+
+Make dirs on prod runner of project:
+```
+mkdir -p /opt/sysadmws/accounting/.jobs
+mkdir -p /opt/sysadmws/accounting/.locks
+mkdir -p /opt/sysadmws/accounting/log
+```
+
+Add poject CI-CD/Schedules:
+- run-jobs
+  - Interval Pattern: `*/10 * * * *`
+  - Target Branch: master
+  - Variables: `RUN_CMD`: `/opt/sysadmws/accounting/jobs.py --debug --run-jobs ALL ALL`
+- prune-run-tags
+  - Interval Pattern: `30 14 * * *` - some time at day time as jobs mostly run at night time
+  - Target Branch: master
+  - Variables: `RUN_CMD`: `/opt/sysadmws/accounting/jobs.py --prune-run-tags ALL 30`
+
+Try to run schedules manually. Jobs should run via pipelines by schedule if all good.

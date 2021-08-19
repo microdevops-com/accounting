@@ -42,6 +42,8 @@ execute_run_cmd:
     - |
       docker run --rm \
         --env GL_ADMIN_PRIVATE_TOKEN \
+        --env GL_USER_PRIVATE_TOKEN \
+        --env GL_URL \
         --mount type=bind,source=/opt/sysadmws/accounting/log,target=/opt/sysadmws/accounting/log \
         --mount type=bind,source=/etc/timezone,target=/etc/timezone \
         --mount type=bind,source=/etc/localtime,target=/etc/localtime \

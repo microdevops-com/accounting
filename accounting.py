@@ -2663,7 +2663,12 @@ if __name__ == "__main__":
                                             if client_server["fqdn"] == row_issue_labels_split_label:
 
                                                 # Find checked tariff
-                                                checked_tariffs = activated_tariff(client_server["tariffs"], row_timelog_updated)["tariffs"]
+                                                try:
+                                                    checked_tariffs = activated_tariff(client_server["tariffs"], row_timelog_updated)["tariffs"]
+                                                except:
+                                                    logger.error("Server {server} find active tariff error".format(server=client_server["fqdn"]))
+                                                    raise
+
                                         
                                 # Check if we have some tariff to check
                                 # It is ok if None - it means the label is not server or No Server label (not monetazible)

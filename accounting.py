@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# Add parent dir to path to fix imports from inside submodules
+import os
+import sys
+import inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.insert(0, currentdir)
 # Import common code
 from sysadmws_common import *
 from gsuite_scripts import *

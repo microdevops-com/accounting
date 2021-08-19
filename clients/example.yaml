@@ -1,5 +1,6 @@
 vendor: Example
 name: Example
+code: EX
 active: True
 gitlab:
   admin_project:

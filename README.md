@@ -19,6 +19,11 @@ Add `salt-project-template` Submodule:
 git submodule add --name .salt-project-template -b master -- https://github.com/sysadmws/salt-project-template .salt-project-template
 ```
 
+Add `gsuite-scripts` Submodule:
+```
+git submodule add --name .gsuite-scripts -b master -- https://github.com/sysadmws/gsuite-scripts .gsuite-scripts
+```
+
 Make links:
 ```
 ln -s .accounting/Dockerfile
@@ -32,6 +37,7 @@ ln -s .accounting/requirements.txt
 ln -s .accounting/sysadmws_common.py
 ln -s .accounting/accounting_db_structure.sql
 ln -s .accounting/.gitignore
+ln -s .gsuite-scripts/gsuite_scripts.py
 ```
 
 Install python3 requirements:

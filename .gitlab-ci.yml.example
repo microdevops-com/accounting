@@ -33,6 +33,22 @@ push:
     variables:
       - $RUN_CMD
 
+execute_yaml_check:
+  tags:
+    - __dev_runner__
+  stage: execute_yaml_check
+  script:
+    - docker pull $ACCOUNTING_IMAGE
+    - |
+      docker run --rm \
+        --mount type=bind,source=/opt/sysadmws/accounting/log,target=/opt/sysadmws/accounting/log \
+        --mount type=bind,source=/etc/timezone,target=/etc/timezone \
+        --mount type=bind,source=/etc/localtime,target=/etc/localtime \
+        $ACCOUNTING_IMAGE /opt/sysadmws/accounting/accounting.py --yaml-check
+  except:
+    variables:
+      - $RUN_CMD
+
 execute_run_cmd:
   tags:
     - __prod_runner__

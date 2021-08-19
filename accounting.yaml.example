@@ -15,9 +15,9 @@ jobs:
       exclude:
         - 2008ServerR2
   # 0:10
-  ufw_simple:
+  ufw:
     type: salt_cmd
-    cmd: state.apply ufw_simple.ufw_simple queue=True
+    cmd: state.apply ufw queue=True
     timeout: 900
     tz: Europe/Kiev
     each:

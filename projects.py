@@ -565,7 +565,7 @@ if __name__ == "__main__":
                                                 """
                                             ).format(jump_host=server["ssh"]["jump"]["host"])
                                     if "roster_opts" in server:
-                                        for optname, optval in server['roster_opts'].items():
+                                        for optname, optval in server["roster_opts"].items():
                                             client_server_list += textwrap.dedent(
                                                 """
                                                 echo "  {optname}: {optval}" >> etc/salt/roster

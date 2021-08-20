@@ -41,6 +41,9 @@ servers:
     location: Hetzner
     active: True
     os: focal
+    roster_opts: # optional
+      set_path: \$PATH:/opt/local/bin
+      ssh_options: StrictHostKeyChecking=no
     tariffs:
       - activated: 1970-01-01
         added: 1970-01-01

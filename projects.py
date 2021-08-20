@@ -564,6 +564,13 @@ if __name__ == "__main__":
                                                 echo "    - ProxyJump={jump_host}" >> etc/salt/roster
                                                 """
                                             ).format(jump_host=server["ssh"]["jump"]["host"])
+                                    if "roster_opts" in server:
+                                        for optname, optval in server["roster_opts"].items():
+                                            client_server_list += textwrap.dedent(
+                                                """
+                                                echo "  {optname}: {optval}" >> etc/salt/roster
+                                                """
+                                            ).format(optname=optname, optval=optval)
 
                         # Also add salt masters for salt type
                         if client_dict["configuration_management"]["type"] == "salt":

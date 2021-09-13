@@ -14,6 +14,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2019Server
   # 0:10
   ufw:
     type: salt_cmd
@@ -31,6 +32,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2019Server
         - unknown
   # 0:20
   sysadmws-utils:
@@ -201,6 +203,7 @@ jobs:
     os:
       include:
         - 2008ServerR2
+        - 2019Server
   # 2:00
   put_check_files:
     type: salt_cmd
@@ -228,4 +231,5 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2019Server
         - unknown

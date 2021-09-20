@@ -2617,6 +2617,8 @@ if __name__ == "__main__":
                         # Init empty tariff for row
                         row_tariff_rate = 0
                         row_tariff_currency = ""
+                        row_tariff_plan = ""
+                        row_wc_pid = None
 
                         # Add to report if hourly issue only
                         if row_issue_is_hourly:
@@ -2671,7 +2673,7 @@ if __name__ == "__main__":
 
                                         
                                 # Check if we have some tariff to check
-                                # It is ok if None - it means the label is not server or No Server label (not monetazible)
+                                # It is ok if None - it means the label is not (server or No Server) label (not monetazible)
                                 if checked_tariffs is not None:
                                 
                                     # Init empty tariff

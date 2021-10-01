@@ -475,6 +475,7 @@ if __name__ == "__main__":
                                     CLIENT_DOMAIN={CLIENT_DOMAIN} \
                                     SALT_MINION_VERSION={SALT_MINION_VERSION} \
                                     SALT_MASTER_VERSION={SALT_MASTER_VERSION} \
+                                    SALT_VERSION={SALT_VERSION} \
                                     SALT_MASTER_1_NAME={SALT_MASTER_1_NAME} \
                                     SALT_MASTER_1_IP={SALT_MASTER_1_IP} \
                                     SALT_MASTER_1_EXT_IP={SALT_MASTER_1_EXT_IP} \

@@ -507,6 +507,7 @@ if __name__ == "__main__":
                             STAGING_SALT_MASTER=client_dict["configuration_management"]["salt"]["staging_server"],
                             SALT_MINION_VERSION=client_dict["configuration_management"]["salt"]["version"],
                             SALT_MASTER_VERSION=client_dict["configuration_management"]["salt"]["version"],
+                            SALT_VERSION=client_dict["configuration_management"]["salt"]["version"]
                             ROOT_EMAIL=client_dict["configuration_management"]["templates"]["root_email"],
                             TELEGRAM_TOKEN=client_dict["configuration_management"]["templates"]["telegram_token"],
                             TELEGRAM_CHAT_ID=client_dict["configuration_management"]["templates"]["telegram_chat_id"],

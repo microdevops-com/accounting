@@ -20,7 +20,11 @@ gitlab:
     deploy_keys: []
 configuration_management:
   type: salt-ssh
-  skip_roster: True
+  #skip_roster: True # optional to do not manage roster file with code
+  #sub_clients: ALL # optional, add all other clients as sub clients available in jinja vars for templates
+  sub_clients: # optional, the same but specific clients
+    - OtherClient1
+    - OtherClient2
   templates:
     root_email: mon@example.com
     telegram_token: 1111111111:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -34,6 +38,13 @@ configuration_management:
         receiver: alerta1.example.com
         token: xxx
     runner_source_ip: 1.1.1.1
+    files:
+      - path: pillar/heartbeat_mesh/example/receiver.sls
+        jinja: pillar/heartbeat_mesh/example/receiver.jinja.sls
+      - path: include/otherclient1/pillar/rsnapshot_backup/otherclient1/backup.sls
+        sub_client_project_file:
+          sub_client: OtherClient1
+          path: pillar/rsnapshot_backup/otherclient1/backup.sls
   salt-ssh:
     version: 3001
 servers:

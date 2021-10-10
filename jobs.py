@@ -27,6 +27,22 @@ HISTORY_LOCK = ".jobs/history.lock"
 LOCK_TIMEOUT = 600 # Supposed to be run each 10 minutes, so lock for 10 minutes
 MINUTES_JITTER = 10 # Jobs are run on some minute between 00 and 10 minutes each 10 minutes
 
+# Funcs
+# Helps to find tariff in tariffs list which is activated for event date
+def activated_tariff(tariffs, event_date_time):
+    event_tariff = None
+    for tariff in tariffs:
+        tariff_date_time = datetime.combine(tariff["activated"], time.min)
+        # Event datetime must be later than tariff datetime
+        if event_date_time > tariff_date_time:
+            event_tariff = tariff
+            break
+    if event_tariff is not None:
+        logger.info("Found activated tariff {0} for event date time {1}".format(event_tariff, event_date_time))
+        return event_tariff
+    else:
+        raise Exception("Event date time {0} out of available tariffs date time".format(event_date_time))
+
 # Main
 
 if __name__ == "__main__":
@@ -211,7 +227,7 @@ if __name__ == "__main__":
 
                                     # Take the first (upper and current) tariff
                                     all_tar_lic_list = []
-                                    for server_tariff in server["tariffs"][0]["tariffs"]:
+                                    for server_tariff in activated_tariff(server["tariffs"], datetime.now())["tariffs"]:
 
                                         # If tariff has file key - load it
                                         if "file" in server_tariff:

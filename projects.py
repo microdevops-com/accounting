@@ -11,6 +11,9 @@ import re
 import yaml
 from ruamel.yaml import YAML
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from datetime import datetime
+from datetime import time
 
 # Constants and envs
 
@@ -18,6 +21,7 @@ LOGO="Projects"
 WORK_DIR = os.environ.get("ACC_WORKDIR", "/opt/sysadmws/accounting")
 LOG_DIR = os.environ.get("ACC_LOGDIR", "/opt/sysadmws/accounting/log")
 LOG_FILE = "projects.log"
+TARIFFS_SUBDIR = "tariffs"
 CLIENTS_SUBDIR = "clients"
 YAML_GLOB = "*.yaml"
 YAML_EXT = "yaml"
@@ -37,6 +41,68 @@ def open_file(d, f, mode):
             else:
                 raise
     return open("{0}/{1}".format(d, f), mode)
+
+# Helps to find tariff in tariffs list which is activated for event date
+def activated_tariff(tariffs, event_date_time):
+    event_tariff = None
+    for tariff in tariffs:
+        tariff_date_time = datetime.combine(tariff["activated"], time.min)
+        # Event datetime must be later than tariff datetime
+        if event_date_time > tariff_date_time:
+            event_tariff = tariff
+            break
+    if event_tariff is not None:
+        logger.info("Found activated tariff {0} for event date time {1}".format(event_tariff, event_date_time))
+        return event_tariff
+    else:
+        raise Exception("Event date time {0} out of available tariffs date time".format(event_date_time))
+
+def active_tar_and_lic_per_server(client_dict):
+
+    tariffs = {}
+    licenses = {}
+
+    # Make server list
+    servers_list = []
+    if "servers" in client_dict:
+        servers_list.extend(client_dict["servers"])
+    if client_dict["configuration_management"]["type"] == "salt":
+        servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
+
+    # Iterate over servers in client
+    for server in servers_list:
+
+        tariffs[server["fqdn"]] = []
+        licenses[server["fqdn"]] = []
+
+        # Iterate over tariffs
+        for server_tariff in activated_tariff(server["tariffs"], datetime.now())["tariffs"]:
+
+            # If tariff has file key - load it
+            if "file" in server_tariff:
+
+                tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
+                if tariff_dict is None:
+                    raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
+
+                # Add tariff to the tariff list for the server
+                tariffs[server["fqdn"]].append(tariff_dict)
+
+                # Add tariff plan licenses to all tariffs lic list if exist
+                if "licenses" in tariff_dict:
+                    licenses[server["fqdn"]].extend(tariff_dict["licenses"])
+
+            # Also take inline plan and service
+            else:
+
+                # Add tariff to the tariff list for the server
+                tariffs[server["fqdn"]].append(server_tariff)
+
+                # Add tariff plan licenses to all tariffs lic list if exist
+                if "licenses" in server_tariff:
+                    licenses[server["fqdn"]].extend(server_tariff["licenses"])
+
+    return tariffs, licenses
 
 # Main
 
@@ -376,7 +442,61 @@ if __name__ == "__main__":
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
-                    # Switch config management type
+                    # Init empty template vars
+                    template_var_clients = {}
+                    template_var_server_tariffs = {}
+                    template_var_server_licenses = {}
+
+                    # Check sub_clients before adding
+                    if "sub_clients" in client_dict["configuration_management"]:
+
+                        # For *.yaml in client dir
+                        for template_var_client_file in glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB)):
+
+                            # Load client YAML
+                            template_var_client_dict = load_yaml("{0}/{1}".format(WORK_DIR, template_var_client_file), logger)
+                            if template_var_client_dict is None:
+                                raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, template_var_client_file))
+
+                            # Add if sub_clients match, add parent client to sub_client as well
+                            if (type(client_dict["configuration_management"]["sub_clients"]) == str and client_dict["configuration_management"]["sub_clients"] == "ALL") or template_var_client_dict["name"] in client_dict["configuration_management"]["sub_clients"] or template_var_client_dict["name"] == client_dict["name"]:
+                                template_var_clients[template_var_client_dict["name"]] = template_var_client_dict
+                                template_var_server_tariffs[template_var_client_dict["name"]], template_var_server_licenses[template_var_client_dict["name"]] = active_tar_and_lic_per_server(template_var_client_dict)
+                                logger.info("Added client to template: {0}".format(template_var_client_file))
+
+                    # File Templates
+                    if "templates" in client_dict["configuration_management"] and "files" in client_dict["configuration_management"]["templates"]:
+
+                        for templated_file in client_dict["configuration_management"]["templates"]["files"]:
+
+                            # Jinja templates
+                            if "jinja" in templated_file:
+
+                                logger.info("Rendering jinja template: {0}".format(templated_file["jinja"]))
+                                j2_env = Environment(loader=FileSystemLoader(PROJECTS_SUBDIR + "/" + project.path_with_namespace), trim_blocks=True)
+                                template = j2_env.get_template(templated_file["jinja"])
+                                rendered_template = template.render(
+                                    clients = template_var_clients,
+                                    server_tariffs = template_var_server_tariffs,
+                                    server_licenses = template_var_server_licenses
+                                )
+
+                                logger.info("Rendered template: {0}".format(rendered_template))
+
+                                logger.info("Saving jinja template to file: {0}".format(templated_file["path"]))
+                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "w") as templated_file_handler:
+                                    templated_file_handler.write(rendered_template)
+
+                            # Copy files from other projects
+                            if "sub_client_project_file" in templated_file:
+
+                                # Get Gitlab project
+                                sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])
+                                logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
+
+                                # Get File from project and save it
+                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
+                                    sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
 
                     # Salt-SSH
                     if client_dict["configuration_management"]["type"] == "salt-ssh":

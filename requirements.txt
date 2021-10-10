@@ -12,3 +12,4 @@ filelock==3.0.12
 pytz
 retrying
 ruamel.yaml
+jinja2==2.11.*

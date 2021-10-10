@@ -2671,7 +2671,6 @@ if __name__ == "__main__":
                                                     logger.error("Server {server} find active tariff error".format(server=client_server["fqdn"]))
                                                     raise
 
-                                        
                                 # Check if we have some tariff to check
                                 # It is ok if None - it means the label is not (server or No Server) label (not monetazible)
                                 if checked_tariffs is not None:

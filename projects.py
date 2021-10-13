@@ -72,35 +72,37 @@ def active_tar_and_lic_per_server(client_dict):
     # Iterate over servers in client
     for server in servers_list:
 
-        tariffs[server["fqdn"]] = []
-        licenses[server["fqdn"]] = []
+        if server["active"]:
 
-        # Iterate over tariffs
-        for server_tariff in activated_tariff(server["tariffs"], datetime.now())["tariffs"]:
+            tariffs[server["fqdn"]] = []
+            licenses[server["fqdn"]] = []
 
-            # If tariff has file key - load it
-            if "file" in server_tariff:
+            # Iterate over tariffs
+            for server_tariff in activated_tariff(server["tariffs"], datetime.now())["tariffs"]:
 
-                tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
-                if tariff_dict is None:
-                    raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
+                # If tariff has file key - load it
+                if "file" in server_tariff:
 
-                # Add tariff to the tariff list for the server
-                tariffs[server["fqdn"]].append(tariff_dict)
+                    tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
+                    if tariff_dict is None:
+                        raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
 
-                # Add tariff plan licenses to all tariffs lic list if exist
-                if "licenses" in tariff_dict:
-                    licenses[server["fqdn"]].extend(tariff_dict["licenses"])
+                    # Add tariff to the tariff list for the server
+                    tariffs[server["fqdn"]].append(tariff_dict)
 
-            # Also take inline plan and service
-            else:
+                    # Add tariff plan licenses to all tariffs lic list if exist
+                    if "licenses" in tariff_dict:
+                        licenses[server["fqdn"]].extend(tariff_dict["licenses"])
 
-                # Add tariff to the tariff list for the server
-                tariffs[server["fqdn"]].append(server_tariff)
+                # Also take inline plan and service
+                else:
 
-                # Add tariff plan licenses to all tariffs lic list if exist
-                if "licenses" in server_tariff:
-                    licenses[server["fqdn"]].extend(server_tariff["licenses"])
+                    # Add tariff to the tariff list for the server
+                    tariffs[server["fqdn"]].append(server_tariff)
+
+                    # Add tariff plan licenses to all tariffs lic list if exist
+                    if "licenses" in server_tariff:
+                        licenses[server["fqdn"]].extend(server_tariff["licenses"])
 
     return tariffs, licenses
 

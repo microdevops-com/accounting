@@ -476,6 +476,7 @@ if __name__ == "__main__":
 
                                 logger.info("Rendering jinja template: {0}".format(templated_file["jinja"]))
                                 j2_env = Environment(loader=FileSystemLoader(PROJECTS_SUBDIR + "/" + project.path_with_namespace), trim_blocks=True)
+                                j2_env.add_extension('jinja2.ext.do')
                                 template = j2_env.get_template(templated_file["jinja"])
                                 rendered_template = template.render(
                                     clients = template_var_clients,

@@ -31,6 +31,8 @@ configuration_management:
     telegram_chat_id: -111111111
     alerta_url: https://alerta.example.com/api/alert
     alerta_api_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    alerta_api_key_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    alerta_api_customer_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
     default_tz: Etc_UTC
     client_domain: example.com
     heartbeat_mesh:

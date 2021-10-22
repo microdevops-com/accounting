@@ -30,9 +30,9 @@ configuration_management:
     telegram_token: 1111111111:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     telegram_chat_id: -111111111
     alerta_url: https://alerta.example.com/api/alert
-    alerta_api_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    alerta_api_key_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    alerta_api_customer_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    alerta_api_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 40 | head -n 1
+    alerta_api_key_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx # apt-get install uuid-runtime; uuidgen
+    alerta_api_customer_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx # apt-get install uuid-runtime; uuidgen
     default_tz: Etc_UTC
     client_domain: example.com
     heartbeat_mesh:

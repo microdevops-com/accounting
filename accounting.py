@@ -1250,8 +1250,8 @@ if __name__ == "__main__":
                                         if "os" not in server:
                                             raise Exception("os key missing in server {server}".format(server=server["fqdn"]))
                                         
-                                        if server["os"] not in ["precise", "trusty", "xenial", "bionic", "focal", "2008ServerR2", "2019Server", "unknown"]:
-                                            raise Exception("os value {os} not allowed in server {server}".format(os=server["os"], server=server["fqdn"]))
+                                        if server["os"] not in acc_yaml_dict["os"]:
+                                            raise Exception("os value {os} not in globally allowed list for server {server}".format(os=server["os"], server=server["fqdn"]))
 
                                     for server_tariff in server["tariffs"][0]["tariffs"]:
 

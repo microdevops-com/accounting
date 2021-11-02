@@ -1,5 +1,16 @@
 gitlab:
   url: https://gitlab.example.com
+os: # allowed os for servers
+  - precise
+  - trusty
+  - xenial
+  - bionic
+  - focal
+  - 2008ServerR2
+  - 2019Server
+  - centos7
+  - centos8
+  - unknown
 jobs:
   # Check minions
   test_ping:

@@ -63,3 +63,13 @@ servers:
         added: 1970-01-01
         tariffs:
           - file: free-1.yaml
+    jobs: # optional per server jobs
+      some_job:
+        type: salt_cmd
+        cmd: state.apply some_state
+        timeout: 36000
+        tz: Europe/Kiev
+        each:
+          days: 1
+        hours:
+          - 1

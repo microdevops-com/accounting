@@ -251,7 +251,7 @@ if __name__ == "__main__":
                             project.description = "{client} Salt Masters /srv".format(client=client_dict["name"])
                             project.visibility = "private"
                             project.shared_runners_enabled = False
-                            project.only_allow_merge_if_pipeline_succeeds = True
+                            project.only_allow_merge_if_pipeline_succeeds = acc_yaml_dict["gitlab"]["salt_project"]["only_allow_merge_if_pipeline_succeeds"]
                             project.only_allow_merge_if_all_discussions_are_resolved = True
                             project.resolve_outdated_diff_discussions = True
                             project.build_timeout = 86400
@@ -263,8 +263,10 @@ if __name__ == "__main__":
                             for deploy_key in client_dict["gitlab"]["salt_project"]["deploy_keys"]:
                                 key = project.keys.create({'title': deploy_key["title"], 'key': deploy_key["key"]})
                             # Protected tags
-                            if not any(project_tag.name == 'run_*' for project_tag in project.protectedtags.list()):
-                                project.protectedtags.create({'name': 'run_*', 'create_access_level': '40'})
+                            if any(project_tag.name == 'run_*' for project_tag in project.protectedtags.list(all=True)):
+                                p_tag = project.protectedtags.get('run_*')
+                                p_tag.delete()
+                            project.protectedtags.create({'name': 'run_*', 'create_access_level': str(acc_yaml_dict["gitlab"]["salt_project"]["run_tag_create_access_level"])})
                             # Runner for salt-ssh
                             if "runners" in client_dict["gitlab"]["salt_project"]:
                                 dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"]

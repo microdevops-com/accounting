@@ -503,6 +503,12 @@ if __name__ == "__main__":
                                 with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
                                     sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
 
+                    # Defaults
+                    if "templates" in client_dict["configuration_management"] and "ufw_type" in client_dict["configuration_management"]["templates"]:
+                        ufw_type = client_dict["configuration_management"]["templates"]["ufw_type"]
+                    else:
+                        ufw_type = acc_yaml_dict["defaults"]["ufw_type"]
+
                     # Salt-SSH
                     if client_dict["configuration_management"]["type"] == "salt-ssh":
 
@@ -529,6 +535,7 @@ if __name__ == "__main__":
                                     SALTSSH_ROOT_ED25519_PUB="{SALTSSH_ROOT_ED25519_PUB}" \
                                     SALTSSH_RUNNER_SOURCE_IP={SALTSSH_RUNNER_SOURCE_IP} \
                                     SALT_VERSION={SALT_VERSION} \
+                                    UFW={UFW} \
                                     ./install.sh ../{PROJECTS_SUBDIR}/{path_with_namespace} salt-ssh
                             
                             cd ../.salt-project-private-template
@@ -554,7 +561,8 @@ if __name__ == "__main__":
                             PROD_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["prod"],
                             SALTSSH_ROOT_ED25519_PUB=client_dict["gitlab"]["salt_project"]["variables"]["SALTSSH_ROOT_ED25519_PUB"],
                             SALTSSH_RUNNER_SOURCE_IP=client_dict["configuration_management"]["templates"]["runner_source_ip"],
-                            SALT_VERSION=client_dict["configuration_management"]["salt-ssh"]["version"]
+                            SALT_VERSION=client_dict["configuration_management"]["salt-ssh"]["version"],
+                            UFW=ufw_type
                         )
                         logger.info("Running bash script:")
                         logger.info(script)
@@ -612,6 +620,7 @@ if __name__ == "__main__":
                                     SALT_MASTER_PORT_1={SALT_MASTER_PORT_1} \
                                     SALT_MASTER_PORT_2={SALT_MASTER_PORT_2} \
                                     STAGING_SALT_MASTER={STAGING_SALT_MASTER} \
+                                    UFW={UFW} \
                                     ./install.sh ../{PROJECTS_SUBDIR}/{path_with_namespace} salt
                             
                             cd ../.salt-project-private-template
@@ -646,7 +655,8 @@ if __name__ == "__main__":
                             VENDOR=client_dict["vendor"].lower(),
                             VENDOR_FULL=client_dict["vendor"],
                             DEFAULT_TZ=client_dict["configuration_management"]["templates"]["default_tz"],
-                            CLIENT_DOMAIN=client_dict["configuration_management"]["templates"]["client_domain"]
+                            CLIENT_DOMAIN=client_dict["configuration_management"]["templates"]["client_domain"],
+                            UFW=ufw_type
                         )
                         logger.info("Running bash script:")
                         logger.info(script)

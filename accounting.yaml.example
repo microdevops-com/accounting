@@ -17,6 +17,8 @@ os: # allowed os for servers
   - centos7
   - centos8
   - unknown
+defaults:
+  ufw_type: ufw_simple
 jobs:
   # Check minions
   test_ping:

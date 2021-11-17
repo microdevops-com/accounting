@@ -26,6 +26,7 @@ configuration_management:
     - OtherClient1
     - OtherClient2
   templates:
+    ufw_type: ufw # optional, override default ufw_type set by accounting.yaml
     root_email: mon@example.com
     telegram_token: 1111111111:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     telegram_chat_id: -111111111

@@ -64,6 +64,7 @@ servers:
         added: 1970-01-01
         tariffs:
           - file: free-1.yaml
+    #jobs_disabled: True # optional, disable jobs for this server
     jobs: # optional per server jobs
       some_job:
         type: salt_cmd

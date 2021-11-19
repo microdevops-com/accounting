@@ -236,7 +236,7 @@ if __name__ == "__main__":
     group.add_argument("--yaml-check", dest="yaml_check", help="check yaml structure", action="store_true")
     group.add_argument("--server-labels", dest="server_labels", help="sync server labels", action="store_true")
     group.add_argument("--issues-check", dest="issues_check", help="report issue activities as new issue in accounting project", action="store_true")
-    group.add_argument("--storage-usage", dest="storage_usage", help="save servers all clients servers billable storage usage to database", action="store_true")
+    group.add_argument("--storage-usage", dest="storage_usage", help="save servers all clients servers billable storage usage to database, excluding --exclude-clients or only for --include-clients", action="store_true")
     group.add_argument("--update-envelopes-for-client", dest="update_envelopes_for_client", help="update envelope pdfs in envelopes folder for client CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--update-envelopes-for-all-clients", dest="update_envelopes_for_all_clients", help="update envelope pdfs in envelopes folder for all clients excluding --exclude-clients or only for --include-clients", action="store_true")
     group.add_argument("--make-pdfs-for-client", dest="make_pdfs_for_client", help="make pdfs for client CLIENT folder for docs that do not have pdf copy yet", nargs=1, metavar=("CLIENT"))
@@ -383,7 +383,25 @@ if __name__ == "__main__":
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
                 # Check if client is active
-                if client_dict["active"]:
+                if client_dict["active"] and (
+                                                    (
+                                                        args.exclude_clients is not None
+                                                        and
+                                                        client_dict["name"].lower() not in exclude_clients_list
+                                                    )
+                                                    or
+                                                    (
+                                                        args.include_clients is not None
+                                                        and
+                                                        client_dict["name"].lower() in include_clients_list
+                                                    )
+                                                    or
+                                                    (
+                                                        args.exclude_clients is None
+                                                        and
+                                                        args.include_clients is None
+                                                    )
+                                                ):
 
                     # Make server list
                     servers_list = []
@@ -415,6 +433,9 @@ if __name__ == "__main__":
                                                 cmd = "{folder}".format(folder=storage_path)
                                                 logger.info("SSH cmd: {storage_server}:{cmd}".format(storage_server=storage_server, cmd=cmd))
 
+                                                # Clear value
+                                                mb_used = None
+
                                                 try:
                                                     private_key = paramiko.Ed25519Key.from_private_key_file(SSH_DU_S_M_KEYFILE)
                                                     ssh_client = paramiko.SSHClient()
@@ -433,50 +454,52 @@ if __name__ == "__main__":
                                                         logger.info("SSH value received via stdout:")
                                                         mb_used = int("".join(stdout.readlines()))
                                                         logger.info(mb_used)
+
+                                                        # Save usage to db
+
+                                                        # New cursor
+                                                        cur = conn.cursor()
+
+                                                        # Queries
+                                                        sql = """
+                                                        INSERT INTO
+                                                                storage_usage
+                                                                (
+                                                                        checked_at
+                                                                ,       client_server_fqdn
+                                                                ,       storage_server_fqdn
+                                                                ,       storage_server_path
+                                                                ,       mb_used
+                                                                )
+                                                        VALUES
+                                                                (
+                                                                        NOW() AT TIME ZONE 'UTC'
+                                                                ,       '{client_server_fqdn}'
+                                                                ,       '{storage_server_fqdn}'
+                                                                ,       '{storage_server_path}'
+                                                                ,       {mb_used}
+                                                                )
+                                                        ;
+                                                        """.format(client_server_fqdn=server["fqdn"], storage_server_fqdn=storage_server, storage_server_path=storage_path, mb_used=mb_used)
+                                                        logger.info("Query:")
+                                                        logger.info(sql)
+                                                        try:
+                                                            cur.execute(sql)
+                                                            logger.info("Query execution status:")
+                                                            logger.info(cur.statusmessage)
+                                                            conn.commit()
+                                                        except Exception as e:
+                                                            raise Exception("Caught exception on query execution")
+
+                                                        # Close cursor
+                                                        cur.close()
+
                                                     ssh_client.close()
                                                 except Exception as e:
                                                     logger.error("Caught exception on SSH execution")
                                                     logger.exception(e)
                                                     errors = True
 
-                                                # Save usage to db
-                                                
-                                                # New cursor
-                                                cur = conn.cursor()
-
-                                                # Queries
-                                                sql = """
-                                                INSERT INTO
-                                                        storage_usage
-                                                        (
-                                                                checked_at
-                                                        ,       client_server_fqdn
-                                                        ,       storage_server_fqdn
-                                                        ,       storage_server_path
-                                                        ,       mb_used
-                                                        )
-                                                VALUES
-                                                        (
-                                                                NOW() AT TIME ZONE 'UTC'
-                                                        ,       '{client_server_fqdn}'
-                                                        ,       '{storage_server_fqdn}'
-                                                        ,       '{storage_server_path}'
-                                                        ,       {mb_used}
-                                                        )
-                                                ;
-                                                """.format(client_server_fqdn=server["fqdn"], storage_server_fqdn=storage_server, storage_server_path=storage_path, mb_used=mb_used)
-                                                logger.info("Query:")
-                                                logger.info(sql)
-                                                try:
-                                                    cur.execute(sql)
-                                                    logger.info("Query execution status:")
-                                                    logger.info(cur.statusmessage)
-                                                    conn.commit()
-                                                except Exception as e:
-                                                    raise Exception("Caught exception on query execution")
-
-                                                # Close cursor
-                                                cur.close()
             # Exit with error if there were errors
             if errors:
                 raise Exception("There were errors within SSH execution")

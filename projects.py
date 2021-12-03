@@ -429,17 +429,16 @@ if __name__ == "__main__":
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
                             echo Already cloned, fetching and resetting to origin
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
-                            git fetch origin
-                            git fetch --prune origin +refs/tags/*:refs/tags/*
+                            git fetch origin --no-tags
                             git reset --hard origin/master
                             git clean -ffdx
                         else
-                            git clone {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
+                            git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         fi
                         git submodule init
                         git submodule update -f --checkout
-                        git submodule foreach "git checkout master && git pull && git fetch --prune origin +refs/tags/*:refs/tags/*"
+                        git submodule foreach "git checkout master && git pull --no-tags"
                         """
                     ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace)
                     logger.info("Running bash script:")
@@ -936,17 +935,16 @@ if __name__ == "__main__":
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
                             echo Already cloned, fetching and resetting to origin
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
-                            git fetch origin
-                            git fetch --prune origin +refs/tags/*:refs/tags/*
+                            git fetch origin --no-tags
                             git reset --hard origin/master
                             git clean -ffdx
                         else
-                            git clone {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
+                            git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         fi
                         git submodule init
                         git submodule update -f --checkout
-                        git submodule foreach "git checkout master && git pull && git fetch --prune origin +refs/tags/*:refs/tags/*"
+                        git submodule foreach "git checkout master && git pull --no-tags"
                         """
                     ).format(ssh_url_to_repo=ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace)
                     logger.info("Running bash script:")

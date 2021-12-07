@@ -439,6 +439,7 @@ if __name__ == "__main__":
                         git submodule init
                         git submodule update -f --checkout
                         git submodule foreach "git checkout master && git pull --no-tags"
+                        ln -sf ../../.githooks/pre-push .git/hooks/pre-push
                         """
                     ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace)
                     logger.info("Running bash script:")

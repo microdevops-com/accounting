@@ -114,6 +114,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='{LOGO} functions.'.format(LOGO=LOGO))
     parser.add_argument("--debug", dest="debug", help="enable debug", action="store_true")
     parser.add_argument("--git-push", dest="git_push", help="push after commit", action="store_true")
+    parser.add_argument("--git-branch", dest="git_branch", help="commit to branch BRANCH instead of master", nargs=1, metavar=("BRANCH"))
     parser.add_argument("--dry-run-gitlab", dest="dry_run_gitlab", help="no new objects created in gitlab", action="store_true")
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -859,15 +860,21 @@ if __name__ == "__main__":
                                 logger.info("Pillar written to the file: {dir}/{file_name}".format(dir=pillar_dirname, file_name=pillar_filename))
 
                     # Commit changes
+                    if args.git_branch is not None:
+                        git_branch_branch, = args.git_branch
+                        git_branch_text = "git checkout -b {git_branch_branch}".format(git_branch_branch=git_branch_branch)
+                    else:
+                        git_branch_text = ""
                     script = textwrap.dedent(
                         """
                         set -e
                         cd {PROJECTS_SUBDIR}/{path_with_namespace}
+                        {branch}
                         git add -A
                         git commit -m ".salt-project-template, .salt-project-private-template installed" || true
                         {push}
                         """
-                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, push="git push" if args.git_push else "")
+                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "")
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
@@ -1042,15 +1049,21 @@ if __name__ == "__main__":
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
                     # Commit changes
+                    if args.git_branch is not None:
+                        git_branch_branch, = args.git_branch
+                        git_branch_text = "git checkout -b {git_branch_branch}".format(git_branch_branch=git_branch_branch)
+                    else:
+                        git_branch_text = ""
                     script = textwrap.dedent(
                         """
                         set -e
                         cd {PROJECTS_SUBDIR}/{path_with_namespace}
+                        {branch}
                         git add -A
                         git commit -m "project wiki updated from accounting/projects.py" || true
                         {push}
                         """
-                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, push="git push" if args.git_push else "")
+                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "")
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")

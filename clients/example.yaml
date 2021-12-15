@@ -5,6 +5,8 @@ active: True
 gitlab:
   admin_project:
     path: example/devops/example-admin
+  # 8< ============================================================
+  # salt-ssh
   salt_project:
     path: example/devops/example-salt
     runners:
@@ -12,15 +14,28 @@ gitlab:
       prod: saltssh1.example.com # docker executor
     variables:
       # ssh-keygen -N "" -t ed25519 -f ./tmp/saltssh-root -C root@example.com
-      SALTSSH_ROOT_ED25519_PRIV: |
+      SALTSSH_ROOT_ED25519_PRIV: | # ssh-keygen -N "" -t ed25519 -f ./tmp/saltssh-root -C devops@example.com
         -----BEGIN OPENSSH PRIVATE KEY-----
         ...
         -----END OPENSSH PRIVATE KEY-----
       SALTSSH_ROOT_ED25519_PUB: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx devops@example.com
     deploy_keys: []
+  # 8< ============================================================
+  # salt
+  salt_project:
+    path: example/devops/example-salt
+    deploy_keys:
+      - title: root@saltX.example.com # ssh-keygen -N "" -t ed25519 -f ./tmp/salt-root -C root@saltX.example.com
+        key: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com
+  # 8< ============================================================
+#
 configuration_management:
+  # 8< ============================================================
   type: salt-ssh
-  #skip_roster: True # optional to do not manage roster file with code
+  # 8< ============================================================
+  type: salt
+  # 8< ============================================================
+  #skip_roster: True # optional to do not manage roster file with code, roster needed for both salt and salt-ssh to work via docker+salt-ssh locally
   #sub_clients: ALL # optional, add all other clients as sub clients available in jinja vars for templates
   sub_clients: # optional, the same but specific clients
     - OtherClient1
@@ -49,8 +64,104 @@ configuration_management:
         sub_client_project_file:
           sub_client: OtherClient1
           path: pillar/rsnapshot_backup/otherclient1/backup.sls
+  # 8< ============================================================
   salt-ssh:
     version: 3001
+  # 8< ============================================================
+  salt:
+    version: 3001
+    pki:
+      master_sign: # Here and below use ./salt-key.py --gen-keys=tmp/some_xxx, EACH key pair is unique
+        pem: |
+          -----BEGIN RSA PRIVATE KEY-----
+          ...
+          -----END RSA PRIVATE KEY-----
+        pub: |
+          -----BEGIN PUBLIC KEY-----
+          ...
+          -----END PUBLIC KEY-----
+    masters:
+      - fqdn: salt1.example.com
+        active: True
+        tariffs:
+          - activated: 1970-01-01
+            added: 1970-01-01
+            tariffs:
+              - file: free-1.yaml
+        location: Hetzner Cloud
+        os: focal
+        ip: 1.2.3.4
+        external_ip: 1.2.3.4
+        external_ports:
+          - 4505
+          - 4506
+        root_ed25519: # Use the same key as for salt_project above
+          priv: |
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            ...
+            -----END OPENSSH PRIVATE KEY-----
+          pub: |
+            ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com
+        pki:
+          minion:
+            pem: |
+              -----BEGIN RSA PRIVATE KEY-----
+              ...
+              -----END RSA PRIVATE KEY-----
+            pub: |
+              -----BEGIN PUBLIC KEY-----
+              ...
+              -----END PUBLIC KEY-----
+          master:
+            pem: |
+              -----BEGIN RSA PRIVATE KEY-----
+              ...
+              -----END RSA PRIVATE KEY-----
+            pub: |
+              -----BEGIN PUBLIC KEY-----
+              ...
+              -----END PUBLIC KEY-----
+      - fqdn: salt2.example.com
+        active: True
+        tariffs:
+          - activated: 1970-01-01
+            added: 1970-01-01
+            tariffs:
+              - file: free-1.yaml
+        location: Hetzner Cloud
+        os: focal
+        ip: 4.3.2.1
+        external_ip: 4.3.2.1
+        external_ports:
+          - 4505
+          - 4506
+        root_ed25519:
+          priv: |
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            ...
+            -----END OPENSSH PRIVATE KEY-----
+          pub: |
+            ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com
+        pki:
+          minion:
+            pem: |
+              -----BEGIN RSA PRIVATE KEY-----
+              ...
+              -----END RSA PRIVATE KEY-----
+            pub: |
+              -----BEGIN PUBLIC KEY-----
+              ...
+              -----END PUBLIC KEY-----
+          master:
+            pem: |
+              -----BEGIN RSA PRIVATE KEY-----
+              ...
+              -----END RSA PRIVATE KEY-----
+            pub: |
+              -----BEGIN PUBLIC KEY-----
+              ...
+              -----END PUBLIC KEY-----
+  # 8< ============================================================
 servers:
   - fqdn: server1.example.com
     location: Hetzner
@@ -76,3 +187,15 @@ servers:
           days: 1
         hours:
           - 1
+  # 8< ============================================================
+  # salt
+    minion: # for the servers you can generate minion keys in vim using command `:.!../gen_minion_pem_pub.sh`
+      pem: |
+        -----BEGIN RSA PRIVATE KEY-----
+        ...
+        -----END RSA PRIVATE KEY-----
+      pub: |
+        -----BEGIN PUBLIC KEY-----
+        ...
+        -----END PUBLIC KEY-----
+  # 8< ============================================================

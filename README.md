@@ -37,6 +37,8 @@ ln -s .accounting/requirements.txt
 ln -s .accounting/sysadmws_common.py
 ln -s .accounting/accounting_db_structure.sql
 ln -s .accounting/.gitignore
+ln -s .accounting/salt-key.py
+ln -s .accounting/gen_minion_pem_pub.sh
 ln -s .gsuite-scripts/gsuite_scripts.py
 ```
 

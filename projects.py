@@ -620,7 +620,6 @@ if __name__ == "__main__":
                                     SALT_MASTER_2_SSH_PUB="{SALT_MASTER_2_SSH_PUB}" \
                                     SALT_MASTER_PORT_1={SALT_MASTER_PORT_1} \
                                     SALT_MASTER_PORT_2={SALT_MASTER_PORT_2} \
-                                    STAGING_SALT_MASTER={STAGING_SALT_MASTER} \
                                     UFW={UFW} \
                                     ./install.sh ../{PROJECTS_SUBDIR}/{path_with_namespace} salt
                             
@@ -640,7 +639,6 @@ if __name__ == "__main__":
                             SALT_MASTER_2_SSH_PUB=salt_master_ssh_pub[1],
                             SALT_MASTER_PORT_1=salt_master_ext_ports[0][0],
                             SALT_MASTER_PORT_2=salt_master_ext_ports[0][1],
-                            STAGING_SALT_MASTER=client_dict["configuration_management"]["salt"]["staging_server"],
                             SALT_MINION_VERSION=client_dict["configuration_management"]["salt"]["version"],
                             SALT_MASTER_VERSION=client_dict["configuration_management"]["salt"]["version"],
                             SALT_VERSION=client_dict["configuration_management"]["salt"]["version"],

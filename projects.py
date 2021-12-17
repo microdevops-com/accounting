@@ -448,7 +448,8 @@ if __name__ == "__main__":
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
                     # Init empty template vars
-                    template_var_clients = {}
+                    template_var_clients_dict = {}
+                    template_var_clients_list = []
                     template_var_server_tariffs = {}
                     template_var_server_licenses = {}
 
@@ -456,7 +457,7 @@ if __name__ == "__main__":
                     if "sub_clients" in client_dict["configuration_management"]:
 
                         # For *.yaml in client dir
-                        for template_var_client_file in glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB)):
+                        for template_var_client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
 
                             # Load client YAML
                             template_var_client_dict = load_yaml("{0}/{1}".format(WORK_DIR, template_var_client_file), logger)
@@ -465,7 +466,8 @@ if __name__ == "__main__":
 
                             # Add if sub_clients match, add parent client to sub_client as well
                             if (type(client_dict["configuration_management"]["sub_clients"]) == str and client_dict["configuration_management"]["sub_clients"] == "ALL") or template_var_client_dict["name"] in client_dict["configuration_management"]["sub_clients"] or template_var_client_dict["name"] == client_dict["name"]:
-                                template_var_clients[template_var_client_dict["name"]] = template_var_client_dict
+                                template_var_clients_dict[template_var_client_dict["name"]] = template_var_client_dict
+                                template_var_clients_list.append({"name": template_var_client_dict["name"], "vars": template_var_client_dict})
                                 template_var_server_tariffs[template_var_client_dict["name"]], template_var_server_licenses[template_var_client_dict["name"]] = active_tar_and_lic_per_server(template_var_client_dict)
                                 logger.info("Added client to template: {0}".format(template_var_client_file))
 
@@ -482,7 +484,7 @@ if __name__ == "__main__":
                                 j2_env.add_extension('jinja2.ext.do')
                                 template = j2_env.get_template(templated_file["jinja"])
                                 rendered_template = template.render(
-                                    clients = template_var_clients,
+                                    clients = template_var_clients_list,
                                     server_tariffs = template_var_server_tariffs,
                                     server_licenses = template_var_server_licenses
                                 )
@@ -497,8 +499,8 @@ if __name__ == "__main__":
                             if "sub_client_project_file" in templated_file:
 
                                 # Get Gitlab project
-                                sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])
-                                logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
+                                sub_client_project = gl.projects.get(template_var_clients_dict[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])
+                                logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients_dict[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
 
                                 # Get File from project and save it
                                 with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:

@@ -270,15 +270,15 @@ if __name__ == "__main__":
                             project.protectedtags.create({'name': 'run_*', 'create_access_level': str(acc_yaml_dict["gitlab"]["salt_project"]["run_tag_create_access_level"])})
                             # Runner for salt
                             if client_dict["configuration_management"]["type"] == "salt":
-                                dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
+                                dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"]
                                 for runner in gl.runners.list(all=True):
                                     if runner.description == dev_runner_to_add:
                                         if not any(added_runner.description == runner.description for added_runner in project.runners.list(all=True)):
                                             project.runners.create({'runner_id': runner.id})
                             # Runner for salt-ssh
                             if client_dict["configuration_management"]["type"] == "salt-ssh":
-                                dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
-                                prod_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["prod"] if "runners" in client_dict["gitlab"]["salt_project"] and "prod" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["prod"],
+                                dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"]
+                                prod_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["prod"] if "runners" in client_dict["gitlab"]["salt_project"] and "prod" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["prod"]
                                 for runner in gl.runners.list(all=True):
                                     if runner.description == dev_runner_to_add or runner.description == prod_runner_to_add:
                                         if not any(added_runner.description == runner.description for added_runner in project.runners.list(all=True)):

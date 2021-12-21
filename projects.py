@@ -268,10 +268,17 @@ if __name__ == "__main__":
                                 p_tag = project.protectedtags.get('run_*')
                                 p_tag.delete()
                             project.protectedtags.create({'name': 'run_*', 'create_access_level': str(acc_yaml_dict["gitlab"]["salt_project"]["run_tag_create_access_level"])})
+                            # Runner for salt
+                            if client_dict["configuration_management"]["type"] == "salt":
+                                dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
+                                for runner in gl.runners.list(all=True):
+                                    if runner.description == dev_runner_to_add:
+                                        if not any(added_runner.description == runner.description for added_runner in project.runners.list(all=True)):
+                                            project.runners.create({'runner_id': runner.id})
                             # Runner for salt-ssh
-                            if "runners" in client_dict["gitlab"]["salt_project"]:
-                                dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"]
-                                prod_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["prod"]
+                            if client_dict["configuration_management"]["type"] == "salt-ssh":
+                                dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
+                                prod_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["prod"] if "runners" in client_dict["gitlab"]["salt_project"] and "prod" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["prod"],
                                 for runner in gl.runners.list(all=True):
                                     if runner.description == dev_runner_to_add or runner.description == prod_runner_to_add:
                                         if not any(added_runner.description == runner.description for added_runner in project.runners.list(all=True)):
@@ -558,8 +565,8 @@ if __name__ == "__main__":
                             VENDOR_FULL=client_dict["vendor"],
                             DEFAULT_TZ=client_dict["configuration_management"]["templates"]["default_tz"],
                             CLIENT_DOMAIN=client_dict["configuration_management"]["templates"]["client_domain"],
-                            DEV_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["dev"],
-                            PROD_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["prod"],
+                            DEV_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
+                            PROD_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["prod"] if "runners" in client_dict["gitlab"]["salt_project"] and "prod" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["prod"],
                             SALTSSH_ROOT_ED25519_PUB=client_dict["gitlab"]["salt_project"]["variables"]["SALTSSH_ROOT_ED25519_PUB"],
                             SALTSSH_RUNNER_SOURCE_IP=client_dict["configuration_management"]["templates"]["runner_source_ip"],
                             SALT_VERSION=client_dict["configuration_management"]["salt-ssh"]["version"],
@@ -607,6 +614,7 @@ if __name__ == "__main__":
                                     VENDOR_FULL={VENDOR_FULL} \
                                     DEFAULT_TZ={DEFAULT_TZ} \
                                     CLIENT_DOMAIN={CLIENT_DOMAIN} \
+                                    DEV_RUNNER={DEV_RUNNER} \
                                     SALT_MINION_VERSION={SALT_MINION_VERSION} \
                                     SALT_MASTER_VERSION={SALT_MASTER_VERSION} \
                                     SALT_VERSION={SALT_VERSION} \
@@ -655,6 +663,7 @@ if __name__ == "__main__":
                             VENDOR_FULL=client_dict["vendor"],
                             DEFAULT_TZ=client_dict["configuration_management"]["templates"]["default_tz"],
                             CLIENT_DOMAIN=client_dict["configuration_management"]["templates"]["client_domain"],
+                            DEV_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
                             UFW=ufw_type
                         )
                         logger.info("Running bash script:")

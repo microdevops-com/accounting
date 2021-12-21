@@ -9,9 +9,9 @@ gitlab:
   # salt-ssh
   salt_project:
     path: example/devops/example-salt
-    runners:
-      dev: gitlab-runner1.dev.example.com # shell executor with docker command
-      prod: saltssh1.example.com # docker executor
+    #runners: # optional, override runners from accounting.yaml
+    #  dev: dev-runner1.example.com
+    #  prod: prod-runner1.example.com
     variables:
       # ssh-keygen -N "" -t ed25519 -f ./tmp/saltssh-root -C root@example.com
       SALTSSH_ROOT_ED25519_PRIV: | # ssh-keygen -N "" -t ed25519 -f ./tmp/saltssh-root -C devops@example.com

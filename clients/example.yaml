@@ -13,19 +13,19 @@ gitlab:
     #  dev: dev-runner1.example.com
     #  prod: prod-runner1.example.com
     variables:
-      # ssh-keygen -N "" -t ed25519 -f ./tmp/saltssh-root -C root@example.com
-      SALTSSH_ROOT_ED25519_PRIV: | # ssh-keygen -N "" -t ed25519 -f ./tmp/saltssh-root -C devops@example.com
+      # use `./gen_ssh_priv_pub.sh example.com` to generate key pair
+      SALTSSH_ROOT_ED25519_PRIV: |
         -----BEGIN OPENSSH PRIVATE KEY-----
         ...
         -----END OPENSSH PRIVATE KEY-----
-      SALTSSH_ROOT_ED25519_PUB: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx devops@example.com
+      SALTSSH_ROOT_ED25519_PUB: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@example.com
     deploy_keys: []
   # 8< ============================================================
   # salt
   salt_project:
     path: example/devops/example-salt
     deploy_keys:
-      - title: root@saltX.example.com # ssh-keygen -N "" -t ed25519 -f ./tmp/salt-root -C root@saltX.example.com
+      - title: root@saltX.example.com # use `./gen_ssh_priv_pub.sh saltX.example.com`
         key: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com
   # 8< ============================================================
 #

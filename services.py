@@ -37,6 +37,11 @@ if __name__ == "__main__":
                           action="store_true")
 
     group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--pipeline-salt-cmd-for-server-for-client",
+                          dest="pipeline_salt_cmd_for_server_for_client",
+                          help="pipeline salt CMD for one SERVER for client CLIENT",
+                          nargs=3, metavar=("CLIENT", "SERVER", "CMD"))
+
     group.add_argument("--pipeline-salt-cmd-for-all-servers-for-client",
                           dest="pipeline_salt_cmd_for_all_servers_for_client",
                           help="pipeline salt CMD for all servers for client CLIENT",
@@ -75,7 +80,7 @@ if __name__ == "__main__":
         
         # Do tasks
 
-        if args.pipeline_salt_cmd_for_all_servers_for_client or args.pipeline_salt_cmd_for_all_servers_for_all_clients:
+        if args.pipeline_salt_cmd_for_server_for_client or args.pipeline_salt_cmd_for_all_servers_for_client or args.pipeline_salt_cmd_for_all_servers_for_all_clients:
             
             # For *.yaml in client dir
             for client_file in glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB)):
@@ -87,12 +92,17 @@ if __name__ == "__main__":
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                 
-                # Skip other clients if not all
-                if not args.pipeline_salt_cmd_for_all_servers_for_all_clients:
+                # Unpack oarams and select client if needed
+                needed_server = None
+                if args.pipeline_salt_cmd_for_server_for_client:
+                    client, needed_server, cmd = args.pipeline_salt_cmd_for_server_for_client
+                    if client_dict["name"].lower() != client:
+                        continue
+                if args.pipeline_salt_cmd_for_all_servers_for_client:
                     client, cmd = args.pipeline_salt_cmd_for_all_servers_for_client
                     if client_dict["name"].lower() != client:
                         continue
-                else:
+                if args.pipeline_salt_cmd_for_all_servers_for_all_clients:
                     cmd, = args.pipeline_salt_cmd_for_all_servers_for_all_clients
 
                 # Check client active and other reqs
@@ -142,6 +152,11 @@ if __name__ == "__main__":
                             # Skip servers with disabled jobs
                             if "jobs_disabled" in server and server["jobs_disabled"]:
                                 continue
+
+                            # Skip oher servers if specific server is set
+                            if needed_server is not None:
+                                if needed_server != server["fqdn"]:
+                                    continue
 
                             # Run pipeline
                             thread = threading.Thread(target=pipeline_salt_cmd, args=[client_dict["gitlab"]["salt_project"]["path"], server["fqdn"], cmd])

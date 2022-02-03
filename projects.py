@@ -113,8 +113,10 @@ if __name__ == "__main__":
     # Set parser and parse args
     parser = argparse.ArgumentParser(description='{LOGO} functions.'.format(LOGO=LOGO))
     parser.add_argument("--debug", dest="debug", help="enable debug", action="store_true")
-    parser.add_argument("--git-push", dest="git_push", help="push after commit", action="store_true")
+    parser.add_argument("--git-reset", dest="git_reset", help="reset git before applying template", action="store_true")
+    parser.add_argument("--git-commit", dest="git_commit", help="commit changes of template apply", action="store_true")
     parser.add_argument("--git-branch", dest="git_branch", help="commit to branch BRANCH instead of master", nargs=1, metavar=("BRANCH"))
+    parser.add_argument("--git-push", dest="git_push", help="push after commit", action="store_true")
     parser.add_argument("--dry-run-gitlab", dest="dry_run_gitlab", help="no new objects created in gitlab", action="store_true")
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -432,15 +434,25 @@ if __name__ == "__main__":
                     project = gl.projects.get(client_dict["gitlab"]["salt_project"]["path"])
                     logger.info("Salt project {project} for client {client} ssh_url_to_repo: {ssh_url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["salt_project"]["path"], client=client_dict["name"], path_with_namespace=project.path_with_namespace, ssh_url_to_repo=project.ssh_url_to_repo))
 
-                    # Reset local repo to origin or clone
+                    # Prepare local repo
+
+                    if args.git_reset:
+                        git_fetch_text = "git fetch origin --no-tags"
+                        git_reset_text = "git reset --hard origin/master"
+                        git_clean_text = "git clean -ffdx"
+                    else:
+                        git_fetch_text = ""
+                        git_reset_text = ""
+                        git_clean_text = ""
+
                     script = textwrap.dedent(
                         """
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
-                            echo Already cloned, fetching and resetting to origin
+                            echo Already cloned
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
-                            git fetch origin --no-tags
-                            git reset --hard origin/master
-                            git clean -ffdx
+                            {fetch}
+                            {reset}
+                            {clean}
                         else
                             git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
@@ -450,7 +462,7 @@ if __name__ == "__main__":
                         git submodule foreach "git checkout master && git pull --no-tags"
                         ln -sf ../../.githooks/pre-push .git/hooks/pre-push
                         """
-                    ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace)
+                    ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
@@ -868,21 +880,30 @@ if __name__ == "__main__":
                                 logger.info("Pillar written to the file: {dir}/{file_name}".format(dir=pillar_dirname, file_name=pillar_filename))
 
                     # Commit changes
+
                     if args.git_branch is not None:
                         git_branch_branch, = args.git_branch
                         git_branch_text = "git checkout -b {git_branch_branch}".format(git_branch_branch=git_branch_branch)
                     else:
                         git_branch_text = ""
+
+                    if args.git_commit:
+                        git_add_text = "git add -A"
+                        git_commit_text = "git commit -m '.salt-project-template, .salt-project-private-template installed' || true"
+                    else:
+                        git_add_text = ""
+                        git_commit_text = ""
+
                     script = textwrap.dedent(
                         """
                         set -e
                         cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         {branch}
-                        git add -A
-                        git commit -m ".salt-project-template, .salt-project-private-template installed" || true
+                        {add}
+                        {commit}
                         {push}
                         """
-                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "")
+                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "", add=git_add_text, commit=git_commit_text)
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
@@ -945,15 +966,25 @@ if __name__ == "__main__":
                     path_with_namespace = project.path_with_namespace + ".wiki"
                     logger.info("Admin project {project} wiki for client {client} ssh_url_to_repo: {ssh_url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["admin_project"]["path"], client=client_dict["name"], path_with_namespace=path_with_namespace, ssh_url_to_repo=ssh_url_to_repo))
 
-                    # Reset local repo to origin or clone
+                    # Prepare local repo
+
+                    if args.git_reset:
+                        git_fetch_text = "git fetch origin --no-tags"
+                        git_reset_text = "git reset --hard origin/master"
+                        git_clean_text = "git clean -ffdx"
+                    else:
+                        git_fetch_text = ""
+                        git_reset_text = ""
+                        git_clean_text = ""
+
                     script = textwrap.dedent(
                         """
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
-                            echo Already cloned, fetching and resetting to origin
+                            echo Already cloned
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
-                            git fetch origin --no-tags
-                            git reset --hard origin/master
-                            git clean -ffdx
+                            {fetch}
+                            {reset}
+                            {clean}
                         else
                             git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
@@ -962,7 +993,7 @@ if __name__ == "__main__":
                         git submodule update -f --checkout
                         git submodule foreach "git checkout master && git pull --no-tags"
                         """
-                    ).format(ssh_url_to_repo=ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace)
+                    ).format(ssh_url_to_repo=ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
@@ -1057,21 +1088,30 @@ if __name__ == "__main__":
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
                     # Commit changes
+
                     if args.git_branch is not None:
                         git_branch_branch, = args.git_branch
                         git_branch_text = "git checkout -b {git_branch_branch}".format(git_branch_branch=git_branch_branch)
                     else:
                         git_branch_text = ""
+
+                    if args.git_commit:
+                        git_add_text = "git add -A"
+                        git_commit_text = "git commit -m '.salt-project-template, .salt-project-private-template installed' || true"
+                    else:
+                        git_add_text = ""
+                        git_commit_text = ""
+
                     script = textwrap.dedent(
                         """
                         set -e
                         cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         {branch}
-                        git add -A
-                        git commit -m "project wiki updated from accounting/projects.py" || true
+                        {add}
+                        {commit}
                         {push}
                         """
-                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "")
+                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "", add=git_add_text, commit=git_commit_text)
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")

@@ -118,6 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("--git-branch", dest="git_branch", help="commit to branch BRANCH instead of master", nargs=1, metavar=("BRANCH"))
     parser.add_argument("--git-push", dest="git_push", help="push after commit", action="store_true")
     parser.add_argument("--dry-run-gitlab", dest="dry_run_gitlab", help="no new objects created in gitlab", action="store_true")
+    parser.add_argument("--gitlab-runner-registration-token", dest="gitlab_runner_registration_token", help="set gitlab runner registration token for template if you do not have maintainer rights to get it with code", nargs=1, metavar=("TOKEN"))
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
     group.add_argument("--include-clients", dest="include_clients", help="include only clients defined by JSON_LIST for all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -863,7 +864,18 @@ if __name__ == "__main__":
                             pillar_master_dict["salt"]["master"]["gitlab-runner"] = {}
                             pillar_master_dict["salt"]["master"]["gitlab-runner"]["gitlab_url"] = acc_yaml_dict["gitlab"]["url"]
                             pillar_master_dict["salt"]["master"]["gitlab-runner"]["gitlab_runner_name"] = salt_master["fqdn"]
-                            pillar_master_dict["salt"]["master"]["gitlab-runner"]["registration_token"] = project.runners_token
+
+                            # Gitlab-runner registration token
+                            # You have to have project maintainer rights to get token with code
+
+                            # Token from args has highest priority, then from client yaml, then from gitlab api
+                            if args.gitlab_runner_registration_token is not None:
+                                args_registration_token, = args.gitlab_runner_registration_token
+                                pillar_master_dict["salt"]["master"]["gitlab-runner"]["registration_token"] = args_registration_token
+                            elif "gitlab" in client_dict and "salt_project" in client_dict["gitlab"] and "gitlab-runner" in client_dict["gitlab"]["salt_project"] and "registration_token" in client_dict["gitlab"]["salt_project"]["gitlab-runner"]:
+                                pillar_master_dict["salt"]["master"]["gitlab-runner"]["registration_token"] = client_dict["gitlab"]["salt_project"]["gitlab-runner"]["registration_token"]
+                            else:
+                                pillar_master_dict["salt"]["master"]["gitlab-runner"]["registration_token"] = project.runners_token
 
                             # Master pillar
                             pillar_filename = "master_" + salt_master["fqdn"].replace(".", "_") + ".sls"

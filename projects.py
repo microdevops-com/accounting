@@ -906,6 +906,15 @@ if __name__ == "__main__":
                         git_add_text = ""
                         git_commit_text = ""
 
+                    if args.git_push:
+                        if args.git_branch is not None:
+                            git_branch_branch, = args.git_branch
+                            git_push_text = "git push --set-upstream origin {git_branch_branch}".format(git_branch_branch=git_branch_branch)
+                        else:
+                            git_push_text = "git push"
+                    else:
+                        git_push_text = ""
+
                     script = textwrap.dedent(
                         """
                         set -e
@@ -915,7 +924,7 @@ if __name__ == "__main__":
                         {commit}
                         {push}
                         """
-                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "", add=git_add_text, commit=git_commit_text)
+                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, branch=git_branch_text, push=git_push_text, add=git_add_text, commit=git_commit_text)
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
@@ -1114,6 +1123,15 @@ if __name__ == "__main__":
                         git_add_text = ""
                         git_commit_text = ""
 
+                    if args.git_push:
+                        if args.git_branch is not None:
+                            git_branch_branch, = args.git_branch
+                            git_push_text = "git push --set-upstream origin {git_branch_branch}".format(git_branch_branch=git_branch_branch)
+                        else:
+                            git_push_text = "git push"
+                    else:
+                        git_push_text = ""
+
                     script = textwrap.dedent(
                         """
                         set -e
@@ -1123,7 +1141,7 @@ if __name__ == "__main__":
                         {commit}
                         {push}
                         """
-                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, branch=git_branch_text, push="git push" if args.git_push else "", add=git_add_text, commit=git_commit_text)
+                    ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, branch=git_branch_text, push=git_push_text, add=git_add_text, commit=git_commit_text)
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")

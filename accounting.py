@@ -58,21 +58,6 @@ def calculate_range_size(range_id):
 
     return range_size
 
-# Helps to find tariff in tariffs list which is activated for event date
-def activated_tariff(tariffs, event_date_time):
-    event_tariff = None
-    for tariff in tariffs:
-        tariff_date_time = datetime.combine(tariff["activated"], time.min)
-        # Event datetime must be later than tariff datetime
-        if event_date_time > tariff_date_time:
-            event_tariff = tariff
-            break
-    if event_tariff is not None:
-        logger.info("Found activated tariff {0} for event date time {1}".format(event_tariff, event_date_time))
-        return event_tariff
-    else:
-        raise Exception("Event date time {0} out of available tariffs date time".format(event_date_time))
-
 def download_pdf_package(acc_yaml_dict, client_dict, client_folder_files, invoice_type, invoice_number, invoice_needed, act_needed, pack_to_archive, double_act):
 
     try:
@@ -234,9 +219,11 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--db-structure", dest="db_structure", help="create database structure", action="store_true")
     group.add_argument("--yaml-check", dest="yaml_check", help="check yaml structure", action="store_true")
-    group.add_argument("--server-labels", dest="server_labels", help="sync server labels", action="store_true")
+    group.add_argument("--server-labels", dest="server_labels", help="sync server labels (deprecated, use --asset-labels)", action="store_true")
+    group.add_argument("--asset-labels", dest="asset_labels", help="sync asset labels", action="store_true")
     group.add_argument("--issues-check", dest="issues_check", help="report issue activities as new issue in accounting project", action="store_true")
-    group.add_argument("--storage-usage", dest="storage_usage", help="save servers all clients servers billable storage usage to database, excluding --exclude-clients or only for --include-clients", action="store_true")
+    group.add_argument("--storage-usage", dest="storage_usage", help="save all clients billable storage usage to database, excluding --exclude-clients or only for --include-clients", action="store_true")
+    group.add_argument("--report-hourly-employee-timelogs", dest="report_hourly_employee_timelogs", help="check new timelogs for EMPLOYEE_EMAIL and report them as new issue", nargs=1, metavar=("EMPLOYEE_EMAIL"))
     group.add_argument("--update-envelopes-for-client", dest="update_envelopes_for_client", help="update envelope pdfs in envelopes folder for client CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--update-envelopes-for-all-clients", dest="update_envelopes_for_all_clients", help="update envelope pdfs in envelopes folder for all clients excluding --exclude-clients or only for --include-clients", action="store_true")
     group.add_argument("--make-pdfs-for-client", dest="make_pdfs_for_client", help="make pdfs for client CLIENT folder for docs that do not have pdf copy yet", nargs=1, metavar=("CLIENT"))
@@ -245,13 +232,14 @@ if __name__ == "__main__":
     group.add_argument("--make-gmail-drafts-for-all-clients", dest="make_gmail_drafts_for_all_clients", help="make GMail drafts with PDFs of invoices with status Prepared/Sent for all clients", action="store_true")
     group.add_argument("--print-papers-for-client", dest="print_papers_for_client", help="print invoice papers with status not Printed for CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--print-papers-for-all-clients", dest="print_papers_for_all_clients", help="print invoice papers with status not Printed for all clients", action="store_true")
-    group.add_argument("--report-hourly-employee-timelogs", dest="report_hourly_employee_timelogs", help="check new timelogs for EMPLOYEE_EMAIL and report them as new issue", nargs=1, metavar=("EMPLOYEE_EMAIL"))
     group.add_argument("--make-hourly-invoice-for-client", dest="make_hourly_invoice_for_client", help="check new timelogs for hourly issues in projects of CLIENT and make invoice", nargs=1, metavar=("CLIENT"))
     group.add_argument("--make-hourly-invoice-for-all-clients", dest="make_hourly_invoice_for_all_clients", help="check new timelogs for hourly issues in projects of all clients and make invoice for each", action="store_true")
-    group.add_argument("--make-monthly-invoice-for-client", dest="make_monthly_invoice_for_client", help="make monthly invoice for month +MONTH by current month for client CLIENT servers", nargs=2, metavar=("CLIENT", "MONTH"))
-    group.add_argument("--make-monthly-invoice-for-all-clients", dest="make_monthly_invoice_for_all_clients", help="make monthly invoice for month +MONTH by current month for client servers for all clients excluding --exclude-clients or only for --include-clients", nargs=1, metavar=("MONTH"))
+    group.add_argument("--make-monthly-invoice-for-client", dest="make_monthly_invoice_for_client", help="make monthly invoice for month +MONTH by current month for client CLIENT", nargs=2, metavar=("CLIENT", "MONTH"))
+    group.add_argument("--make-monthly-invoice-for-all-clients", dest="make_monthly_invoice_for_all_clients", help="make monthly invoice for month +MONTH by current month for all clients excluding --exclude-clients or only for --include-clients", nargs=1, metavar=("MONTH"))
     group.add_argument("--make-storage-invoice-for-client", dest="make_storage_invoice_for_client", help="compute monthly storage usage for month -MONTH of CLIENT and make invoice", nargs=2, metavar=("CLIENT", "MONTH"))
     group.add_argument("--make-storage-invoice-for-all-clients", dest="make_storage_invoice_for_all_clients", help="compute monthly storage usage for month -MONTH of all clients and make invoice for each", nargs=1, metavar=("MONTH"))
+    group.add_argument("--list-assets-for-client", dest="list_assets_for_client", help="list assets for CLIENT", nargs=1, metavar=("CLIENT"))
+    group.add_argument("--list-assets-for-all-clients", dest="list_assets_for_all_clients", help="list assets for all clients", action="store_true")
     args = parser.parse_args()
 
     # Set logger and console debug
@@ -260,8 +248,8 @@ if __name__ == "__main__":
     else:
         logger = set_logger(logging.ERROR, LOG_DIR, LOG_FILE)
 
-    # Skip vars check on yaml-check
-    if not args.yaml_check:
+    # Skip vars check where not needed
+    if not (args.yaml_check or args.list_assets_for_client is not None or args.list_assets_for_all_clients):
 
         GL_ADMIN_PRIVATE_TOKEN = os.environ.get("GL_ADMIN_PRIVATE_TOKEN")
         if GL_ADMIN_PRIVATE_TOKEN is None:
@@ -324,8 +312,8 @@ if __name__ == "__main__":
         # Chdir to work dir
         os.chdir(WORK_DIR)
 
-        # Skip connect on yaml-check
-        if not args.yaml_check:
+        # Skip pgconnect where not needed
+        if not (args.yaml_check or args.list_assets_for_client is not None or args.list_assets_for_all_clients):
 
             # Connect to PG
             dsn = "host={} dbname={} user={} password={}".format(PG_DB_HOST, PG_DB_NAME, PG_DB_USER, PG_DB_PASS)
@@ -378,7 +366,7 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -403,27 +391,23 @@ if __name__ == "__main__":
                                                     )
                                                 ):
 
-                    # Make server list
-                    servers_list = []
-                    if "servers" in client_dict:
-                        servers_list.extend(client_dict["servers"])
-                    if client_dict["configuration_management"]["type"] == "salt":
-                        servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
-                    # If there are servers
-                    if len(servers_list) > 0:
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
-                        # Iterate over servers in client
-                        for server in servers_list:
+                    # If there are assets
+                    if len(asset_list) > 0:
 
-                            if server["active"]:
+                        # Iterate over assets in client
+                        for asset in asset_list:
+
+                            if asset["active"]:
                                 
-                                logger.info("Active server: {0}".format(server["fqdn"]))
+                                logger.info("Active asset: {0}".format(asset["fqdn"]))
 
-                                if "storage" in server:
+                                if "storage" in asset:
 
-                                    for storage_item in server["storage"]:
+                                    for storage_item in asset["storage"]:
 
-                                        for storage_server, storage_paths in storage_item.items():
+                                        for storage_asset, storage_paths in storage_item.items():
 
                                             for storage_path in storage_paths:
 
@@ -431,7 +415,7 @@ if __name__ == "__main__":
 
                                                 # As we have ssh cmd restrictions we need only to supply path as command
                                                 cmd = "{folder}".format(folder=storage_path)
-                                                logger.info("SSH cmd: {storage_server}:{cmd}".format(storage_server=storage_server, cmd=cmd))
+                                                logger.info("SSH cmd: {storage_asset}:{cmd}".format(storage_asset=storage_asset, cmd=cmd))
 
                                                 # Clear value
                                                 mb_used = None
@@ -441,7 +425,7 @@ if __name__ == "__main__":
                                                     ssh_client = paramiko.SSHClient()
                                                     ssh_client.load_system_host_keys()
                                                     ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                                                    ssh_client.connect(hostname=storage_server, username=SSH_DU_S_M_USER, pkey=private_key)
+                                                    ssh_client.connect(hostname=storage_asset, username=SSH_DU_S_M_USER, pkey=private_key)
                                                     stdin, stdout, stderr = ssh_client.exec_command(cmd)
                                                     if stdout.channel.recv_exit_status() != 0:
                                                         logger.error("SSH exit code is not 0")
@@ -474,13 +458,13 @@ if __name__ == "__main__":
                                                         VALUES
                                                                 (
                                                                         NOW() AT TIME ZONE 'UTC'
-                                                                ,       '{client_server_fqdn}'
-                                                                ,       '{storage_server_fqdn}'
-                                                                ,       '{storage_server_path}'
+                                                                ,       '{client_asset_fqdn}'
+                                                                ,       '{storage_asset_fqdn}'
+                                                                ,       '{storage_asset_path}'
                                                                 ,       {mb_used}
                                                                 )
                                                         ;
-                                                        """.format(client_server_fqdn=server["fqdn"], storage_server_fqdn=storage_server, storage_server_path=storage_path, mb_used=mb_used)
+                                                        """.format(client_asset_fqdn=asset["fqdn"], storage_asset_fqdn=storage_asset, storage_asset_path=storage_path, mb_used=mb_used)
                                                         logger.info("Query:")
                                                         logger.info(sql)
                                                         try:
@@ -518,7 +502,7 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                 
@@ -643,7 +627,7 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                 
@@ -789,7 +773,7 @@ if __name__ == "__main__":
                     logger.info("Found client file: {0}".format(client_file))
 
                     # Load client YAML
-                    client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                    client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -826,7 +810,9 @@ if __name__ == "__main__":
                 else:
                     raise Exception("Impossible became possible")
 
-                client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
+                #XXX remove this after check
+                #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
+                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -1205,7 +1191,7 @@ if __name__ == "__main__":
                 try:
 
                     # Load client YAML
-                    client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                    client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -1219,6 +1205,9 @@ if __name__ == "__main__":
 
                     if "active" not in client_dict:
                         raise Exception("active key missing in: {0}/{1}".format(WORK_DIR, client_file))
+                    
+                    if "start_date" not in client_dict:
+                        raise Exception("start_date key missing in: {0}/{1}".format(WORK_DIR, client_file))
 
                     # Check these only for active clients
                     if client_dict["active"]:
@@ -1235,28 +1224,23 @@ if __name__ == "__main__":
                         if "path" not in client_dict["gitlab"]["admin_project"]:
                             raise Exception("gitlab:admin_project:path key missing in: {0}/{1}".format(WORK_DIR, client_file))
 
-                        # Make server list
-                        servers_list = []
-                        if "servers" in client_dict:
-                            servers_list.extend(client_dict["servers"])
-                        if client_dict["configuration_management"]["type"] == "salt":
-                            servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
-                        # For each server
-                        for server in servers_list:
+                        # For each asset
+                        for asset in asset_list:
 
                             try:
 
-                                logger.info("Server: {0}".format(server["fqdn"]))
+                                logger.info("Asset: {0}".format(asset["fqdn"]))
 
-                                if "fqdn" not in server:
-                                    raise Exception("fqdn key missing in server {server}".format(server=server))
+                                if "fqdn" not in asset:
+                                    raise Exception("fqdn key missing in asset {asset}".format(asset=asset))
 
-                                if "active" not in server:
-                                    raise Exception("active key missing in server {server}".format(server=server["fqdn"]))
+                                if "active" not in asset:
+                                    raise Exception("active key missing in asset {asset}".format(asset=asset["fqdn"]))
 
-                                # Check only active servers
-                                if server["active"]:
+                                # Check only active assets
+                                if asset["active"]:
 
                                     # location and os key is needed only with pipelines
                                     if (
@@ -1264,37 +1248,37 @@ if __name__ == "__main__":
                                             and
                                             (("jobs_disabled" in client_dict and not client_dict["jobs_disabled"]) or "jobs_disabled" not in client_dict)
                                             and
-                                            (("jobs_disabled" in server and not server["jobs_disabled"]) or "jobs_disabled" not in server)
+                                            (("jobs_disabled" in asset and not asset["jobs_disabled"]) or "jobs_disabled" not in asset)
                                         ):
                                         
-                                        if "location" not in server:
-                                            raise Exception("location keys missing in server {server}".format(server=server["fqdn"]))
+                                        if "location" not in asset:
+                                            raise Exception("location keys missing in asset {asset}".format(asset=asset["fqdn"]))
                                     
-                                        if "os" not in server:
-                                            raise Exception("os key missing in server {server}".format(server=server["fqdn"]))
+                                        if "os" not in asset:
+                                            raise Exception("os key missing in asset {asset}".format(asset=asset["fqdn"]))
                                         
-                                        if server["os"] not in acc_yaml_dict["os"]:
-                                            raise Exception("os value {os} not in globally allowed list for server {server}".format(os=server["os"], server=server["fqdn"]))
+                                        if asset["os"] not in acc_yaml_dict["os"]:
+                                            raise Exception("os value {os} not in globally allowed list for asset {asset}".format(os=asset["os"], asset=asset["fqdn"]))
 
-                                    for server_tariff in server["tariffs"][0]["tariffs"]:
+                                    for asset_tariff in asset["tariffs"][0]["tariffs"]:
 
                                         # If tariff has file key - load it
-                                        if "file" in server_tariff:
+                                        if "file" in asset_tariff:
                                             
-                                            tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
+                                            tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
                                             if tariff_dict is None:
                                                 
-                                                raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
+                                                raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
 
                             except:
-                                logger.error("Server {server} yaml check exception".format(server=server["fqdn"]))
+                                logger.error("Asset {asset} yaml check exception".format(asset=asset["fqdn"]))
                                 raise
 
                 except:
                     logger.error("Client {client} yaml check exception".format(client=client_dict["name"]))
                     raise
 
-        if args.server_labels:
+        if args.server_labels or args.asset_labels:
             
             # Connect to GitLab
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)
@@ -1306,14 +1290,14 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
                 # Check if client is active
                 if client_dict["active"]:
 
-                    # Make project list (we need to add server labels to admin_project AND other_billable_projects)
+                    # Make project list (we need to add asset labels to admin_project AND other_billable_projects)
                     project_list = []
                     project_list.append(client_dict["gitlab"]["admin_project"]["path"])
                     if "other_billable_projects" in client_dict["gitlab"]:
@@ -1326,67 +1310,62 @@ if __name__ == "__main__":
                         project = gl.projects.get(project_from_list)
                         labels = project.labels.list(all=True)
 
-                        # Make server list
-                        servers_list = []
-                        if "servers" in client_dict:
-                            servers_list.extend(client_dict["servers"])
-                        if client_dict["configuration_management"]["type"] == "salt":
-                            servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
-                        # Iterate over servers in client
-                        for server in servers_list:
+                        # Iterate over assets in client
+                        for asset in asset_list:
 
-                            logger.info("Server: {0}".format(server["fqdn"]))
+                            logger.info("Asset: {0}".format(asset["fqdn"]))
                             # Set activeness
-                            if server["active"]:
-                                server_activeness = "Active"
-                                server_color = "#3377EE"
+                            if asset["active"]:
+                                asset_activeness = "Active"
+                                asset_color = "#3377EE"
                             else:
-                                server_activeness = "NOT Active"
-                                server_color = "#330066"
+                                asset_activeness = "NOT Active"
+                                asset_color = "#330066"
 
                             # Take the first (upper and current) tariff and check it
-                            server_tariff_list = []
-                            for server_tariff in server["tariffs"][0]["tariffs"]:
+                            asset_tariff_list = []
+                            for asset_tariff in asset["tariffs"][0]["tariffs"]:
 
                                 # If tariff has file key - load it
-                                if "file" in server_tariff:
+                                if "file" in asset_tariff:
                                     
-                                    tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
+                                    tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
                                     if tariff_dict is None:
                                         
-                                        raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
+                                        raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
 
                                     # Add tariff plan and service to the tariff list for the label
-                                    server_tariff_list.append("{0} {1}".format(tariff_dict["plan"], tariff_dict["service"]))
+                                    asset_tariff_list.append("{0} {1}".format(tariff_dict["plan"], tariff_dict["service"]))
 
                                 # Also take inline plan and service
                                 else:
 
                                     # Add tariff plan and service to the tariff list for the label
-                                    server_tariff_list.append("{0} {1}".format(server_tariff["plan"], server_tariff["service"]))
+                                    asset_tariff_list.append("{0} {1}".format(asset_tariff["plan"], asset_tariff["service"]))
                             
                             # Construct label description
-                            server_label_description = "{0}, {1}".format(server_activeness, ", ".join(server_tariff_list))
-                            logger.info("Server Label description: {0}".format(server_label_description))
+                            asset_label_description = "{0}, {1}".format(asset_activeness, ", ".join(asset_tariff_list))
+                            logger.info("Asset Label description: {0}".format(asset_label_description))
 
                             # Check if label with the same description exists
-                            if any(label.name == server["fqdn"] and label.description == server_label_description and label.color == server_color for label in labels):
-                                logger.info("Existing label found: {0}, {1}, {2}".format(server["fqdn"], server_label_description, server_color))
+                            if any(label.name == asset["fqdn"] and label.description == asset_label_description and label.color == asset_color for label in labels):
+                                logger.info("Existing label found: {0}, {1}, {2}".format(asset["fqdn"], asset_label_description, asset_color))
                             # Else if exists with not the same
-                            elif any(label.name == server["fqdn"] for label in labels):
+                            elif any(label.name == asset["fqdn"] for label in labels):
                                 for label in labels:
-                                    if label.name == server["fqdn"]:
-                                        label.description = server_label_description
-                                        label.color = server_color
-                                        logger.info("Existing label found but description or color didn't match, updated: {0}, {1}, {2}".format(server["fqdn"], server_label_description, server_color))
+                                    if label.name == asset["fqdn"]:
+                                        label.description = asset_label_description
+                                        label.color = asset_color
+                                        logger.info("Existing label found but description or color didn't match, updated: {0}, {1}, {2}".format(asset["fqdn"], asset_label_description, asset_color))
                                         if not args.dry_run_gitlab:
                                             label.save()
                             # Add if not exists
                             else:
-                                logger.info("No existing label found, added: {0}, {1}, {2}".format(server["fqdn"], server_label_description, server_color))
+                                logger.info("No existing label found, added: {0}, {1}, {2}".format(asset["fqdn"], asset_label_description, asset_color))
                                 if not args.dry_run_gitlab:
-                                    label = project.labels.create({"name": server["fqdn"], "color": server_color, "description": server_label_description})
+                                    label = project.labels.create({"name": asset["fqdn"], "color": asset_color, "description": asset_label_description})
 
         if args.issues_check:
 
@@ -1398,7 +1377,7 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -2347,7 +2326,9 @@ if __name__ == "__main__":
                     client_name = timelogs_check_client.lower()
 
                     # Load client YAML
-                    client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
+                    #XXX remove after check
+                    #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
+                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT))
 
@@ -2659,43 +2640,35 @@ if __name__ == "__main__":
                                 client_name = acc_yaml_dict["projects"][row_project_name]["client"].lower()
 
                                 # Load client YAML
-                                client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
+                                #XXX remove after check
+                                #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
+                                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                                 if client_dict is None:
                                     raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT))
 
-                                # Needed client dict keys for No Server
-                                if row_issue_labels_split_label == "No Server":
-                                    
-                                    # Find checked tariff
-                                    checked_tariffs = activated_tariff(client_dict["no_server_tariffs"], row_timelog_updated)["tariffs"]
-
-                                # Check if other label name is server
+                                # Check if other label name is asset
                                 else:
 
-                                    # Make server list
-                                    servers_list = []
-                                    if "servers" in client_dict:
-                                        servers_list.extend(client_dict["servers"])
-                                    if client_dict["configuration_management"]["type"] == "salt":
-                                        servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
-                                    # If there are servers
-                                    if len(servers_list) > 0:
+                                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
-                                        # Iterate over servers in client
-                                        for client_server in servers_list:
+                                    # If there are assets
+                                    if len(asset_list) > 0:
 
-                                            # Check if server name matches label
-                                            if client_server["fqdn"] == row_issue_labels_split_label:
+                                        # Iterate over assets in client
+                                        for client_asset in asset_list:
+
+                                            # Check if asset name matches label
+                                            if client_asset["fqdn"] == row_issue_labels_split_label:
 
                                                 # Find checked tariff
                                                 try:
-                                                    checked_tariffs = activated_tariff(client_server["tariffs"], row_timelog_updated)["tariffs"]
+                                                    checked_tariffs = activated_tariff(client_asset["tariffs"], row_timelog_updated, logger)["tariffs"]
                                                 except:
-                                                    logger.error("Server {server} find active tariff error".format(server=client_server["fqdn"]))
+                                                    logger.error("Asset {asset} find active tariff error".format(asset=client_asset["fqdn"]))
                                                     raise
 
                                 # Check if we have some tariff to check
-                                # It is ok if None - it means the label is not (server or No Server) label (not monetazible)
+                                # It is ok if None - it means the label is not asset label (not monetazible)
                                 if checked_tariffs is not None:
                                 
                                     # Init empty tariff
@@ -2867,7 +2840,7 @@ if __name__ == "__main__":
                         logger.info("Found client file: {0}".format(client_file))
 
                         # Load client YAML
-                        client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                        client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                         if client_dict is None:
                             raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -2899,15 +2872,17 @@ if __name__ == "__main__":
 
                     client_in_arg, month_in_arg = args.make_monthly_invoice_for_client
 
-                    client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
+                    #XXX remove after check
+                    #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
+                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
                     clients_dict[client_dict["name"].lower()] = client_dict
 
-                # Iterate over clients to read servers for active clients
+                # Iterate over clients to read assets for active clients
 
-                client_server_tariffs_dict = {}
+                client_asset_tariffs_dict = {}
                 for client in clients_dict:
                     
                     client_dict = clients_dict[client]
@@ -2922,98 +2897,95 @@ if __name__ == "__main__":
                     # Check if client is active
                     if client_dict["active"]:
                         
-                        client_server_tariffs_dict[client] = {}
-                        # Make server list
-                        servers_list = []
-                        if "servers" in client_dict:
-                            servers_list.extend(client_dict["servers"])
-                        if client_dict["configuration_management"]["type"] == "salt":
-                            servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
-                        # If there are servers
-                        if len(servers_list) > 0:
+                        client_asset_tariffs_dict[client] = {}
 
-                            # Iterate over servers in client
-                            for server in servers_list:
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
-                                # Only active servers
+                        # If there are assets
+                        if len(asset_list) > 0:
 
-                                if server["active"]:
+                            # Iterate over assets in client
+                            for asset in asset_list:
 
-                                    logger.info("Active server: {0}".format(server["fqdn"]))
+                                # Only active assets
 
-                                    client_server_tariffs_dict[client][server["fqdn"]] = []
+                                if asset["active"]:
+
+                                    logger.info("Active asset: {0}".format(asset["fqdn"]))
+
+                                    client_asset_tariffs_dict[client][asset["fqdn"]] = []
 
                                     # Find checked tariff
-                                    for server_tariff in activated_tariff(server["tariffs"], needed_month_for_tariff)["tariffs"]:
+                                    for asset_tariff in activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["tariffs"]:
 
                                         # If tariff has file key - load it
-                                        if "file" in server_tariff:
+                                        if "file" in asset_tariff:
                                             
-                                            tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
+                                            tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
                                             if tariff_dict is None:
                                                 
-                                                raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
+                                                raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
 
-                                            # Add tariff activation date per server
-                                            tariff_dict["activated_date"] = str(activated_tariff(server["tariffs"], needed_month_for_tariff)["activated"].strftime("%Y-%m-%d"))
-                                            tariff_dict["added_date"] = str(activated_tariff(server["tariffs"], needed_month_for_tariff)["added"].strftime("%Y-%m-%d"))
+                                            # Add tariff activation date per asset
+                                            tariff_dict["activated_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
+                                            tariff_dict["added_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
                                         
                                             # Add migrated key
-                                            if "migrated_from" in server_tariff:
+                                            if "migrated_from" in asset_tariff:
                                                 tariff_dict["migrated"] = True
 
-                                            # Add tariff to the tariff list for the server
-                                            client_server_tariffs_dict[client][server["fqdn"]].append(tariff_dict)
+                                            # Add tariff to the tariff list for the asset
+                                            client_asset_tariffs_dict[client][asset["fqdn"]].append(tariff_dict)
 
                                         # Also take inline plan and service
                                         else:
 
-                                            # Add tariff activation date per server
-                                            server_tariff["activated_date"] = str(activated_tariff(server["tariffs"], needed_month_for_tariff)["activated"].strftime("%Y-%m-%d"))
-                                            server_tariff["added_date"] = str(activated_tariff(server["tariffs"], needed_month_for_tariff)["added"].strftime("%Y-%m-%d"))
+                                            # Add tariff activation date per asset
+                                            asset_tariff["activated_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
+                                            asset_tariff["added_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
                                             
                                             # Add migrated key
-                                            if "migrated_from" in server_tariff:
+                                            if "migrated_from" in asset_tariff:
                                                 tariff_dict["migrated"] = True
                                 
-                                            # Add tariff to the tariff list for the server
-                                            client_server_tariffs_dict[client][server["fqdn"]].append(server_tariff)
+                                            # Add tariff to the tariff list for the asset
+                                            client_asset_tariffs_dict[client][asset["fqdn"]].append(asset_tariff)
 
                                 else:
-                                    logger.info("Not active server: {0}".format(server["fqdn"]))
+                                    logger.info("Not active asset: {0}".format(asset["fqdn"]))
                         
                         # If there are additional_tariffs with client
                         if "additional_tariffs" in client_dict:
 
-                            client_server_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]] = []
+                            client_asset_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]] = []
 
                             # Find checked tariff
-                            for add_tariff in activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff)["tariffs"]:
+                            for add_tariff in activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["tariffs"]:
                                 
                                 # If tariff has file key - load it
                                 if "file" in add_tariff:
                                     
-                                    tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
+                                    tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
                                     if tariff_dict is None:
                                         
-                                        raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
+                                        raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
 
                                     # Add tariff activation date per tariff
-                                    tariff_dict["activated_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff)["activated"].strftime("%Y-%m-%d"))
-                                    tariff_dict["added_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff)["added"].strftime("%Y-%m-%d"))
+                                    tariff_dict["activated_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
+                                    tariff_dict["added_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
 
                                     # Add tariff to the tariff list
-                                    client_server_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]].append(tariff_dict)
+                                    client_asset_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]].append(tariff_dict)
 
                                 # Also take inline plan and service
                                 else:
 
-                                    # Add tariff activation date per server
-                                    add_tariff["activated_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff)["activated"].strftime("%Y-%m-%d"))
-                                    add_tariff["added_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff)["added"].strftime("%Y-%m-%d"))
+                                    # Add tariff activation date per asset
+                                    add_tariff["activated_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
+                                    add_tariff["added_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
                         
-                                    # Add tariff to the tariff list for the server
-                                    client_server_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]].append(add_tariff)
+                                    # Add tariff to the tariff list for the asset
+                                    client_asset_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]].append(add_tariff)
 
                 # We will need to read Invoices to know last billing date per client
 
@@ -3052,7 +3024,9 @@ if __name__ == "__main__":
                     # Check invoice shift from client yaml if exist, if not = 0
                     
                     # Load client YAML
-                    client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
+                    #XXX remove after check
+                    #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
+                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
 
@@ -3064,11 +3038,11 @@ if __name__ == "__main__":
                     needed_month_per_client[client] = datetime.today() + relativedelta(months=month_delta)
                     monthly_period = str(needed_month_per_client[client].strftime("%Y-%m"))
 
-                    # Iterate over client servers
-                    for server in client_server_tariffs_dict[client]:
+                    # Iterate over client assets
+                    for asset in client_asset_tariffs_dict[client]:
 
-                        # Iterate over tariffs for the server
-                        for tariff in client_server_tariffs_dict[client][server]:
+                        # Iterate over tariffs for the asset
+                        for tariff in client_asset_tariffs_dict[client][asset]:
                             
                             # Calc period portion
 
@@ -3087,7 +3061,7 @@ if __name__ == "__main__":
                             first_day_of_activated_date_month = activated_date_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                             last_day_of_activated_date_month = first_day_of_activated_date_month + relativedelta(months=1, days=-1)
 
-                            # Just add 1 portion for migrated servers, they were certainly billed before
+                            # Just add 1 portion for migrated assets, they were certainly billed before
                             if "migrated" in tariff:
 
                                 # Just add one whole month
@@ -3125,7 +3099,7 @@ if __name__ == "__main__":
                             
                             # Prepare row to save in monthly_details
                             monthly_details_new_item = {
-                                "server_fqdn":                      server,
+                                "asset_fqdn":                       asset,
                                 "activated_date":                   tariff["activated_date"],
                                 "service":                          tariff["service"],
                                 "plan":                             tariff["plan"],
@@ -3144,8 +3118,8 @@ if __name__ == "__main__":
 
                     # Sort details:
                     # - Activation date
-                    # - Server FQDN within one date
-                    monthly_details[client] = sorted(monthly_details[client], key = lambda x: (x["activated_date"], x["server_fqdn"]))
+                    # - Asset FQDN within one date
+                    monthly_details[client] = sorted(monthly_details[client], key = lambda x: (x["activated_date"], x["asset_fqdn"]))
 
             # Storage
 
@@ -3205,12 +3179,12 @@ if __name__ == "__main__":
                 logger.info("Query:")
                 logger.info(sql)
 
-                # Read rows and fill per server dict
+                # Read rows and fill per asset dict
                 try:
                     
                     cur.execute(sql)
                     
-                    server_storage_usage_monthly = {}
+                    asset_storage_usage_monthly = {}
 
                     for row in cur:
                         
@@ -3218,19 +3192,19 @@ if __name__ == "__main__":
                         row_usage_days          = row[0]
                         row_usage_month         = row[1]
                         row_days_in_month       = row[2]
-                        row_client_server_fqdn  = row[3]
-                        row_storage_server_fqdn = row[4]
-                        row_storage_server_path = row[5]
+                        row_client_asset_fqdn  = row[3]
+                        row_storage_asset_fqdn = row[4]
+                        row_storage_asset_path = row[5]
                         row_avg_per_month       = row[6]
 
-                        server_storage_usage_monthly[(row_client_server_fqdn, row_storage_server_fqdn, row_storage_server_path)] = {
+                        asset_storage_usage_monthly[(row_client_asset_fqdn, row_storage_asset_fqdn, row_storage_asset_path)] = {
                                 'usage_days':           row_usage_days,
                                 'usage_month':          row_usage_month,
                                 'avg_per_month':        row_avg_per_month
                         }
                         
-                        logger.info("Storage usage for server {server}, storage_server {storage_server}, storage_path {storage_path}:".format(server=row_client_server_fqdn, storage_server=row_storage_server_fqdn, storage_path=row_storage_server_path))
-                        logger.info(server_storage_usage_monthly[(row_client_server_fqdn, row_storage_server_fqdn, row_storage_server_path)])
+                        logger.info("Storage usage for asset {asset}, storage_asset {storage_asset}, storage_path {storage_path}:".format(asset=row_client_asset_fqdn, storage_asset=row_storage_asset_fqdn, storage_path=row_storage_asset_path))
+                        logger.info(asset_storage_usage_monthly[(row_client_asset_fqdn, row_storage_asset_fqdn, row_storage_asset_path)])
 
                     logger.info("Query execution status:")
                     logger.info(cur.statusmessage)
@@ -3246,7 +3220,7 @@ if __name__ == "__main__":
                     logger.info("Found client file: {0}".format(client_file))
 
                     # Load client YAML
-                    client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                    client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -3271,27 +3245,23 @@ if __name__ == "__main__":
                                                                                                                                                                 )
                                                                                                                                                             ):
 
-                        # Make server list
-                        servers_list = []
-                        if "servers" in client_dict:
-                            servers_list.extend(client_dict["servers"])
-                        if client_dict["configuration_management"]["type"] == "salt":
-                            servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
-                        # If there are servers
-                        if len(servers_list) > 0:
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
-                            # Iterate over servers in client
-                            for server in servers_list:
+                        # If there are assets
+                        if len(asset_list) > 0:
 
-                                if server["active"] and "storage" in server:
+                            # Iterate over assets in client
+                            for asset in asset_list:
+
+                                if asset["active"] and "storage" in asset:
                                     
-                                    logger.info("Active server with storage: {0}".format(server["fqdn"]))
+                                    logger.info("Active asset with storage: {0}".format(asset["fqdn"]))
 
                                     # Find storage tariff
 
                                     storage_tariff_found = False
                                     
-                                    for tariff in activated_tariff(server["tariffs"], needed_month_for_tariff)["tariffs"]:
+                                    for tariff in activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["tariffs"]:
 
                                         # If tariff has file key - load it
                                         if "file" in tariff:
@@ -3307,7 +3277,7 @@ if __name__ == "__main__":
 
                                                 # If storage tariff already found on prev step - error
                                                 if storage_tariff_found:
-                                                    raise Exception("Storage tariff found more than once for server {server}".format(server=server["fqdn"]))
+                                                    raise Exception("Storage tariff found more than once for asset {asset}".format(asset=asset["fqdn"]))
 
                                                 checked_tariff_rate = tariff_dict["storage"]["rate"]
                                                 checked_tariff_currency = tariff_dict["storage"]["currency"]
@@ -3326,7 +3296,7 @@ if __name__ == "__main__":
 
                                                 # If storage tariff already found on prev step - error
                                                 if storage_tariff_found:
-                                                    raise Exception("Storage tariff found more than once for server {server}".format(server=server["fqdn"]))
+                                                    raise Exception("Storage tariff found more than once for asset {asset}".format(asset=asset["fqdn"]))
 
                                                 checked_tariff_rate = tariff["storage"]["rate"]
                                                 checked_tariff_currency = tariff["storage"]["currency"]
@@ -3339,7 +3309,7 @@ if __name__ == "__main__":
                                     
                                     if not storage_tariff_found:
 
-                                        raise Exception("Storage tariff not found for server {server}".format(server=server["fqdn"]))
+                                        raise Exception("Storage tariff not found for asset {asset}".format(asset=asset["fqdn"]))
 
                                     # Set row tariff from tariff
                                     row_tariff_rate = checked_tariff_rate
@@ -3353,42 +3323,42 @@ if __name__ == "__main__":
                                     # Check if non empty currency was found for the row, zero tariff is ok (e.g. storing backups of vps on our hypervisors)
                                     if row_tariff_currency == "":
 
-                                        raise Exception("Storage tariff for server {server} has empty currency".format(server=server["fqdn"]))
+                                        raise Exception("Storage tariff for asset {asset} has empty currency".format(asset=asset["fqdn"]))
 
                                     # Else log rate and currency
                                     else:
 
-                                        logger.info("Found storage tariff rate {rate} and currency {currency} for server {server}".format(rate=row_tariff_rate, currency=row_tariff_currency, server=server["fqdn"]))
+                                        logger.info("Found storage tariff rate {rate} and currency {currency} for asset {asset}".format(rate=row_tariff_rate, currency=row_tariff_currency, asset=asset["fqdn"]))
 
                                     # Migrated storage history kept in ex_storage, otherwise billing logic will not find in DB previous data within one month
                                     # So join two lists for billing
-                                    if "ex_storage" in server:
-                                        storage_items = server["storage"] + server["ex_storage"]
+                                    if "ex_storage" in asset:
+                                        storage_items = asset["storage"] + asset["ex_storage"]
                                     else:
-                                        storage_items = server["storage"]
+                                        storage_items = asset["storage"]
 
                                     # Walk for storage items
                                     for storage_item in storage_items:
 
-                                        for storage_server, storage_paths in storage_item.items():
+                                        for storage_asset, storage_paths in storage_item.items():
 
                                             for storage_path in storage_paths:
 
-                                                # Check if server has storage usage records and add rows to details if any
-                                                if (server["fqdn"], storage_server, storage_path) in server_storage_usage_monthly:
+                                                # Check if asset has storage usage records and add rows to details if any
+                                                if (asset["fqdn"], storage_asset, storage_path) in asset_storage_usage_monthly:
 
                                                     storage_details_new_item = {
-                                                        'client_server_fqdn':       server["fqdn"],
-                                                        'storage_server_fqdn':      storage_server,
-                                                        'storage_server_path':      storage_path,
-                                                        'usage_days':               server_storage_usage_monthly[(server["fqdn"], storage_server, storage_path)]["usage_days"],
-                                                        'usage_month':              str(server_storage_usage_monthly[(server["fqdn"], storage_server, storage_path)]["usage_month"].strftime("%Y-%m")),
-                                                        'avg_per_month':            round(server_storage_usage_monthly[(server["fqdn"], storage_server, storage_path)]["avg_per_month"] / 1000, 2),
+                                                        'client_asset_fqdn':        asset["fqdn"],
+                                                        'storage_asset_fqdn':       storage_asset,
+                                                        'storage_asset_path':       storage_path,
+                                                        'usage_days':               asset_storage_usage_monthly[(asset["fqdn"], storage_asset, storage_path)]["usage_days"],
+                                                        'usage_month':              str(asset_storage_usage_monthly[(asset["fqdn"], storage_asset, storage_path)]["usage_month"].strftime("%Y-%m")),
+                                                        'avg_per_month':            round(asset_storage_usage_monthly[(asset["fqdn"], storage_asset, storage_path)]["avg_per_month"] / 1000, 2),
                                                         'tariff_currency':          row_tariff_currency,
                                                         'tariff_rate':              row_tariff_rate,
                                                         'tariff_plan':              row_tariff_plan,
                                                         'woocommerce_product_id':   row_wc_pid,
-                                                        'storage_cost':             round(round(server_storage_usage_monthly[(server["fqdn"], storage_server, storage_path)]["avg_per_month"] / 1000, 2) * row_tariff_rate, 2)
+                                                        'storage_cost':             round(round(asset_storage_usage_monthly[(asset["fqdn"], storage_asset, storage_path)]["avg_per_month"] / 1000, 2) * row_tariff_rate, 2)
                                                     }
 
                                                     # Init client storage list
@@ -3401,7 +3371,7 @@ if __name__ == "__main__":
                         # Sort details and log:
                         if client_dict["name"].lower() in storage_details:
                             
-                            storage_details[client_dict["name"].lower()] = sorted(storage_details[client_dict["name"].lower()], key = lambda x: (x["client_server_fqdn"], x["storage_server_fqdn"], x["storage_server_path"]))
+                            storage_details[client_dict["name"].lower()] = sorted(storage_details[client_dict["name"].lower()], key = lambda x: (x["client_asset_fqdn"], x["storage_asset_fqdn"], x["storage_asset_path"]))
                             logger.info("Storage details for client {client}".format(client=client_dict["name"].lower()))
                             logger.info(storage_details[client_dict["name"].lower()])
 
@@ -3417,7 +3387,7 @@ if __name__ == "__main__":
 
             for client in invoice_details:
 
-                # Skip client if invoice_details is empty (e.g. no servers, only hourly)
+                # Skip client if invoice_details is empty (e.g. no assets, only hourly)
                 if not invoice_details[client]:
                     continue
                 
@@ -3426,7 +3396,9 @@ if __name__ == "__main__":
                 logger.info(json.dumps(invoice_details[client], indent=2))
                         
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
+                #XXX remove after check
+                #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
+                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
 
@@ -3474,15 +3446,15 @@ if __name__ == "__main__":
                                 template=client_dict["template"]
                             ))
                         if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
-                            logger.error("Server {server} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
-                                server=detail["server_fqdn"],
+                            logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
+                                asset=detail["asset_fqdn"],
                                 currency=detail["tariff_currency"],
                                 merchant=client_dict["merchant"],
                                 template=client_dict["template"]
                             ))
                         if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients is not None:
-                            logger.error("Server {server} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
-                                server=detail["client_server_fqdn"],
+                            logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
+                                asset=detail["client_asset_fqdn"],
                                 currency=detail["tariff_currency"],
                                 merchant=client_dict["merchant"],
                                 template=client_dict["template"]
@@ -3611,7 +3583,7 @@ if __name__ == "__main__":
                         # Populate details rows
                         client_doc_details_list_item = [
                             str(details_row_n),
-                            detail["server_fqdn"],
+                            detail["asset_fqdn"],
                             detail["activated_date"],
                             detail["service"],
                             detail["plan"],
@@ -3660,9 +3632,9 @@ if __name__ == "__main__":
                         # Populate details rows
                         client_doc_details_list_item = [
                             str(details_row_n),
-                            detail["client_server_fqdn"],
-                            detail["storage_server_fqdn"],
-                            detail["storage_server_path"],
+                            detail["client_asset_fqdn"],
+                            detail["storage_asset_fqdn"],
+                            detail["storage_asset_path"],
                             formatted_usage_days,
                             formatted_avg_per_month,
                             formatted_tariff_rate,
@@ -4092,8 +4064,74 @@ if __name__ == "__main__":
             if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients:
                 cur.close()
 
-        # Skip connection close on yaml-check
-        if not args.yaml_check:
+        if args.list_assets_for_client is not None or args.list_assets_for_all_clients:
+            
+            # For *.yaml in client dir
+            for client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
+                
+                logger.info("Found client file: {0}".format(client_file))
+
+                # Load client YAML
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
+                if client_dict is None:
+                    raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
+                
+                # Check specific client
+                if args.list_assets_for_client is not None:
+                    client, = args.list_assets_for_client
+                    if client_dict["name"].lower() != client:
+                        continue
+
+                # Check if client is active
+                if client_dict["active"]:
+
+                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger), key = lambda x: (x["tariffs"][-1]["activated"]))
+
+                    # Iterate over assets
+                    for asset in asset_list:
+
+                        logger.info("Asset: {0}".format(asset["fqdn"]))
+
+                        # ssh for print
+                        if "ssh" in asset:
+                            ssh_key = ", ssh: "
+                            ssh_text = ""
+                            if "jump" in asset["ssh"]:
+                                ssh_text += "jump: "
+                                ssh_text += asset["ssh"]["jump"]["host"]
+                                if "port" in asset["ssh"]["jump"]:
+                                    ssh_text += ":" + str(asset["ssh"]["jump"]["port"])
+                                ssh_text += " "
+                            if "host" in asset["ssh"]:
+                                ssh_text += asset["ssh"]["host"]
+                            if "port" in asset["ssh"]:
+                                ssh_text += ":" + str(asset["ssh"]["port"])
+                        else:
+                            ssh_key = ""
+                            ssh_text = ""
+
+                        # tariffs for print
+                        tar_text = ""
+                        tar_list = []
+                        for tar in asset["activated_tariff"]:
+                            tar_list.append("{service} {plan} {revision}".format(service=tar["service"], plan=tar["plan"], revision=tar["revision"]))
+                        tar_text = ", ".join(tar_list)
+
+                        # Print
+                        print("{fqdn}: {{ kind: {kind}, from: {first_activated_date}, loc: {location}{desc_key}{description}{ssh_key}{ssh}, tar: {tariff} }}".format(
+                            fqdn=asset["fqdn"],
+                            kind=asset["kind"],
+                            first_activated_date=asset["tariffs"][-1]["activated"],
+                            location=asset["location"],
+                            desc_key=", desc: " if "description" in asset else "",
+                            description=asset["description"] if "description" in asset else "",
+                            ssh_key=ssh_key,
+                            ssh=ssh_text,
+                            tariff=tar_text
+                        ))
+
+        # Skip connection close where not needed
+        if not (args.yaml_check or args.list_assets_for_client is not None or args.list_assets_for_all_clients):
             # Close connection
             conn.close()
 

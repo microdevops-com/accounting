@@ -42,70 +42,6 @@ def open_file(d, f, mode):
                 raise
     return open("{0}/{1}".format(d, f), mode)
 
-# Helps to find tariff in tariffs list which is activated for event date
-def activated_tariff(tariffs, event_date_time):
-    event_tariff = None
-    for tariff in tariffs:
-        tariff_date_time = datetime.combine(tariff["activated"], time.min)
-        # Event datetime must be later than tariff datetime
-        if event_date_time > tariff_date_time:
-            event_tariff = tariff
-            break
-    if event_tariff is not None:
-        logger.info("Found activated tariff {0} for event date time {1}".format(event_tariff, event_date_time))
-        return event_tariff
-    else:
-        raise Exception("Event date time {0} out of available tariffs date time".format(event_date_time))
-
-def active_tar_and_lic_per_server(client_dict):
-
-    tariffs = {}
-    licenses = {}
-
-    # Make server list
-    servers_list = []
-    if "servers" in client_dict:
-        servers_list.extend(client_dict["servers"])
-    if client_dict["configuration_management"]["type"] == "salt":
-        servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
-
-    # Iterate over servers in client
-    for server in servers_list:
-
-        if server["active"]:
-
-            tariffs[server["fqdn"]] = []
-            licenses[server["fqdn"]] = []
-
-            # Iterate over tariffs
-            for server_tariff in activated_tariff(server["tariffs"], datetime.now())["tariffs"]:
-
-                # If tariff has file key - load it
-                if "file" in server_tariff:
-
-                    tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
-                    if tariff_dict is None:
-                        raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
-
-                    # Add tariff to the tariff list for the server
-                    tariffs[server["fqdn"]].append(tariff_dict)
-
-                    # Add tariff plan licenses to all tariffs lic list if exist
-                    if "licenses" in tariff_dict:
-                        licenses[server["fqdn"]].extend(tariff_dict["licenses"])
-
-                # Also take inline plan and service
-                else:
-
-                    # Add tariff to the tariff list for the server
-                    tariffs[server["fqdn"]].append(server_tariff)
-
-                    # Add tariff plan licenses to all tariffs lic list if exist
-                    if "licenses" in server_tariff:
-                        licenses[server["fqdn"]].extend(server_tariff["licenses"])
-
-    return tariffs, licenses
-
 # Main
 
 if __name__ == "__main__":
@@ -127,8 +63,8 @@ if __name__ == "__main__":
     group.add_argument("--setup-projects-for-all-clients", dest="setup_projects_for_all_clients", help="ensure -salt, -admin project created in GitLab, their settings setup for all clients excluding --exclude-clients or only for --include-clients", action="store_true")
     group.add_argument("--template-salt-project-for-client", dest="template_salt_project_for_client", help="apply templates for salt project for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
     group.add_argument("--template-salt-project-for-all-clients", dest="template_salt_project_for_all_clients", help="apply templates for salt project for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
-    group.add_argument("--update-admin-project-wiki-for-client", dest="update_admin_project_wiki_for_client", help="update admin project wiki (server list, memo etc) for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
-    group.add_argument("--update-admin-project-wiki-for-all-clients", dest="update_admin_project_wiki_for_all_clients", help="update admin project wiki (server list, memo etc) for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
+    group.add_argument("--update-admin-project-wiki-for-client", dest="update_admin_project_wiki_for_client", help="update admin project wiki (asset list, memo etc) for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
+    group.add_argument("--update-admin-project-wiki-for-all-clients", dest="update_admin_project_wiki_for_all_clients", help="update admin project wiki (asset list, memo etc) for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
 
     if len(sys.argv) > 1:
         args = parser.parse_args()
@@ -186,7 +122,7 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                 
@@ -375,7 +311,7 @@ if __name__ == "__main__":
 
                     # Set needed project params
                     if not args.dry_run_gitlab:
-                        project.description = "{client} Server Administration".format(client=client_dict["name"])
+                        project.description = "{client}".format(client=client_dict["name"])
                         project.visibility = "private"
                         # Save
                         project.save()
@@ -394,7 +330,7 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                 
@@ -470,8 +406,9 @@ if __name__ == "__main__":
 
                     # Init empty template vars
                     template_var_clients = {}
-                    template_var_server_tariffs = {}
-                    template_var_server_licenses = {}
+                    template_var_asset_dicts = {}
+                    template_var_asset_tariffs = {}
+                    template_var_asset_licenses = {}
 
                     # Check sub_clients before adding
                     if "sub_clients" in client_dict["configuration_management"]:
@@ -480,14 +417,18 @@ if __name__ == "__main__":
                         for template_var_client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
 
                             # Load client YAML
-                            template_var_client_dict = load_yaml("{0}/{1}".format(WORK_DIR, template_var_client_file), logger)
+                            template_var_client_dict = load_client_yaml(WORK_DIR, template_var_client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                             if template_var_client_dict is None:
                                 raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, template_var_client_file))
 
                             # Add if sub_clients match, add parent client to sub_client as well
                             if (type(client_dict["configuration_management"]["sub_clients"]) == str and client_dict["configuration_management"]["sub_clients"] == "ALL") or template_var_client_dict["name"] in client_dict["configuration_management"]["sub_clients"] or template_var_client_dict["name"] == client_dict["name"]:
                                 template_var_clients[template_var_client_dict["name"]] = template_var_client_dict
-                                template_var_server_tariffs[template_var_client_dict["name"]], template_var_server_licenses[template_var_client_dict["name"]] = active_tar_and_lic_per_server(template_var_client_dict)
+
+                                template_var_asset_dicts[template_var_client_dict["name"]], \
+                                    template_var_asset_tariffs[template_var_client_dict["name"]], \
+                                    template_var_asset_licenses[template_var_client_dict["name"]] = get_active_assets(template_var_client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+
                                 logger.info("Added client to template: {0}".format(template_var_client_file))
 
                     # File Templates
@@ -504,8 +445,9 @@ if __name__ == "__main__":
                                 template = j2_env.get_template(templated_file["jinja"])
                                 rendered_template = template.render(
                                     clients = template_var_clients,
-                                    server_tariffs = template_var_server_tariffs,
-                                    server_licenses = template_var_server_licenses
+                                    asset_dicts = template_var_asset_dicts,
+                                    asset_tariffs = template_var_asset_tariffs,
+                                    asset_licenses = template_var_asset_licenses
                                 )
 
                                 logger.info("Rendered template: {0}".format(rendered_template))
@@ -691,74 +633,58 @@ if __name__ == "__main__":
                     else:
 
                         # It is needed for both salt and salt-ssh types
-                        client_server_list = ""
-                        if "servers" in client_dict:
-                            for server in sorted(client_dict["servers"], key = lambda x: (x["tariffs"][0]["activated"], x["fqdn"])):
-                                if server["active"]:
-                                    client_server_list += textwrap.dedent(
-                                        """
-                                        echo "{fqdn}:" >> etc/salt/roster
-                                        echo "  host: {host}" >> etc/salt/roster
-                                        echo "  port: {port}" >> etc/salt/roster
-                                        echo "  priv: __ROSTER_PRIV__" >> etc/salt/roster
-                                        """
-                                    ).format(fqdn=server["fqdn"],
-                                        host=server["ssh"]["host"] if ("ssh" in server and "host" in server["ssh"]) else server["fqdn"],
-                                        port=server["ssh"]["port"] if ("ssh" in server and "port" in server["ssh"]) else "22"
-                                    )
-                                    if "ssh" in server and "jump" in server["ssh"]:
-                                        if "port" in server["ssh"]["jump"]:
-                                            client_server_list += textwrap.dedent(
-                                                """
-                                                echo "  ssh_options:" >> etc/salt/roster
-                                                echo "    - ProxyJump={jump_host}:{jump_port}" >> etc/salt/roster
-                                                """
-                                            ).format(jump_host=server["ssh"]["jump"]["host"],
-                                                jump_port=server["ssh"]["jump"]["port"]
-                                            )
-                                        else:
-                                            client_server_list += textwrap.dedent(
-                                                """
-                                                echo "  ssh_options:" >> etc/salt/roster
-                                                echo "    - ProxyJump={jump_host}" >> etc/salt/roster
-                                                """
-                                            ).format(jump_host=server["ssh"]["jump"]["host"])
-                                    if "roster_opts" in server:
-                                        for optname, optval in server["roster_opts"].items():
-                                            client_server_list += textwrap.dedent(
-                                                """
-                                                echo "  {optname}: {optval}" >> etc/salt/roster
-                                                """
-                                            ).format(optname=optname, optval=optval)
+                        client_asset_list = ""
 
-                        # Also add salt masters for salt type
-                        if client_dict["configuration_management"]["type"] == "salt":
-                            for salt_master in client_dict["configuration_management"]["salt"]["masters"]:
-                                client_server_list += textwrap.dedent(
+                        for asset in sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger), key = lambda x: (x["tariffs"][-1]["activated"], x["fqdn"])):
+
+                            # Add only servers to roster
+                            if asset["kind"] == "server":
+                                client_asset_list += textwrap.dedent(
                                     """
                                     echo "{fqdn}:" >> etc/salt/roster
                                     echo "  host: {host}" >> etc/salt/roster
                                     echo "  port: {port}" >> etc/salt/roster
                                     echo "  priv: __ROSTER_PRIV__" >> etc/salt/roster
                                     """
-                                ).format(fqdn=salt_master["fqdn"],
-                                    host=salt_master["ssh"]["host"] if ("ssh" in salt_master and "host" in salt_master["ssh"]) else salt_master["fqdn"],
-                                    port=salt_master["ssh"]["port"] if ("ssh" in salt_master and "port" in salt_master["ssh"]) else "22"
+                                ).format(fqdn=asset["fqdn"],
+                                    host=asset["ssh"]["host"] if ("ssh" in asset and "host" in asset["ssh"]) else asset["fqdn"],
+                                    port=asset["ssh"]["port"] if ("ssh" in asset and "port" in asset["ssh"]) else "22"
                                 )
-                                salt_master_names.append(salt_master["fqdn"])
-                                salt_master_ips.append(salt_master["ip"])
-                                salt_master_ext_ips.append(salt_master["external_ip"])
+                                if "ssh" in asset and "jump" in asset["ssh"]:
+                                    if "port" in asset["ssh"]["jump"]:
+                                        client_asset_list += textwrap.dedent(
+                                            """
+                                            echo "  ssh_options:" >> etc/salt/roster
+                                            echo "    - ProxyJump={jump_host}:{jump_port}" >> etc/salt/roster
+                                            """
+                                        ).format(jump_host=asset["ssh"]["jump"]["host"],
+                                            jump_port=asset["ssh"]["jump"]["port"]
+                                        )
+                                    else:
+                                        client_asset_list += textwrap.dedent(
+                                            """
+                                            echo "  ssh_options:" >> etc/salt/roster
+                                            echo "    - ProxyJump={jump_host}" >> etc/salt/roster
+                                            """
+                                        ).format(jump_host=asset["ssh"]["jump"]["host"])
+                                if "roster_opts" in asset:
+                                    for optname, optval in asset["roster_opts"].items():
+                                        client_asset_list += textwrap.dedent(
+                                            """
+                                            echo "  {optname}: {optval}" >> etc/salt/roster
+                                            """
+                                        ).format(optname=optname, optval=optval)
 
                         script = textwrap.dedent(
                             """
                             set -e
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                             > etc/salt/roster
-                            {client_server_list}
+                            {client_asset_list}
                             """
                         ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR,
                             path_with_namespace=project.path_with_namespace,
-                            client_server_list=client_server_list
+                            client_asset_list=client_asset_list
                         )
                         logger.info("Running bash script:")
                         logger.info(script)
@@ -770,15 +696,15 @@ if __name__ == "__main__":
                         
                         pillar_dirname = PROJECTS_SUBDIR + "/" + project.path_with_namespace + "/pillar/salt"
                         
-                        for server in client_dict["servers"]:
+                        for asset in get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
 
-                            if server["active"] and "minion" in server:
+                            if asset["active"] and asset["kind"] == "server" and "minion" in asset:
                                 
                                 # Check validity of pem/pub vars (start keyword, end keyword, at least 3 newlines)
-                                if not re.match(r'^-----BEGIN.*KEY-----$', server["minion"]["pem"], re.MULTILINE) or server["minion"]["pem"].count("\n") < 3:
-                                    raise Exception("Minion {minion} pem \n{pem} doesn't match needed regexp or at least 3 newlines".format(minion=server["fqdn"], pem=server["minion"]["pem"]))
-                                if not re.match(r'^-----BEGIN.*KEY-----$', server["minion"]["pub"], re.MULTILINE) or server["minion"]["pub"].count("\n") < 3:
-                                    raise Exception("Minion {minion} pub \n{pub} doesn't match needed regexp or at least 3 newlines".format(minion=server["fqdn"], pub=server["minion"]["pub"]))
+                                if not re.match(r'^-----BEGIN.*KEY-----$', asset["minion"]["pem"], re.MULTILINE) or asset["minion"]["pem"].count("\n") < 3:
+                                    raise Exception("Minion {minion} pem \n{pem} doesn't match needed regexp or at least 3 newlines".format(minion=asset["fqdn"], pem=asset["minion"]["pem"]))
+                                if not re.match(r'^-----BEGIN.*KEY-----$', asset["minion"]["pub"], re.MULTILINE) or asset["minion"]["pub"].count("\n") < 3:
+                                    raise Exception("Minion {minion} pub \n{pub} doesn't match needed regexp or at least 3 newlines".format(minion=asset["fqdn"], pub=asset["minion"]["pub"]))
                             
                                 # Minion keys
                                 pillar_minion_dict = {
@@ -786,8 +712,8 @@ if __name__ == "__main__":
                                         "minion": {
                                             "pki": {
                                                 "minion": {
-                                                    "pem": pss(server["minion"]["pem"]),
-                                                    "pub": pss(server["minion"]["pub"])
+                                                    "pem": pss(asset["minion"]["pem"]),
+                                                    "pub": pss(asset["minion"]["pub"])
                                                 },
                                                 "master_sign": pss(client_dict["configuration_management"]["salt"]["pki"]["master_sign"]["pub"]) # Pub of Master Signature on Minion
                                             }
@@ -796,7 +722,7 @@ if __name__ == "__main__":
                                 }
                                 
                                 # Minion pillar
-                                pillar_filename = "minion_" + server["fqdn"].replace(".", "_") + ".sls"
+                                pillar_filename = "minion_" + asset["fqdn"].replace(".", "_") + ".sls"
                                 with open_file(pillar_dirname, pillar_filename, "w") as pillar_file:
                                     pillar_yaml = YAML()
                                     pillar_yaml.dump(pillar_minion_dict, pillar_file)
@@ -842,10 +768,10 @@ if __name__ == "__main__":
                             # Accepted Minion on Master
                             pillar_master_dict["salt"]["master"]["pki"]["minions"][salt_master["fqdn"]] = pss(salt_master["pki"]["minion"]["pub"])
 
-                            # Other active servers accepted Minions on Master
-                            for server in client_dict["servers"]:
-                                if server["active"] and "minion" in server:
-                                    pillar_master_dict["salt"]["master"]["pki"]["minions"][server["fqdn"]] = pss(server["minion"]["pub"])
+                            # Other active assets accepted Minions on Master
+                            for asset in get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
+                                if asset["active"] and asset["kind"] == "server" and "minion" in asset:
+                                    pillar_master_dict["salt"]["master"]["pki"]["minions"][asset["fqdn"]] = pss(asset["minion"]["pub"])
 
                             # Root Keys for deploy
                             if "root_ed25519" in salt_master:
@@ -931,9 +857,6 @@ if __name__ == "__main__":
 
         if args.update_admin_project_wiki_for_client is not None or args.update_admin_project_wiki_for_all_clients:
 
-            logger.error("Not ready yet")
-            sys.exit(1)
-
             # Connect to GitLab
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)
             gl.auth()
@@ -944,7 +867,7 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -1019,46 +942,49 @@ if __name__ == "__main__":
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
-                    client_server_list = ""
-                    #for salt_master in client_dict["salt"]["masters"]:
-                    #    client_server_list.
-                    if "servers" in client_dict:
-                        for server in sorted(client_dict["servers"], key = lambda x: (x["tariffs"][0]["activated"], x["fqdn"])):
-                            if not server["active"]:
-                                server_strike = "~~"
-                            else:
-                                server_strike = ""
-                            server_tariff = ""
-                            for tariff in server["tariffs"]:
-                                if tariff == server["tariffs"][0]:
-                                    server_tariff += "active, from "
-                                else:
-                                    server_tariff += "not active, from "
-                                server_tariff += tariff["activated"].strftime("%Y-%m-%d")
-                                server_tariff += " - "
-                                for tariff_tariff in tariff["tariffs"]:
-                                    if "file" in tariff_tariff:
-                                        server_tariff += tariff_tariff["file"]
-                                    else:
-                                        server_tariff += tariff_tariff["service"] + " " + tariff_tariff["plan"] + " rev. " + str(tariff_tariff["revision"])
-                                        server_tariff += " ("
-                                        server_tariff += str(tariff_tariff["monthly"]["rate"]) + " " + tariff_tariff["monthly"]["currency"] + " / month, "
-                                        server_tariff += str(tariff_tariff["hourly"]["rate"]) + " " + tariff_tariff["hourly"]["currency"] + " / hour"
-                                        if "storage" in tariff_tariff:
-                                            server_tariff += ", " + str(tariff_tariff["storage"]["rate"]) + " " + tariff_tariff["storage"]["currency"] + " / Gb"
-                                        server_tariff += " )"
-                                    if tariff_tariff != tariff["tariffs"][-1]:
-                                        server_tariff += " + "
-                                server_tariff += "<br>"
-                            client_server_list += textwrap.dedent(
-                        """echo  "| {server_fqdn} | {server_active} | {server_location} | {server_jobs} | {server_os} | {server_tariff} |" >> Servers.md
-                        """
-                            ).format(server_fqdn=server_strike + server["fqdn"] + server_strike,
-                                server_active="True" if server["active"] else "False",
-                                server_location=server_strike + server["location"] + server_strike if "location" in server else "",
-                                server_jobs=server_strike + "False" + server_strike if ("jobs_disabled" in client_dict and client_dict["jobs_disabled"]) or ("jobs_disabled" in server and server["jobs_disabled"]) else server_strike + "True" + server_strike,
-                                server_os=server_strike + server["os"] + server_strike if "os" in server else "",
-                                server_tariff=server_strike + server_tariff + server_strike
+                    asset_list_text = ""
+                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger), key = lambda x: (x["tariffs"][-1]["activated"]))
+
+                    # Iterate over assets
+                    for asset in asset_list:
+
+                        logger.info("Asset: {0}".format(asset["fqdn"]))
+
+                        # ssh for print
+                        if "ssh" in asset:
+                            ssh_text = ""
+                            if "jump" in asset["ssh"]:
+                                ssh_text += "jump: "
+                                ssh_text += asset["ssh"]["jump"]["host"]
+                                if "port" in asset["ssh"]["jump"]:
+                                    ssh_text += ":" + str(asset["ssh"]["jump"]["port"])
+                                ssh_text += " "
+                            if "host" in asset["ssh"]:
+                                ssh_text += asset["ssh"]["host"]
+                            if "port" in asset["ssh"]:
+                                ssh_text += ":" + str(asset["ssh"]["port"])
+                        else:
+                            ssh_text = ""
+
+                        # tariffs for print
+                        tar_text = ""
+                        tar_list = []
+                        for tar in asset["activated_tariff"]:
+                            tar_list.append("{service} {plan} {revision}".format(service=tar["service"], plan=tar["plan"], revision=tar["revision"]))
+                        tar_text = ", ".join(tar_list)
+
+                        # Print
+                        asset_list_text += textwrap.dedent(
+                            """echo  "| {fqdn} | {kind} | {first_activated_date} | {location} | {description} | {ssh} | {tariff} |" >> Assets.md
+                            """
+                            ).format(
+                                fqdn=asset["fqdn"],
+                                kind=asset["kind"],
+                                first_activated_date=asset["tariffs"][-1]["activated"],
+                                location=asset["location"],
+                                description=asset["description"] if "description" in asset else "",
+                                ssh=ssh_text,
+                                tariff=tar_text
                             )
 
                     # Update info
@@ -1068,8 +994,7 @@ if __name__ == "__main__":
                         mkdir -p {PROJECTS_SUBDIR}/{path_with_namespace}/Accounting
                         cd {PROJECTS_SUBDIR}/{path_with_namespace}/Accounting
 
-                        echo "# Requisites" > Requisites.md
-                        echo  "| Key | Value |" >> Requisites.md
+                        echo  "| Key | Value |" > Requisites.md
                         echo  "| --- | ----- |" >> Requisites.md
                         echo  "| Client Name | {client_name} |" >> Requisites.md
                         echo  "| Client Code | {client_code} |" >> Requisites.md
@@ -1082,13 +1007,9 @@ if __name__ == "__main__":
                         echo  "| Papers Envelope Address | {client_papers_envelope_address} |" >> Requisites.md
                         echo  "| Papers Email | {client_papers_email} |" >> Requisites.md
 
-                        echo "# Servers" > Servers.md
-                        echo  "| FQDN | Active | Location | Jobs | OS | Tariff |" >> Servers.md
-                        echo  "| ---- | ------ | -------- | ---- | -- | ------ |" >> Servers.md
-                        {client_server_list}
-
-                        echo "# Tariffs" > Tariffs.md
-                        echo "YYY" >> Tariffs.md
+                        echo  "| FQDN | Kind | First Activated Date | Location | Description | SSH | Tariff |" > Assets.md
+                        echo  "| ---- | ---- | -------------------- | -------- | ----------- | --- | ------ |" >> Assets.md
+                        {asset_list_text}
                         """
                     ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR,
                         path_with_namespace=path_with_namespace,
@@ -1102,7 +1023,7 @@ if __name__ == "__main__":
                         client_contract_person_sign=client_dict["contract"]["sign"],
                         client_papers_envelope_address=client_dict["papers"]["envelope_address"].replace("\n", "<br>") if "envelope_address" in client_dict["papers"] else "",
                         client_papers_email=client_dict["papers"]["email"]["to"],
-                        client_server_list=client_server_list
+                        asset_list_text=asset_list_text
                     )
                     logger.info("Running bash script:")
                     logger.info(script)
@@ -1118,7 +1039,7 @@ if __name__ == "__main__":
 
                     if args.git_commit:
                         git_add_text = "git add -A"
-                        git_commit_text = "git commit -m '.salt-project-template, .salt-project-private-template installed' || true"
+                        git_commit_text = "git commit -m 'update by accounting' || true"
                     else:
                         git_add_text = ""
                         git_commit_text = ""

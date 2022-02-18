@@ -28,22 +28,6 @@ HISTORY_LOCK = ".jobs/history.lock"
 LOCK_TIMEOUT = 600 # Supposed to be run each 10 minutes, so lock for 10 minutes
 MINUTES_JITTER = 10 # Jobs are run on some minute between 00 and 10 minutes each 10 minutes
 
-# Funcs
-# Helps to find tariff in tariffs list which is activated for event date
-def activated_tariff(tariffs, event_date_time):
-    event_tariff = None
-    for tariff in tariffs:
-        tariff_date_time = datetime.combine(tariff["activated"], time.min)
-        # Event datetime must be later than tariff datetime
-        if event_date_time > tariff_date_time:
-            event_tariff = tariff
-            break
-    if event_tariff is not None:
-        logger.info("Found activated tariff {0} for event date time {1}".format(event_tariff, event_date_time))
-        return event_tariff
-    else:
-        raise Exception("Event date time {0} out of available tariffs date time".format(event_date_time))
-
 # Main
 
 if __name__ == "__main__":
@@ -52,8 +36,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='{LOGO} functions.'.format(LOGO=LOGO))
     parser.add_argument("--debug", dest="debug", help="enable debug", action="store_true")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--run-jobs", dest="run_jobs", help="run jobs for server SERVER (use ALL for all servers) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "SERVER"))
-    group.add_argument("--force-run-job", dest="force_run_job", help="force run (omit time conditions) specific job id JOB for server SERVER (use ALL for all servers) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "SERVER", "JOB"))
+    group.add_argument("--run-jobs", dest="run_jobs", help="run jobs for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "ASSET"))
+    group.add_argument("--force-run-job", dest="force_run_job", help="force run (omit time conditions) specific job id JOB for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET", "JOB"))
     group.add_argument("--prune-run-tags", dest="prune_run_tags", help="prune all run_* tags older than AGE via GitLab API for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "AGE"))
     args = parser.parse_args()
 
@@ -104,15 +88,15 @@ if __name__ == "__main__":
                     logger.info("Found client file: {0}".format(client_file))
 
                     # Load client YAML
-                    client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                    client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                     
                     # Skip other clients
                     if args.run_jobs:
-                        run_client, run_server = args.run_jobs
+                        run_client, run_asset = args.run_jobs
                     if args.force_run_job:
-                        run_client, run_server, run_job = args.force_run_job
+                        run_client, run_asset, run_job = args.force_run_job
 
                     if run_client != "ALL" and client_dict["name"].lower() != run_client:
                         continue
@@ -135,31 +119,30 @@ if __name__ == "__main__":
                     project = gl.projects.get(client_dict["gitlab"]["salt_project"]["path"])
                     logger.info("Salt project {project} for client {client} ssh_url_to_repo: {ssh_url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["salt_project"]["path"], client=client_dict["name"], path_with_namespace=project.path_with_namespace, ssh_url_to_repo=project.ssh_url_to_repo))
 
-                    # Make server list
-                    servers_list = []
-                    if "servers" in client_dict:
-                        servers_list.extend(client_dict["servers"])
-                    if client_dict["configuration_management"]["type"] == "salt":
-                        servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
-                    # For each server
-                    for server in servers_list:
+                    # For each asset
+                    for asset in asset_list:
 
-                        # Server errors should not stop other servers
+                        # Asset errors should not stop other assets
                         try:
 
-                            # Skip servers if needed
-                            if run_server != "ALL" and server["fqdn"] != run_server:
+                            # Skip assets if needed
+                            if run_asset != "ALL" and asset["fqdn"] != run_asset:
+                                continue
+
+                            # Skip non-server assets
+                            if asset["kind"] != "server":
                                 continue
                             
-                            # Skip servers with jobs disabled
-                            if "jobs_disabled" in server and server["jobs_disabled"]:
-                                logger.info("Jos disabled for server {server}, skipping".format(server=server["fqdn"]))
+                            # Skip assets with jobs disabled
+                            if "jobs_disabled" in asset and asset["jobs_disabled"]:
+                                logger.info("Jos disabled for asset {asset}, skipping".format(asset=asset["fqdn"]))
                                 continue
                             
-                            # Skip not active servers
-                            if "active" in server and not server["active"]:
-                                logger.info("Server {server} is not active, skipping".format(server=server["fqdn"]))
+                            # Skip not active assets
+                            if "active" in asset and not asset["active"]:
+                                logger.info("Asset {asset} is not active, skipping".format(asset=asset["fqdn"]))
                                 continue
                             
                             # Build job list
@@ -170,8 +153,8 @@ if __name__ == "__main__":
                                 
                                 for job_id, job_params in acc_yaml_dict["jobs"].items():
                                     
-                                    # Do not add if the same job exists in client jobs or server jobs
-                                    if not (("jobs" in client_dict and job_id in client_dict["jobs"]) or ("jobs" in server and job_id in server["jobs"])):
+                                    # Do not add if the same job exists in client jobs or asset jobs
+                                    if not (("jobs" in client_dict and job_id in client_dict["jobs"]) or ("jobs" in asset and job_id in asset["jobs"])):
                                         job_params["id"] = job_id
                                         job_params["level"] = "GLOBAL"
                                         job_list.append(job_params)
@@ -181,62 +164,62 @@ if __name__ == "__main__":
                                 
                                 for job_id, job_params in client_dict["jobs"].items():
                                     
-                                    # Do not add if the same job exists in server jobs
-                                    if not ("jobs" in server and job_id in server["jobs"]):
+                                    # Do not add if the same job exists in asset jobs
+                                    if not ("jobs" in asset and job_id in asset["jobs"]):
                                         job_params["id"] = job_id
                                         job_params["level"] = "CLIENT"
                                         job_list.append(job_params)
 
-                            # Add server jobs from server def in client yaml
-                            if "jobs" in server:
+                            # Add asset jobs from asset def in client yaml
+                            if "jobs" in asset:
                                 
-                                for job_id, job_params in server["jobs"].items():
+                                for job_id, job_params in asset["jobs"].items():
                                     job_params["id"] = job_id
-                                    job_params["level"] = "SERVER"
+                                    job_params["level"] = "ASSET"
                                     job_list.append(job_params)
 
                             # Run jobs from job list
 
-                            logger.info("Job list for server {server}:".format(server=server["fqdn"]))
+                            logger.info("Job list for asset {asset}:".format(asset=asset["fqdn"]))
                             logger.info(json.dumps(job_list, indent=4, sort_keys=True))
 
                             for job in job_list:
 
                                 # Check os include
                                 if "os" in job and "include" in job["os"]:
-                                    if server["os"] not in job["os"]["include"]:
-                                        logger.info("Job {server}/{job} skipped because os {os} is not in job os include list".format(server=server["fqdn"], job=job["id"], os=server["os"]))
+                                    if asset["os"] not in job["os"]["include"]:
+                                        logger.info("Job {asset}/{job} skipped because os {os} is not in job os include list".format(asset=asset["fqdn"], job=job["id"], os=asset["os"]))
                                         continue
 
                                 # Check os exclude
                                 if "os" in job and "exclude" in job["os"]:
-                                    if server["os"] in job["os"]["exclude"]:
-                                        logger.info("Job {server}/{job} skipped because os {os} is in job os exclude list".format(server=server["fqdn"], job=job["id"], os=server["os"]))
+                                    if asset["os"] in job["os"]["exclude"]:
+                                        logger.info("Job {asset}/{job} skipped because os {os} is in job os exclude list".format(asset=asset["fqdn"], job=job["id"], os=asset["os"]))
                                         continue
 
                                 # Check job is disabled
                                 if "disabled" in job and job["disabled"]:
-                                    logger.info("Job {server}/{job} skipped because it is disabled".format(server=server["fqdn"], job=job["id"]))
+                                    logger.info("Job {asset}/{job} skipped because it is disabled".format(asset=asset["fqdn"], job=job["id"]))
                                     continue
 
                                 # Check licenses
                                 if "licenses" in job:
                                     
-                                    logger.info("Job {server}/{job} requires license list {lic_list_job}, loading licenses in tariffs".format(server=server["fqdn"], job=job["id"], lic_list_job=job["licenses"]))
+                                    logger.info("Job {asset}/{job} requires license list {lic_list_job}, loading licenses in tariffs".format(asset=asset["fqdn"], job=job["id"], lic_list_job=job["licenses"]))
 
                                     # Load tariffs
 
                                     # Take the first (upper and current) tariff
                                     all_tar_lic_list = []
-                                    for server_tariff in activated_tariff(server["tariffs"], datetime.now())["tariffs"]:
+                                    for asset_tariff in activated_tariff(asset["tariffs"], datetime.now(), logger)["tariffs"]:
 
                                         # If tariff has file key - load it
-                                        if "file" in server_tariff:
+                                        if "file" in asset_tariff:
                                             
-                                            tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, server_tariff["file"]), logger)
+                                            tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
                                             if tariff_dict is None:
                                                 
-                                                raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, server_tariff["file"]))
+                                                raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
 
                                             # Add tariff plan licenses to all tariffs lic list if exist
                                             if "licenses" in tariff_dict:
@@ -246,15 +229,15 @@ if __name__ == "__main__":
                                         else:
 
                                             # Add tariff plan licenses to all tariffs lic list if exist
-                                            if "licenses" in server_tariff:
-                                                all_tar_lic_list.extend(server_tariff["licenses"])
+                                            if "licenses" in asset_tariff:
+                                                all_tar_lic_list.extend(asset_tariff["licenses"])
 
                                     # Search for all needed licenses in tariff licenses and skip if not found
                                     if not all(lic in all_tar_lic_list for lic in job["licenses"]):
-                                        logger.info("Job {server}/{job} skipped because required license list {lic_list_job} is not found in joined licenses {lic_list_tar} of all of server tariffs".format(server=server["fqdn"], job=job["id"], lic_list_job=job["licenses"], lic_list_tar=all_tar_lic_list))
+                                        logger.info("Job {asset}/{job} skipped because required license list {lic_list_job} is not found in joined licenses {lic_list_tar} of all of asset tariffs".format(asset=asset["fqdn"], job=job["id"], lic_list_job=job["licenses"], lic_list_tar=all_tar_lic_list))
                                         continue
                                     else:
-                                        logger.info("Job {server}/{job} required license list {lic_list_job} is found in joined licenses {lic_list_tar} of all of server tariffs".format(server=server["fqdn"], job=job["id"], lic_list_job=job["licenses"], lic_list_tar=all_tar_lic_list))
+                                        logger.info("Job {asset}/{job} required license list {lic_list_job} is found in joined licenses {lic_list_tar} of all of asset tariffs".format(asset=asset["fqdn"], job=job["id"], lic_list_job=job["licenses"], lic_list_tar=all_tar_lic_list))
 
                                 # Lock before trying to open, exception and exit on timeout is ok
                                 with filelock.FileLock(HISTORY_LOCK).acquire(timeout=LOCK_TIMEOUT):
@@ -264,33 +247,33 @@ if __name__ == "__main__":
 
                                         # Make now from saved_now in job timezone
                                         now = saved_now.astimezone(pytz.timezone(job["tz"]))
-                                        logger.info("Job {server}/{job} now() in job TZ is {now}".format(server=server["fqdn"], job=job["id"], now=datetime.strftime(now, "%Y-%m-%d %H:%M:%S %z %Z")))
+                                        logger.info("Job {asset}/{job} now() in job TZ is {now}".format(asset=asset["fqdn"], job=job["id"], now=datetime.strftime(now, "%Y-%m-%d %H:%M:%S %z %Z")))
 
                                         # Try to load last job run from history file if file exists
                                         try:
                                             with open(HISTORY_JSON, "r") as history_json:
                                                 history_dict = json.load(history_json)
-                                        # Else just init server in dict on any error
+                                        # Else just init asset in dict on any error
                                         except:
                                             history_dict = {}
 
                                         # Get job last run
-                                        if server["fqdn"] in history_dict and job["id"] in history_dict[server["fqdn"]]:
+                                        if asset["fqdn"] in history_dict and job["id"] in history_dict[asset["fqdn"]]:
                                             # There is some bug with strptime on python 3.6
                                             # While on 3.5 strptime %z %Z works, pn 3.6 - not, so we remove last word before converting str to date and do not use last %Z - it is actually only for human reading
-                                            job_last_run = datetime.strptime(history_dict[server["fqdn"]][job["id"]].rsplit(' ', 1)[0], "%Y-%m-%d %H:%M:%S %z")
+                                            job_last_run = datetime.strptime(history_dict[asset["fqdn"]][job["id"]].rsplit(' ', 1)[0], "%Y-%m-%d %H:%M:%S %z")
                                         else:
                                             job_last_run =  datetime.strptime("1970-01-01 00:00:00 +0000", "%Y-%m-%d %H:%M:%S %z")
-                                        logger.info("Job {server}/{job} last run: {time}".format(server=server["fqdn"], job=job["id"], time=datetime.strftime(job_last_run, "%Y-%m-%d %H:%M:%S %z %Z")))
+                                        logger.info("Job {asset}/{job} last run: {time}".format(asset=asset["fqdn"], job=job["id"], time=datetime.strftime(job_last_run, "%Y-%m-%d %H:%M:%S %z %Z")))
                                         
                                         # Check force run
 
                                         if args.force_run_job:
 
                                             if job["id"] != run_job:
-                                                logger.info("Job {server}/{job} skipped because job id didn't match force run parameter".format(server=server["fqdn"], job=job["id"]))
+                                                logger.info("Job {asset}/{job} skipped because job id didn't match force run parameter".format(asset=asset["fqdn"], job=job["id"]))
                                                 continue
-                                            logger.info("Job {server}/{job} force run - time conditions omitted".format(server=server["fqdn"], job=job["id"]))
+                                            logger.info("Job {asset}/{job} force run - time conditions omitted".format(asset=asset["fqdn"], job=job["id"]))
 
                                         else:
 
@@ -298,7 +281,7 @@ if __name__ == "__main__":
 
                                             if "each" in job:
                                                 seconds_between_now_and_job_last_run = (now - job_last_run).total_seconds()
-                                                logger.info("Job {server}/{job} seconds between now and job last run: {secs}".format(server=server["fqdn"], job=job["id"], secs=seconds_between_now_and_job_last_run))
+                                                logger.info("Job {asset}/{job} seconds between now and job last run: {secs}".format(asset=asset["fqdn"], job=job["id"], secs=seconds_between_now_and_job_last_run))
                                                 seconds_needed_to_wait = 0-2*MINUTES_JITTER*60
                                                 if "years" in job["each"]:
                                                     seconds_needed_to_wait += 60*60*24*365*job["each"]["years"]
@@ -312,9 +295,9 @@ if __name__ == "__main__":
                                                     seconds_needed_to_wait += 60*60*job["each"]["hours"]
                                                 if "minutes" in job["each"]:
                                                     seconds_needed_to_wait += 60*job["each"]["minutes"]
-                                                logger.info("Job {server}/{job} seconds needed to wait from \"each\" key: {secs}".format(server=server["fqdn"], job=job["id"], secs=seconds_needed_to_wait))
+                                                logger.info("Job {asset}/{job} seconds needed to wait from \"each\" key: {secs}".format(asset=asset["fqdn"], job=job["id"], secs=seconds_needed_to_wait))
                                                 if seconds_between_now_and_job_last_run < seconds_needed_to_wait:
-                                                    logger.info("Job {server}/{job} skipped because: {secs1} < {secs2}".format(server=server["fqdn"], job=job["id"], secs1=seconds_between_now_and_job_last_run, secs2=seconds_needed_to_wait))
+                                                    logger.info("Job {asset}/{job} skipped because: {secs1} < {secs2}".format(asset=asset["fqdn"], job=job["id"], secs1=seconds_between_now_and_job_last_run, secs2=seconds_needed_to_wait))
                                                     continue
 
                                             if "minutes" in job:
@@ -327,11 +310,11 @@ if __name__ == "__main__":
                                                         # Apply MINUTES_JITTER
                                                         for m in range(minutes, minutes + MINUTES_JITTER):
                                                             minutes_rewrited.append(m)
-                                                logger.info("Job {server}/{job} should be run on minutes: {mins}".format(server=server["fqdn"], job=job["id"], mins=minutes_rewrited))
+                                                logger.info("Job {asset}/{job} should be run on minutes: {mins}".format(asset=asset["fqdn"], job=job["id"], mins=minutes_rewrited))
                                                 now_minute = int(datetime.strftime(now, "%M"))
-                                                logger.info("Job {server}/{job} now minute is: {minute}".format(server=server["fqdn"], job=job["id"], minute=now_minute))
+                                                logger.info("Job {asset}/{job} now minute is: {minute}".format(asset=asset["fqdn"], job=job["id"], minute=now_minute))
                                                 if now_minute not in minutes_rewrited:
-                                                    logger.info("Job {server}/{job} skipped because now minute is not in run minutes list".format(server=server["fqdn"], job=job["id"]))
+                                                    logger.info("Job {asset}/{job} skipped because now minute is not in run minutes list".format(asset=asset["fqdn"], job=job["id"]))
                                                     continue
 
                                             if "hours" in job:
@@ -342,11 +325,11 @@ if __name__ == "__main__":
                                                             hours_rewrited.append(h)
                                                     else:
                                                         hours_rewrited.append(hours)
-                                                logger.info("Job {server}/{job} should be run on hours: {hours}".format(server=server["fqdn"], job=job["id"], hours=hours_rewrited))
+                                                logger.info("Job {asset}/{job} should be run on hours: {hours}".format(asset=asset["fqdn"], job=job["id"], hours=hours_rewrited))
                                                 now_hour = int(datetime.strftime(now, "%H"))
-                                                logger.info("Job {server}/{job} now hour is: {hour}".format(server=server["fqdn"], job=job["id"], hour=now_hour))
+                                                logger.info("Job {asset}/{job} now hour is: {hour}".format(asset=asset["fqdn"], job=job["id"], hour=now_hour))
                                                 if now_hour not in hours_rewrited:
-                                                    logger.info("Job {server}/{job} skipped because now hour is not in run hours list".format(server=server["fqdn"], job=job["id"]))
+                                                    logger.info("Job {asset}/{job} skipped because now hour is not in run hours list".format(asset=asset["fqdn"], job=job["id"]))
                                                     continue
                                             
                                             if "days" in job:
@@ -357,11 +340,11 @@ if __name__ == "__main__":
                                                             days_rewrited.append(d)
                                                     else:
                                                         days_rewrited.append(days)
-                                                logger.info("Job {server}/{job} should be run on days: {days}".format(server=server["fqdn"], job=job["id"], days=days_rewrited))
+                                                logger.info("Job {asset}/{job} should be run on days: {days}".format(asset=asset["fqdn"], job=job["id"], days=days_rewrited))
                                                 now_day = int(datetime.strftime(now, "%d"))
-                                                logger.info("Job {server}/{job} now day is: {day}".format(server=server["fqdn"], job=job["id"], day=now_day))
+                                                logger.info("Job {asset}/{job} now day is: {day}".format(asset=asset["fqdn"], job=job["id"], day=now_day))
                                                 if now_day not in days_rewrited:
-                                                    logger.info("Job {server}/{job} skipped because now day is not in run days list".format(server=server["fqdn"], job=job["id"]))
+                                                    logger.info("Job {asset}/{job} skipped because now day is not in run days list".format(asset=asset["fqdn"], job=job["id"]))
                                                     continue
                                             
                                             if "months" in job:
@@ -372,11 +355,11 @@ if __name__ == "__main__":
                                                             months_rewrited.append(m)
                                                     else:
                                                         months_rewrited.append(months)
-                                                logger.info("Job {server}/{job} should be run on months: {months}".format(server=server["fqdn"], job=job["id"], months=months_rewrited))
+                                                logger.info("Job {asset}/{job} should be run on months: {months}".format(asset=asset["fqdn"], job=job["id"], months=months_rewrited))
                                                 now_month = int(datetime.strftime(now, "%m"))
-                                                logger.info("Job {server}/{job} now month is: {month}".format(server=server["fqdn"], job=job["id"], month=now_month))
+                                                logger.info("Job {asset}/{job} now month is: {month}".format(asset=asset["fqdn"], job=job["id"], month=now_month))
                                                 if now_month not in months_rewrited:
-                                                    logger.info("Job {server}/{job} skipped because now month is not in run months list".format(server=server["fqdn"], job=job["id"]))
+                                                    logger.info("Job {asset}/{job} skipped because now month is not in run months list".format(asset=asset["fqdn"], job=job["id"]))
                                                     continue
                                             
                                             if "years" in job:
@@ -387,19 +370,19 @@ if __name__ == "__main__":
                                                             years_rewrited.append(y)
                                                     else:
                                                         years_rewrited.append(years)
-                                                logger.info("Job {server}/{job} should be run on years: {years}".format(server=server["fqdn"], job=job["id"], years=years_rewrited))
+                                                logger.info("Job {asset}/{job} should be run on years: {years}".format(asset=asset["fqdn"], job=job["id"], years=years_rewrited))
                                                 now_year = int(datetime.strftime(now, "%Y"))
-                                                logger.info("Job {server}/{job} now year is: {year}".format(server=server["fqdn"], job=job["id"], year=now_year))
+                                                logger.info("Job {asset}/{job} now year is: {year}".format(asset=asset["fqdn"], job=job["id"], year=now_year))
                                                 if now_year not in years_rewrited:
-                                                    logger.info("Job {server}/{job} skipped because now year is not in run years list".format(server=server["fqdn"], job=job["id"]))
+                                                    logger.info("Job {asset}/{job} skipped because now year is not in run years list".format(asset=asset["fqdn"], job=job["id"]))
                                                     continue
                                             
                                             if "weekdays" in job:
-                                                logger.info("Job {server}/{job} should be run on weekdays: {weekdays}".format(server=server["fqdn"], job=job["id"], weekdays=job["weekdays"]))
+                                                logger.info("Job {asset}/{job} should be run on weekdays: {weekdays}".format(asset=asset["fqdn"], job=job["id"], weekdays=job["weekdays"]))
                                                 now_weekday = datetime.strftime(now, "%a")
-                                                logger.info("Job {server}/{job} now weekday is: {weekday}".format(server=server["fqdn"], job=job["id"], weekday=now_weekday))
+                                                logger.info("Job {asset}/{job} now weekday is: {weekday}".format(asset=asset["fqdn"], job=job["id"], weekday=now_weekday))
                                                 if now_weekday not in job["weekdays"]:
-                                                    logger.info("Job {server}/{job} skipped because now weekday is not in run weekdays list".format(server=server["fqdn"], job=job["id"]))
+                                                    logger.info("Job {asset}/{job} skipped because now weekday is not in run weekdays list".format(asset=asset["fqdn"], job=job["id"]))
                                                     continue
 
                                         # Run job
@@ -407,65 +390,65 @@ if __name__ == "__main__":
                                         if job["type"] == "salt_cmd":
                                             script = textwrap.dedent(
                                                 """
-                                                .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {server} "{job_cmd}"
+                                                .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}"
                                                 """
-                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], server=server["fqdn"], job_cmd=job["cmd"])
+                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"], job_cmd=job["cmd"])
                                             logger.info("Running bash script:")
                                             logger.info(script)
                                             subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                                         elif job["type"] == "rsnapshot_backup_ssh":
                                             
                                             # Decide which connect host:port to use
-                                            if "ssh" in server:
+                                            if "ssh" in asset:
 
-                                                if "host" in server["ssh"]:
-                                                    ssh_host = server["ssh"]["host"]
+                                                if "host" in asset["ssh"]:
+                                                    ssh_host = asset["ssh"]["host"]
                                                 else:
-                                                    ssh_host = server["fqdn"]
+                                                    ssh_host = asset["fqdn"]
 
-                                                if "port" in server["ssh"]:
-                                                    ssh_port = server["ssh"]["port"]
+                                                if "port" in asset["ssh"]:
+                                                    ssh_port = asset["ssh"]["port"]
                                                 else:
                                                     ssh_port = "22"
 
                                             else:
 
-                                                ssh_host = server["fqdn"]
+                                                ssh_host = asset["fqdn"]
                                                 ssh_port = "22"
 
                                             # Decide ssh jump
-                                            if "ssh" in server and "jump" in server["ssh"]:
-                                                ssh_jump = "{host}:{port}".format(host=server["ssh"]["jump"]["host"], port=server["ssh"]["jump"]["port"] if "port" in server["ssh"]["jump"] else "22")
+                                            if "ssh" in asset and "jump" in asset["ssh"]:
+                                                ssh_jump = "{host}:{port}".format(host=asset["ssh"]["jump"]["host"], port=asset["ssh"]["jump"]["port"] if "port" in asset["ssh"]["jump"] else "22")
                                             else:
                                                 ssh_jump = ""
 
                                             script = textwrap.dedent(
                                                 """
-                                                .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {server} SSH {ssh_host} {ssh_port} {ssh_jump}
+                                                .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {asset} SSH {ssh_host} {ssh_port} {ssh_jump}
                                                 """
-                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], server=server["fqdn"], ssh_host=ssh_host, ssh_port=ssh_port, ssh_jump=ssh_jump)
+                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], asset=asset["fqdn"], ssh_host=ssh_host, ssh_port=ssh_port, ssh_jump=ssh_jump)
                                             logger.info("Running bash script:")
                                             logger.info(script)
                                             subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                                         elif job["type"] == "rsnapshot_backup_salt":
                                             script = textwrap.dedent(
                                                 """
-                                                .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {server} SALT
+                                                .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT
                                                 """
-                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], server=server["fqdn"])
+                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"])
                                             logger.info("Running bash script:")
                                             logger.info(script)
                                             subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                                         else:
                                             raise Exception("Unknown job type: {jtype}".format(jtype=job["type"]))
 
-                                        # Save job last run time per server in history_dict
-                                        if server["fqdn"] not in history_dict:
-                                            history_dict[server["fqdn"]] = {}
+                                        # Save job last run time per asset in history_dict
+                                        if asset["fqdn"] not in history_dict:
+                                            history_dict[asset["fqdn"]] = {}
                                         # Save not actual job run time, but this script run time
                                         # Because we need this time to make decision - run or not
                                         # But because each job in loop runs ~5 secs - actual time drifts and diff can go out of window
-                                        history_dict[server["fqdn"]][job["id"]] = datetime.strftime(now, "%Y-%m-%d %H:%M:%S %z %Z")
+                                        history_dict[asset["fqdn"]][job["id"]] = datetime.strftime(now, "%Y-%m-%d %H:%M:%S %z %Z")
                                         with open(HISTORY_JSON, "w") as history_json:
                                             json.dump(history_dict, history_json)
                                     
@@ -503,7 +486,7 @@ if __name__ == "__main__":
                     logger.info("Found client file: {0}".format(client_file))
 
                     # Load client YAML
-                    client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                    client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                     

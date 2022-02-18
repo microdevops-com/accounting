@@ -13,6 +13,7 @@ import json
 from io import BytesIO
 import threading
 import re
+import time
 
 # Constants and envs
 
@@ -21,6 +22,7 @@ WORK_DIR = os.environ.get("ACC_WORKDIR", "/opt/sysadmws/accounting")
 LOG_DIR = os.environ.get("ACC_LOGDIR", "/opt/sysadmws/accounting/log")
 LOG_FILE = "services.log"
 CLIENTS_SUBDIR = "clients"
+TARIFFS_SUBDIR = "tariffs"
 YAML_GLOB = "*.yaml"
 YAML_EXT = "yaml"
 ACC_YAML = "accounting.yaml"
@@ -37,19 +39,19 @@ if __name__ == "__main__":
                           action="store_true")
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--pipeline-salt-cmd-for-server-for-client",
-                          dest="pipeline_salt_cmd_for_server_for_client",
-                          help="pipeline salt CMD for one SERVER for client CLIENT",
-                          nargs=3, metavar=("CLIENT", "SERVER", "CMD"))
+    group.add_argument("--pipeline-salt-cmd-for-asset-for-client",
+                          dest="pipeline_salt_cmd_for_asset_for_client",
+                          help="pipeline salt CMD for one ASSET for client CLIENT",
+                          nargs=3, metavar=("CLIENT", "ASSET", "CMD"))
 
-    group.add_argument("--pipeline-salt-cmd-for-all-servers-for-client",
-                          dest="pipeline_salt_cmd_for_all_servers_for_client",
-                          help="pipeline salt CMD for all servers for client CLIENT",
+    group.add_argument("--pipeline-salt-cmd-for-all-assets-for-client",
+                          dest="pipeline_salt_cmd_for_all_assets_for_client",
+                          help="pipeline salt CMD for all assets for client CLIENT",
                           nargs=2, metavar=("CLIENT", "CMD"))
 
-    group.add_argument("--pipeline-salt-cmd-for-all-servers-for-all-clients",
-                          dest="pipeline_salt_cmd_for_all_servers_for_all_clients",
-                          help="pipeline salt CMD for all servers for all clients",
+    group.add_argument("--pipeline-salt-cmd-for-all-assets-for-all-clients",
+                          dest="pipeline_salt_cmd_for_all_assets_for_all_clients",
+                          help="pipeline salt CMD for all assets for all clients",
                           nargs=1, metavar=("CMD"))
 
     if len(sys.argv) > 1:
@@ -80,7 +82,7 @@ if __name__ == "__main__":
         
         # Do tasks
 
-        if args.pipeline_salt_cmd_for_server_for_client or args.pipeline_salt_cmd_for_all_servers_for_client or args.pipeline_salt_cmd_for_all_servers_for_all_clients:
+        if args.pipeline_salt_cmd_for_asset_for_client or args.pipeline_salt_cmd_for_all_assets_for_client or args.pipeline_salt_cmd_for_all_assets_for_all_clients:
             
             # For *.yaml in client dir
             for client_file in glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB)):
@@ -88,22 +90,22 @@ if __name__ == "__main__":
                 logger.info("Found client file: {0}".format(client_file))
 
                 # Load client YAML
-                client_dict = load_yaml("{0}/{1}".format(WORK_DIR, client_file), logger)
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
                 
                 # Unpack oarams and select client if needed
-                needed_server = None
-                if args.pipeline_salt_cmd_for_server_for_client:
-                    client, needed_server, cmd = args.pipeline_salt_cmd_for_server_for_client
+                needed_asset = None
+                if args.pipeline_salt_cmd_for_asset_for_client:
+                    client, needed_asset, cmd = args.pipeline_salt_cmd_for_asset_for_client
                     if client_dict["name"].lower() != client:
                         continue
-                if args.pipeline_salt_cmd_for_all_servers_for_client:
-                    client, cmd = args.pipeline_salt_cmd_for_all_servers_for_client
+                if args.pipeline_salt_cmd_for_all_assets_for_client:
+                    client, cmd = args.pipeline_salt_cmd_for_all_assets_for_client
                     if client_dict["name"].lower() != client:
                         continue
-                if args.pipeline_salt_cmd_for_all_servers_for_all_clients:
-                    cmd, = args.pipeline_salt_cmd_for_all_servers_for_all_clients
+                if args.pipeline_salt_cmd_for_all_assets_for_all_clients:
+                    cmd, = args.pipeline_salt_cmd_for_all_assets_for_all_clients
 
                 # Check client active and other reqs
                 if client_dict["active"] and "salt_project" in client_dict["gitlab"] and client_dict["configuration_management"]["type"] in ["salt", "salt-ssh"]:
@@ -112,20 +114,15 @@ if __name__ == "__main__":
                     if "jobs_disabled" in client_dict and client_dict["jobs_disabled"]:
                         continue
             
-                    # Make server list
-                    servers_list = []
-                    if "servers" in client_dict:
-                        servers_list.extend(client_dict["servers"])
-                    if client_dict["configuration_management"]["type"] == "salt":
-                        servers_list.extend(client_dict["configuration_management"]["salt"]["masters"])
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
 
                     # Threaded function
-                    def pipeline_salt_cmd(salt_project, server, cmd):
+                    def pipeline_salt_cmd(salt_project, asset, cmd):
                         script = textwrap.dedent(
                             """
-                            .gitlab-server-job/pipeline_salt_cmd.sh wait {salt_project} 300 {server} "{cmd}"
+                            .gitlab-server-job/pipeline_salt_cmd.sh wait {salt_project} 300 {asset} "{cmd}"
                             """
-                        ).format(salt_project=salt_project, server=server, cmd=cmd)
+                        ).format(salt_project=salt_project, asset=asset, cmd=cmd)
                         logger.info("Running bash script in thread:")
                         logger.info(script)
                         run_result = subprocess.run(script, shell=True, universal_newlines=True, executable="/bin/bash", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -144,22 +141,23 @@ if __name__ == "__main__":
                             error=result_error if result_pipeline_status != "success" else ""
                         ))
 
-                    # For each server
-                    for server in servers_list:
+                    # For each asset
+                    for asset in asset_list:
                         
-                        if server["active"]:
+                        # Pipelines are only for servers
+                        if asset["kind"] == "server":
 
-                            # Skip servers with disabled jobs
-                            if "jobs_disabled" in server and server["jobs_disabled"]:
+                            # Skip assets with disabled jobs
+                            if "jobs_disabled" in asset and asset["jobs_disabled"]:
                                 continue
 
-                            # Skip oher servers if specific server is set
-                            if needed_server is not None:
-                                if needed_server != server["fqdn"]:
+                            # Skip oher assets if specific asset is set
+                            if needed_asset is not None:
+                                if needed_asset != asset["fqdn"]:
                                     continue
 
                             # Run pipeline
-                            thread = threading.Thread(target=pipeline_salt_cmd, args=[client_dict["gitlab"]["salt_project"]["path"], server["fqdn"], cmd])
+                            thread = threading.Thread(target=pipeline_salt_cmd, args=[client_dict["gitlab"]["salt_project"]["path"], asset["fqdn"], cmd])
                             thread.start()
                             # Give gitlab time to create tag and pipeline, otherwise it will be overloaded
                             time.sleep(4)

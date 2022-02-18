@@ -811,7 +811,7 @@ if __name__ == "__main__":
 
                 #XXX remove this after check
                 #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
-                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
+                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -2327,7 +2327,7 @@ if __name__ == "__main__":
                     # Load client YAML
                     #XXX remove after check
                     #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
-                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
+                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT))
 
@@ -2641,7 +2641,7 @@ if __name__ == "__main__":
                                 # Load client YAML
                                 #XXX remove after check
                                 #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
-                                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
+                                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                                 if client_dict is None:
                                     raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT))
 
@@ -2873,7 +2873,7 @@ if __name__ == "__main__":
 
                     #XXX remove after check
                     #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
-                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
+                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
@@ -3025,7 +3025,7 @@ if __name__ == "__main__":
                     # Load client YAML
                     #XXX remove after check
                     #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
-                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
+                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
 
@@ -3397,7 +3397,7 @@ if __name__ == "__main__":
                 # Load client YAML
                 #XXX remove after check
                 #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
-                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}/{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
+                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
 

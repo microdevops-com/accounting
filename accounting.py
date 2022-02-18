@@ -219,7 +219,6 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--db-structure", dest="db_structure", help="create database structure", action="store_true")
     group.add_argument("--yaml-check", dest="yaml_check", help="check yaml structure", action="store_true")
-    group.add_argument("--server-labels", dest="server_labels", help="sync server labels (deprecated, use --asset-labels)", action="store_true")
     group.add_argument("--asset-labels", dest="asset_labels", help="sync asset labels", action="store_true")
     group.add_argument("--issues-check", dest="issues_check", help="report issue activities as new issue in accounting project", action="store_true")
     group.add_argument("--storage-usage", dest="storage_usage", help="save all clients billable storage usage to database, excluding --exclude-clients or only for --include-clients", action="store_true")
@@ -1278,7 +1277,7 @@ if __name__ == "__main__":
                     logger.error("Client {client} yaml check exception".format(client=client_dict["name"]))
                     raise
 
-        if args.server_labels or args.asset_labels:
+        if args.asset_labels:
             
             # Connect to GitLab
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)

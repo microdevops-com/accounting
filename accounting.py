@@ -809,8 +809,6 @@ if __name__ == "__main__":
                 else:
                     raise Exception("Impossible became possible")
 
-                #XXX remove this after check
-                #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
                 client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
@@ -1309,7 +1307,7 @@ if __name__ == "__main__":
                         project = gl.projects.get(project_from_list)
                         labels = project.labels.list(all=True)
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, False)
 
                         # Iterate over assets in client
                         for asset in asset_list:
@@ -2325,8 +2323,6 @@ if __name__ == "__main__":
                     client_name = timelogs_check_client.lower()
 
                     # Load client YAML
-                    #XXX remove after check
-                    #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
                     client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT))
@@ -2639,8 +2635,6 @@ if __name__ == "__main__":
                                 client_name = acc_yaml_dict["projects"][row_project_name]["client"].lower()
 
                                 # Load client YAML
-                                #XXX remove after check
-                                #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT), logger)
                                 client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                                 if client_dict is None:
                                     raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT))
@@ -2648,7 +2642,7 @@ if __name__ == "__main__":
                                 # Check if other label name is asset
                                 else:
 
-                                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, False)
 
                                     # If there are assets
                                     if len(asset_list) > 0:
@@ -2871,8 +2865,6 @@ if __name__ == "__main__":
 
                     client_in_arg, month_in_arg = args.make_monthly_invoice_for_client
 
-                    #XXX remove after check
-                    #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), logger)
                     client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_in_arg.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
@@ -3023,8 +3015,6 @@ if __name__ == "__main__":
                     # Check invoice shift from client yaml if exist, if not = 0
                     
                     # Load client YAML
-                    #XXX remove after check
-                    #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
                     client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
@@ -3395,8 +3385,6 @@ if __name__ == "__main__":
                 logger.info(json.dumps(invoice_details[client], indent=2))
                         
                 # Load client YAML
-                #XXX remove after check
-                #client_dict = load_yaml("{0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client.lower(), YAML_EXT), logger)
                 client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))

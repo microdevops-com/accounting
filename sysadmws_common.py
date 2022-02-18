@@ -143,7 +143,7 @@ def get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
     return assets, tariffs, licenses
 
 # Get asset list
-def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
+def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, only_active=True):
 
     # Prepare asset list from servers (deprecated) and assets
     asset_list_to_process = []
@@ -161,9 +161,10 @@ def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
 
     for asset in asset_list_to_process:
 
-        # Skip not active assets
-        if not asset["active"]:
-            continue
+        # Skip not active assets if only_active
+        if only_active:
+            if not asset["active"]:
+                continue
 
         # Default kind: server
         if "kind" not in asset:

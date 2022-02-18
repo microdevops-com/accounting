@@ -2663,7 +2663,7 @@ if __name__ == "__main__":
                                                 try:
                                                     checked_tariffs = activated_tariff(client_asset["tariffs"], row_timelog_updated, logger)["tariffs"]
                                                 except:
-                                                    logger.error("Asset {asset} find active tariff error".format(asset=client_asset["fqdn"]))
+                                                    logger.error("Asset {asset} issue {gitlab}{issue} find active tariff error".format(asset=client_asset["fqdn"], gitlab=acc_yaml_dict["gitlab"]["url"], issue=row_issue_link))
                                                     raise
 
                                 # Check if we have some tariff to check

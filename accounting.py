@@ -1257,15 +1257,16 @@ if __name__ == "__main__":
                                         if asset["os"] not in acc_yaml_dict["os"]:
                                             raise Exception("os value {os} not in globally allowed list for asset {asset}".format(os=asset["os"], asset=asset["fqdn"]))
 
-                                    for asset_tariff in asset["tariffs"][0]["tariffs"]:
+                                    for asset_t in asset["tariffs"]:
+                                        for asset_tariff in asset_t["tariffs"]:
 
-                                        # If tariff has file key - load it
-                                        if "file" in asset_tariff:
-                                            
-                                            tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
-                                            if tariff_dict is None:
+                                            # If tariff has file key - load it
+                                            if "file" in asset_tariff:
                                                 
-                                                raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
+                                                tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
+                                                if tariff_dict is None:
+                                                    
+                                                    raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
 
                             except:
                                 logger.error("Asset {asset} yaml check exception".format(asset=asset["fqdn"]))
@@ -1323,7 +1324,7 @@ if __name__ == "__main__":
 
                             # Take the first (upper and current) tariff and check it
                             asset_tariff_list = []
-                            for asset_tariff in asset["tariffs"][0]["tariffs"]:
+                            for asset_tariff in activated_tariff(asset["tariffs"], datetime.now(), logger)["tariffs"]:
 
                                 # If tariff has file key - load it
                                 if "file" in asset_tariff:

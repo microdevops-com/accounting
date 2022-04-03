@@ -1,5 +1,5 @@
 python-gitlab==3.3.*
-PyYAML==3.12
+PyYAML==6.0
 psycopg2-binary==2.9.1
 google-api-python-client==2.42.*
 oauth2client==4.1.3

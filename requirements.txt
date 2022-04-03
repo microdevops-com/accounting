@@ -1,4 +1,4 @@
-python-gitlab==3.3.*
+python-gitlab==2.10.*
 PyYAML==3.12
 psycopg2-binary==2.9.1
 google-api-python-client==2.42.*

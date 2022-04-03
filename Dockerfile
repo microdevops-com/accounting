@@ -1,6 +1,4 @@
-#FROM python:3 # pip install pyyaml in 3.7 broken
-
-FROM python:3.6
+FROM python:3.9
 
 WORKDIR /opt/sysadmws/accounting
 

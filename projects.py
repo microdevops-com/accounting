@@ -61,6 +61,8 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--setup-projects-for-client", dest="setup_projects_for_client", help="ensure -salt, -admin projects created in GitLab, their settings setup for client CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--setup-projects-for-all-clients", dest="setup_projects_for_all_clients", help="ensure -salt, -admin project created in GitLab, their settings setup for all clients excluding --exclude-clients or only for --include-clients", action="store_true")
+    group.add_argument("--clone-project-for-client", dest="clone_project_for_client", help="clones project for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
+    group.add_argument("--clone-project-for-all-clients", dest="clone_project_for_all_clients", help="clones project for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
     group.add_argument("--template-salt-project-for-client", dest="template_salt_project_for_client", help="apply templates for salt project for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
     group.add_argument("--template-salt-project-for-all-clients", dest="template_salt_project_for_all_clients", help="apply templates for salt project for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
     group.add_argument("--update-admin-project-wiki-for-client", dest="update_admin_project_wiki_for_client", help="update admin project wiki (asset list, memo etc) for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
@@ -317,7 +319,93 @@ if __name__ == "__main__":
                         project.save()
                     logger.info("Admin project {project} for client {client} settings:".format(project=client_dict["gitlab"]["admin_project"]["path"], client=client_dict["name"]))
                     logger.info(project)
-        
+
+        if args.clone_project_for_client is not None or args.clone_project_for_all_clients:
+            
+            # Connect to GitLab
+            gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)
+            gl.auth()
+
+            # For *.yaml in client dir
+            for client_file in glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB)):
+
+                logger.info("Found client file: {0}".format(client_file))
+
+                # Load client YAML
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
+                if client_dict is None:
+                    raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
+                
+                # Check specific client
+                if args.clone_project_for_client is not None:
+                    client, = args.clone_project_for_client
+                    if client_dict["name"].lower() != client:
+                        continue
+
+                # Check client active, inclusions, exclusions
+                if (
+                        client_dict["active"]
+                        and
+                        "salt_project" in client_dict["gitlab"]
+                        and
+                        (
+                            (
+                                args.exclude_clients is not None
+                                and
+                                client_dict["name"].lower() not in exclude_clients_list
+                            )
+                            or
+                            (
+                                args.include_clients is not None
+                                and
+                                client_dict["name"].lower() in include_clients_list
+                            )
+                            or
+                            (
+                                args.exclude_clients is None
+                                and
+                                args.include_clients is None
+                            )
+                        )
+                    ):
+            
+                    # Get GitLab project for client
+                    project = gl.projects.get(client_dict["gitlab"]["salt_project"]["path"])
+                    logger.info("Salt project {project} for client {client} ssh_url_to_repo: {ssh_url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["salt_project"]["path"], client=client_dict["name"], path_with_namespace=project.path_with_namespace, ssh_url_to_repo=project.ssh_url_to_repo))
+
+                    # Prepare local repo
+
+                    if args.git_reset:
+                        git_fetch_text = "git fetch origin --no-tags"
+                        git_reset_text = "git reset --hard origin/master"
+                        git_clean_text = "git clean -ffdx"
+                    else:
+                        git_fetch_text = ""
+                        git_reset_text = ""
+                        git_clean_text = ""
+
+                    script = textwrap.dedent(
+                        """
+                        if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
+                            echo Already cloned
+                            cd {PROJECTS_SUBDIR}/{path_with_namespace}
+                            {fetch}
+                            {reset}
+                            {clean}
+                        else
+                            git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
+                            cd {PROJECTS_SUBDIR}/{path_with_namespace}
+                        fi
+                        git submodule init
+                        git submodule update -f --checkout
+                        git submodule foreach "git checkout master && git pull --no-tags"
+                        ln -sf ../../.githooks/pre-push .git/hooks/pre-push
+                        """
+                    ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
+                    logger.info("Running bash script:")
+                    logger.info(script)
+                    subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
+
         if args.template_salt_project_for_client is not None or args.template_salt_project_for_all_clients:
             
             # Connect to GitLab

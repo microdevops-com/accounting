@@ -2946,39 +2946,6 @@ if __name__ == "__main__":
                                 else:
                                     logger.info("Not active asset: {0}".format(asset["fqdn"]))
                         
-                        # If there are additional_tariffs with client
-                        if "additional_tariffs" in client_dict:
-
-                            client_asset_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]] = []
-
-                            # Find checked tariff
-                            for add_tariff in activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["tariffs"]:
-                                
-                                # If tariff has file key - load it
-                                if "file" in add_tariff:
-                                    
-                                    tariff_dict = load_yaml("{0}/{1}/{2}".format(WORK_DIR, TARIFFS_SUBDIR, asset_tariff["file"]), logger)
-                                    if tariff_dict is None:
-                                        
-                                        raise Exception("Tariff file error or missing: {0}/{1}".format(WORK_DIR, asset_tariff["file"]))
-
-                                    # Add tariff activation date per tariff
-                                    tariff_dict["activated_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
-                                    tariff_dict["added_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
-
-                                    # Add tariff to the tariff list
-                                    client_asset_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]].append(tariff_dict)
-
-                                # Also take inline plan and service
-                                else:
-
-                                    # Add tariff activation date per asset
-                                    add_tariff["activated_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
-                                    add_tariff["added_date"] = str(activated_tariff(client_dict["additional_tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
-                        
-                                    # Add tariff to the tariff list for the asset
-                                    client_asset_tariffs_dict[client][acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["additional_tariffs_name"]].append(add_tariff)
-
                 # We will need to read Invoices to know last billing date per client
 
                 # Get Invoices raw data

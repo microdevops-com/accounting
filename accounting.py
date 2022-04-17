@@ -72,26 +72,26 @@ def download_pdf_package(acc_yaml_dict, client_dict, client_folder_files, invoic
         
         # Construct name prefix we are searching
         search_prefix_invoice = (
-            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["filename"][0] +
+            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][0] +
             " " +
             invoice_number +
             " " +
-            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["filename"][1]
+            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][1]
         )
         search_prefix_details = (
-            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["filename"][0] +
+            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][0] +
             " " +
             invoice_number +
             " " +
-            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["filename"][1]
+            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][1]
         )
         if act_needed:
             search_prefix_act = (
-                acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["filename"][0] +
+                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["filename"][0] +
                 " " +
                 invoice_number +
                 " " +
-                acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["filename"][1]
+                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["filename"][1]
             )
         
         for item in client_folder_files:
@@ -537,17 +537,17 @@ if __name__ == "__main__":
                         and
                         (
                             (
-                                "envelope_address" in client_dict["papers"] and "envelope" in acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]
+                                "envelope_address" in client_dict["billing"]["papers"] and "envelope" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]
                             )
                             or
                             (
-                                "envelope_address_no_recipient" in client_dict["papers"] and "envelope_no_recipient" in acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]
+                                "envelope_address_no_recipient" in client_dict["billing"]["papers"] and "envelope_no_recipient" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]
                             )
                         )
                     ):
 
                     # Envelope file name client - merchant - template
-                    envelope_file_name = client_dict["name"] + " - " + client_dict["merchant"] + " - " + client_dict["template"]
+                    envelope_file_name = client_dict["name"] + " - " + client_dict["billing"]["merchant"] + " - " + client_dict["billing"]["template"]
             
                     # Remove file in envelopes folder
                     if not args.dry_run_gsuite:
@@ -563,7 +563,7 @@ if __name__ == "__main__":
                     if not args.dry_run_gsuite:
                         try:
                             client_doc_envelope = drive_cp(SA_SECRETS_FILE,
-                                acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["envelope"] if "envelope_address" in client_dict["papers"] else acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["envelope_no_recipient"],
+                                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["envelope"] if "envelope_address" in client_dict["billing"]["papers"] else acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["envelope_no_recipient"],
                                 acc_yaml_dict["envelopes"],
                                 envelope_file_name, acc_yaml_dict["gsuite"]["drive_user"])
                             logger.info("New client envelope id: {0}".format(client_doc_envelope))
@@ -572,8 +572,8 @@ if __name__ == "__main__":
                     
                     # Templates
                     envelope_data = {
-                        "__CONTRACT_RECIPIENT__":   client_dict["contract"]["recipient"],
-                        "__ENVELOPE_ADDRESS__":     client_dict["papers"]["envelope_address"] if "envelope_address" in client_dict["papers"] else client_dict["papers"]["envelope_address_no_recipient"]
+                        "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
+                        "__ENVELOPE_ADDRESS__":     client_dict["billing"]["papers"]["envelope_address"] if "envelope_address" in client_dict["billing"]["papers"] else client_dict["billing"]["papers"]["envelope_address_no_recipient"]
                     }
                     if not args.dry_run_gsuite:
                         try:
@@ -846,12 +846,12 @@ if __name__ == "__main__":
                                 
                                 # Prepare draft debt text template (any invoices with Status == Sent)
                                 if any(invoice["status"] == "Sent" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
-                                    if "pack_to_archive" in client_dict["papers"]["email"] and client_dict["papers"]["email"]["pack_to_archive"] == False:
+                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
                                         client_gmail_draft_text_debt = \
-                                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
+                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
                                                 debt_list="\n".join([
                                                     "- "
-                                                    + acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["number_symbol"]
+                                                    + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
                                                     + " "
                                                     + invoice["invoice_number"]
                                                     for invoice in invoices_dict[client] if invoice["status"] == "Sent" and invoice["type"] == invoice_type
@@ -859,7 +859,7 @@ if __name__ == "__main__":
                                             )
                                     else:
                                         client_gmail_draft_text_debt = \
-                                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
+                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
                                                 debt_list="\n".join([
                                                     "- "
                                                     + invoice["invoice_number"]
@@ -872,12 +872,12 @@ if __name__ == "__main__":
 
                                 # Prepare draft partially received text template (any invoices with Status == Partially Received)
                                 if any(invoice["status"] == "Partially Received" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
-                                    if "pack_to_archive" in client_dict["papers"]["email"] and client_dict["papers"]["email"]["pack_to_archive"] == False:
+                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
                                         client_gmail_draft_text_part = \
-                                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
+                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
                                                 part_list="\n".join([
                                                     "- "
-                                                    + acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["number_symbol"]
+                                                    + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
                                                     + " "
                                                     + invoice["invoice_number"]
                                                     + " "
@@ -893,7 +893,7 @@ if __name__ == "__main__":
                                             )
                                     else:
                                         client_gmail_draft_text_part = \
-                                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
+                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
                                                 part_list="\n".join([
                                                     "- "
                                                     + invoice["invoice_number"]
@@ -914,12 +914,12 @@ if __name__ == "__main__":
 
                                 # Prepare draft over received text template (any invoices with Status == Over Received)
                                 if any(invoice["status"] == "Over Received" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
-                                    if "pack_to_archive" in client_dict["papers"]["email"] and client_dict["papers"]["email"]["pack_to_archive"] == False:
+                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
                                         client_gmail_draft_text_over = \
-                                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
+                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
                                                 over_list="\n".join([
                                                     "- "
-                                                    + acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["number_symbol"]
+                                                    + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
                                                     + " "
                                                     + invoice["invoice_number"]
                                                     + " "
@@ -935,7 +935,7 @@ if __name__ == "__main__":
                                             )
                                     else:
                                         client_gmail_draft_text_over = \
-                                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
+                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
                                                 over_list="\n".join([
                                                     "- "
                                                     + invoice["invoice_number"]
@@ -955,29 +955,29 @@ if __name__ == "__main__":
                                     client_gmail_draft_text_over = ""
 
                                 # Prepare draft act text template if act needed
-                                if client_dict["papers"]["act"]["email"]:
+                                if client_dict["billing"]["papers"]["act"]["email"]:
                                     client_gmail_draft_text_act = \
-                                        acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["act"]
+                                        acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["act"]
                                 else:
                                     client_gmail_draft_text_act = ""
 
                                 # Prepare draft final text and remove double newlines several times
-                                if "woocommerce" in acc_yaml_dict["merchants"][client_dict["merchant"]]:
+                                if "woocommerce" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]:
                                     order_link_text = "{woocommerce_url}/my-account/view-order/{order_id}/".format(
-                                        woocommerce_url=acc_yaml_dict["merchants"][client_dict["merchant"]]["woocommerce"]["url"],
+                                        woocommerce_url=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["url"],
                                         order_id=client_prepared_invoice["ext_order_number"]
                                     )
                                 else:
                                     order_link_text = ""
 
                                 # Choose email main text depending on pack_to_archive
-                                if "pack_to_archive" in client_dict["papers"]["email"] and client_dict["papers"]["email"]["pack_to_archive"] == False:
+                                if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
                                     main_text_key = "main_no_pack_to_archive"
                                 else:
                                     main_text_key = "main"
 
                                 client_gmail_draft_text = \
-                                    acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["text"][main_text_key].format(
+                                    acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"][main_text_key].format(
                                         invoice_number=client_prepared_invoice["invoice_number"],
                                         act_text=client_gmail_draft_text_act,
                                         debt_text=client_gmail_draft_text_debt,
@@ -988,7 +988,7 @@ if __name__ == "__main__":
                                 
                                 # Compose subject
                                 client_gmail_draft_subject = \
-                                    acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["email"]["subject"].format(
+                                    acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["subject"].format(
                                         client=client,
                                         invoice_number=client_prepared_invoice["invoice_number"]
                                     )
@@ -1004,13 +1004,13 @@ if __name__ == "__main__":
                                     raise Exception("Caught exception on gsuite execution")
 
                                 # Decide if to pack attachments in archives
-                                if "pack_to_archive" in client_dict["papers"]["email"] and client_dict["papers"]["email"]["pack_to_archive"] == False:
+                                if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
                                     pack_to_archive = False
                                 else:
                                     pack_to_archive = True
                                 
                                 # Attach prepared invoice
-                                if client_dict["papers"]["invoice"]["email"]:
+                                if client_dict["billing"]["papers"]["invoice"]["email"]:
 
                                     try:
                                         client_gmail_draft_attach_list.extend(download_pdf_package(
@@ -1019,8 +1019,8 @@ if __name__ == "__main__":
                                             client_folder_files=client_folder_files,
                                             invoice_type=invoice_type,
                                             invoice_number=client_prepared_invoice["invoice_number"],
-                                            invoice_needed=client_dict["papers"]["invoice"]["email"],
-                                            act_needed=client_dict["papers"]["act"]["email"],
+                                            invoice_needed=client_dict["billing"]["papers"]["invoice"]["email"],
+                                            act_needed=client_dict["billing"]["papers"]["act"]["email"],
                                             pack_to_archive=pack_to_archive,
                                             double_act=False
                                         ))
@@ -1038,8 +1038,8 @@ if __name__ == "__main__":
                                                         client_folder_files=client_folder_files,
                                                         invoice_type=invoice["type"],
                                                         invoice_number=invoice["invoice_number"],
-                                                        invoice_needed=client_dict["papers"]["invoice"]["email"],
-                                                        act_needed=client_dict["papers"]["act"]["email"],
+                                                        invoice_needed=client_dict["billing"]["papers"]["invoice"]["email"],
+                                                        act_needed=client_dict["billing"]["papers"]["act"]["email"],
                                                         pack_to_archive=pack_to_archive,
                                                         double_act=False
                                                     ))
@@ -1053,9 +1053,9 @@ if __name__ == "__main__":
                                             sa_secrets_file=SA_SECRETS_FILE,
                                             gmail_user=acc_yaml_dict["accounting"]["email"],
                                             message_from=acc_yaml_dict["accounting"]["email"],
-                                            message_to=client_dict["papers"]["email"]["to"],
-                                            message_cc=client_dict["papers"]["email"]["cc"] if "cc" in client_dict["papers"]["email"] else "",
-                                            message_bcc=client_dict["papers"]["email"]["bcc"] if "bcc" in client_dict["papers"]["email"] else "",
+                                            message_to=client_dict["billing"]["papers"]["email"]["to"],
+                                            message_cc=client_dict["billing"]["papers"]["email"]["cc"] if "cc" in client_dict["billing"]["papers"]["email"] else "",
+                                            message_bcc=client_dict["billing"]["papers"]["email"]["bcc"] if "bcc" in client_dict["billing"]["papers"]["email"] else "",
                                             message_subject=client_gmail_draft_subject,
                                             message_text=client_gmail_draft_text,
                                             attach_str=json.dumps(client_gmail_draft_attach_list)
@@ -1078,18 +1078,18 @@ if __name__ == "__main__":
 
                         # Set lp cmd
                         # All margins but right should be minimized
-                        lp_cmd = ["lp", "-d", acc_yaml_dict["merchants"][client_dict["merchant"]]["printer"], "-o", "media=A4", "-o", "fit-to-page", "-o", "page-left=0", "-o", "page-top=0", "-o", "page-bottom=0"]
+                        lp_cmd = ["lp", "-d", acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["printer"], "-o", "media=A4", "-o", "fit-to-page", "-o", "page-left=0", "-o", "page-top=0", "-o", "page-bottom=0"]
 
                         # Papers statuses treated as not printed
                         printed_paper_statuses = ["Not Needed", "Printed", "Sent"]
 
                         # Check there are invoices to print and printing needed for a client
-                        if any(invoice["papers"] not in printed_paper_statuses for invoice in invoices_dict[client]) and (client_dict["papers"]["invoice"]["print"] or client_dict["papers"]["act"]["print"]):
+                        if any(invoice["papers"] not in printed_paper_statuses for invoice in invoices_dict[client]) and (client_dict["billing"]["papers"]["invoice"]["print"] or client_dict["billing"]["papers"]["act"]["print"]):
 
                             # Print envelope
                 
                             # Download PDF
-                            client_envelope_file_name = client_dict["name"] + " - " + client_dict["merchant"] + " - " + client_dict["template"] + ".pdf"
+                            client_envelope_file_name = client_dict["name"] + " - " + client_dict["billing"]["merchant"] + " - " + client_dict["billing"]["template"] + ".pdf"
                             if any(envelope["name"] == client_envelope_file_name for envelope in envelopes_folder_files):
                                 envelope = [envelope for envelope in envelopes_folder_files if envelope["name"] == client_envelope_file_name][0]
                                 # Remove envelope file
@@ -1101,7 +1101,7 @@ if __name__ == "__main__":
                                 except Exception as e:
                                     raise Exception("Caught exception on gsuite execution")
                             else:
-                                raise Exception("Envelope pdf for client {client} - merchant {merchant} - template {template} not found".format(client=client_dict["name"], merchant=client_dict["merchant"], template=client_dict["template"]))
+                                raise Exception("Envelope pdf for client {client} - merchant {merchant} - template {template} not found".format(client=client_dict["name"], merchant=client_dict["billing"]["merchant"], template=client_dict["billing"]["template"]))
 
                             # Send to printer
                             if not args.dry_run_print:
@@ -1144,8 +1144,8 @@ if __name__ == "__main__":
                                                 client_folder_files=client_folder_files,
                                                 invoice_type=invoice_type,
                                                 invoice_number=invoice["invoice_number"],
-                                                invoice_needed=client_dict["papers"]["invoice"]["print"],
-                                                act_needed=client_dict["papers"]["act"]["print"],
+                                                invoice_needed=client_dict["billing"]["papers"]["invoice"]["print"],
+                                                act_needed=client_dict["billing"]["papers"]["act"]["print"],
                                                 pack_to_archive=False,
                                                 double_act=True
                                             )
@@ -1197,8 +1197,11 @@ if __name__ == "__main__":
                     if "name" not in client_dict:
                         raise Exception("name key missing in: {0}/{1}".format(WORK_DIR, client_file))
 
-                    if "code" not in client_dict:
-                        raise Exception("code key missing in: {0}/{1}".format(WORK_DIR, client_file))
+                    if "billing" not in client_dict:
+                        raise Exception("billing key missing in: {0}/{1}".format(WORK_DIR, client_file))
+
+                    if "code" not in client_dict["billing"]:
+                        raise Exception("billing:code key missing in: {0}/{1}".format(WORK_DIR, client_file))
 
                     if "active" not in client_dict:
                         raise Exception("active key missing in: {0}/{1}".format(WORK_DIR, client_file))
@@ -1367,7 +1370,6 @@ if __name__ == "__main__":
 
         if args.issues_check:
 
-            # Find hourly_only clients
             # For *.yaml in client dir
             clients_dict = {}
             for client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
@@ -1379,11 +1381,11 @@ if __name__ == "__main__":
                 if client_dict is None:
                     raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
-                # Check hourly_only
-                clients_dict[client_dict["name"].lower()] = {"hourly_only": False}
-                if "hourly_only" in client_dict:
-                    if client_dict["hourly_only"]:
-                        clients_dict[client_dict["name"].lower()] = {"hourly_only": True}
+                if "hourly_only" in client_dict["billing"]:
+                    clients_dict[client_dict["name"].lower()] = {"hourly_only": client_dict["billing"]["hourly_only"]}
+                else:
+                    # Assume hourly_only = True by default
+                    clients_dict[client_dict["name"].lower()] = {"hourly_only": True}
 
             # New cursor
             cur = conn.cursor()
@@ -2786,11 +2788,11 @@ if __name__ == "__main__":
                                 'issue_title': row_issue_title,
                                 'issue_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_issue_link,
                                 'issue_author': row_issue_author,
-                                'issue_created': row_issue_created.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]),
-                                'issue_closed': row_issue_closed.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]) if not row_issue_closed is None else "",
+                                'issue_created': row_issue_created.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]),
+                                'issue_closed': row_issue_closed.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]) if not row_issue_closed is None else "",
                                 'issue_labels': ", ".join(sorted(row_issue_labels.split(", "))) if not row_issue_labels is None else "",
                                 'timelog_employee_email': row_user_email,
-                                'timelog_updated': row_timelog_updated.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]),
+                                'timelog_updated': row_timelog_updated.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]),
                                 'timelog_spent_hours': row_time_spent_hours,
                                 'tariff_currency': row_tariff_currency,
                                 'tariff_rate': row_tariff_rate,
@@ -2879,8 +2881,8 @@ if __name__ == "__main__":
                     
                     client_dict = clients_dict[client]
 
-                    if "month_shift" in client_dict["papers"]:
-                        month_delta = int(month_in_arg) + int(client_dict["papers"]["month_shift"])
+                    if "month_shift" in client_dict["billing"]["papers"]:
+                        month_delta = int(month_in_arg) + int(client_dict["billing"]["papers"]["month_shift"])
                     else:
                         month_delta = int(month_in_arg)
 
@@ -2987,8 +2989,8 @@ if __name__ == "__main__":
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
 
-                    if "month_shift" in client_dict["papers"]:
-                        month_delta = int(month_in_arg) + int(client_dict["papers"]["month_shift"])
+                    if "month_shift" in client_dict["billing"]["papers"]:
+                        month_delta = int(month_in_arg) + int(client_dict["billing"]["papers"]["month_shift"])
                     else:
                         month_delta = int(month_in_arg)
 
@@ -3358,7 +3360,7 @@ if __name__ == "__main__":
                     raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
 
                 # Check if papers needed or not
-                if client_dict["papers"]["invoice"]["print"] or client_dict["papers"]["act"]["print"]:
+                if client_dict["billing"]["papers"]["invoice"]["print"] or client_dict["billing"]["papers"]["act"]["print"]:
                     papers_needed = "Needed"
                 else:
                     papers_needed = "Not Needed"
@@ -3392,27 +3394,27 @@ if __name__ == "__main__":
                 # Sanity checks
                 # Check currency
                 for detail in invoice_details[client]:
-                    if detail["tariff_currency"] != acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency"]:
+                    if detail["tariff_currency"] != acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]:
                         if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
                             logger.error("Issue {issue} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
                                 issue=detail["issue_link"],
                                 currency=detail["tariff_currency"],
-                                merchant=client_dict["merchant"],
-                                template=client_dict["template"]
+                                merchant=client_dict["billing"]["merchant"],
+                                template=client_dict["billing"]["template"]
                             ))
                         if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
                             logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
                                 asset=detail["asset_fqdn"],
                                 currency=detail["tariff_currency"],
-                                merchant=client_dict["merchant"],
-                                template=client_dict["template"]
+                                merchant=client_dict["billing"]["merchant"],
+                                template=client_dict["billing"]["template"]
                             ))
                         if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients is not None:
                             logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
                                 asset=detail["client_asset_fqdn"],
                                 currency=detail["tariff_currency"],
-                                merchant=client_dict["merchant"],
-                                template=client_dict["template"]
+                                merchant=client_dict["billing"]["merchant"],
+                                template=client_dict["billing"]["template"]
                             ))
                         raise Exception("Error in currency found")
         
@@ -3423,17 +3425,17 @@ if __name__ == "__main__":
                     raise Exception("Caught exception on gsuite execution")
 
                 # Doc number
-                client_doc_num = invoice_prefix + client_dict["code"] + "-" + acc_yaml_dict["merchants"][client_dict["merchant"]]["code"] + "-" + str(datetime.today().strftime("%Y-%m-%d"))
+                client_doc_num = invoice_prefix + client_dict["billing"]["code"] + "-" + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["code"] + "-" + str(datetime.today().strftime("%Y-%m-%d"))
                 latest_subnum = "01"
 
                 # Get latest invoice for client for today and increase latest_subnum if found
                 for item in client_folder_files:
-                    fn_prefix = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["filename"][0]
+                    fn_prefix = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][0]
                     if item["name"].startswith(fn_prefix):
                         part_1 = item["name"].replace(fn_prefix + " ", "")
                         if part_1.startswith(client_doc_num):
                             part_2 = part_1.replace(client_doc_num + "-", "")
-                            part_3 = part_2.split(" " + acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " ")
+                            part_3 = part_2.split(" " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " ")
                             if int(part_3[0]) >= int(latest_subnum):
                                 latest_subnum = str(int(part_3[0]) + 1).zfill(2)
 
@@ -3480,14 +3482,14 @@ if __name__ == "__main__":
                         client_per_employee_share[detail["timelog_employee_email"]] += detail["timelog_cost_employee_share"]
 
                         # Format detail rows with template settings
-                        if acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["thousands"] == " ":
+                        if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
                             formatted_timelog_spent_hours = '{:,.2f}'.format(detail["timelog_spent_hours"]).replace(",", " ").replace(".", ",")
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
-                            formatted_timelog_cost = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"]).replace(",", " ").replace(".", ",")
+                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
+                            formatted_timelog_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"]).replace(",", " ").replace(".", ",")
                         else:
                             formatted_timelog_spent_hours = '{:,.2f}'.format(detail["timelog_spent_hours"])
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
-                            formatted_timelog_cost = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"])
+                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
+                            formatted_timelog_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"])
                         
                         # Populate details rows
                         client_doc_details_list_item = [
@@ -3525,15 +3527,15 @@ if __name__ == "__main__":
                         client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
                         
                         # Format detail rows with template settings
-                        if acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["thousands"] == " ":
+                        if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
                             formatted_period_portion = '{:,.2f}'.format(detail["period_portion"]).replace(",", " ").replace(".", ",")
-                            formatted_monthly_tariff_price = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
-                            formatted_price_within_period = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"]).replace(",", " ").replace(".", ",")
+                            formatted_monthly_tariff_price = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
+                            formatted_price_within_period = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"]).replace(",", " ").replace(".", ",")
 
                         else:
                             formatted_period_portion = '{:,.2f}'.format(detail["period_portion"])
-                            formatted_monthly_tariff_price = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
-                            formatted_price_within_period = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"])
+                            formatted_monthly_tariff_price = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
+                            formatted_price_within_period = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"])
 
                         # Populate details rows
                         client_doc_details_list_item = [
@@ -3573,16 +3575,16 @@ if __name__ == "__main__":
                         client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
                         
                         # Format detail rows with template settings
-                        if acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["thousands"] == " ":
+                        if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
                             formatted_avg_per_month = '{:,.2f}'.format(detail["avg_per_month"]).replace(",", " ").replace(".", ",")
                             formatted_usage_days = '{:,.2f}'.format(detail["usage_days"]).replace(",", " ").replace(".", ",")
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
-                            formatted_storage_cost = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"]).replace(",", " ").replace(".", ",")
+                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
+                            formatted_storage_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"]).replace(",", " ").replace(".", ",")
                         else:
                             formatted_avg_per_month = '{:,.2f}'.format(detail["avg_per_month"])
                             formatted_usage_days = '{:,.2f}'.format(detail["usage_days"])
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
-                            formatted_storage_cost = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"])
+                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
+                            formatted_storage_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"])
                         
                         # Populate details rows
                         client_doc_details_list_item = [
@@ -3600,7 +3602,7 @@ if __name__ == "__main__":
 
                 # Make WooCommerce order draft if woocommerce key in merchant and woocommerce: True in client
 
-                if "woocommerce" in acc_yaml_dict["merchants"][client_dict["merchant"]] and "woocommerce" in client_dict and client_dict["woocommerce"]["draft_order"] and not args.dry_run_woocommerce:
+                if "woocommerce" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]] and "woocommerce" in client_dict and client_dict["billing"]["woocommerce"]["draft_order"] and not args.dry_run_woocommerce:
 
                     # Prepare order items, API doesn't accept decimal until:
                     # /var/www/microdevopscom/wordpress/wp-content/plugins/woocommerce/includes/rest-api/Controllers/Version2/class-wc-rest-orders-v2-controller.php
@@ -3628,14 +3630,14 @@ if __name__ == "__main__":
                         
                         # Create api object
                         wcapi = woocommerce.API(
-                            url=acc_yaml_dict["merchants"][client_dict["merchant"]]["woocommerce"]["url"],
-                            consumer_key=acc_yaml_dict["merchants"][client_dict["merchant"]]["woocommerce"]["key"],
-                            consumer_secret=acc_yaml_dict["merchants"][client_dict["merchant"]]["woocommerce"]["secret"],
-                            version=acc_yaml_dict["merchants"][client_dict["merchant"]]["woocommerce"]["version"]
+                            url=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["url"],
+                            consumer_key=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["key"],
+                            consumer_secret=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["secret"],
+                            version=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["version"]
                         )
 
                         # Get customer billing and shipping
-                        woo_customer = wcapi.get("customers/{id}".format(id=client_dict["woocommerce"]["customer_id"])).json()
+                        woo_customer = wcapi.get("customers/{id}".format(id=client_dict["billing"]["woocommerce"]["customer_id"])).json()
                         if woo_customer["billing"]["email"] == "":
                             woo_customer["billing"]["email"] = woo_customer["email"]
 
@@ -3643,7 +3645,7 @@ if __name__ == "__main__":
                         data = {
                             "set_paid": False,
                             "status": "pending",
-                            "customer_id": client_dict["woocommerce"]["customer_id"],
+                            "customer_id": client_dict["billing"]["woocommerce"]["customer_id"],
                             "billing": woo_customer["billing"],
                             "shipping": woo_customer["shipping"],
                             "line_items": order_items
@@ -3666,7 +3668,7 @@ if __name__ == "__main__":
 
                         # Prepare the data for note update request
                         data = {
-                            "note": "client: {client}\ncustomer_id: {customer_id}".format(customer_id=client_dict["woocommerce"]["customer_id"], client=client_dict["name"])
+                            "note": "client: {client}\ncustomer_id: {customer_id}".format(customer_id=client_dict["billing"]["woocommerce"]["customer_id"], client=client_dict["name"])
                         }
 
                         # Request
@@ -3679,13 +3681,13 @@ if __name__ == "__main__":
                             raise Exception("Got non 201 status code from woo api: {status_code}".format(status_code=response.status_code))
 
                         # Check order currency with mechant currency
-                        if woocommerce_order_currency != acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency"]:
+                        if woocommerce_order_currency != acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]:
                             logger.error("Woo order {order} currency {order_currency} didn't match merchant {merchant} template {template} currency {merchant_currency}".format(
                                 order=woocommerce_order_id,
                                 order_currency=woocommerce_order_currency,
-                                merchant=client_dict["merchant"],
-                                template=client_dict["template"],
-                                merchant_currency=acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency"]
+                                merchant=client_dict["billing"]["merchant"],
+                                template=client_dict["billing"]["template"],
+                                merchant_currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]
                             ))
                             raise Exception("Error in currency found")
 
@@ -3710,19 +3712,19 @@ if __name__ == "__main__":
                     invoice_row_n += 1
 
                     # Format client_per_tariff_plan_total_sum after calcs
-                    if acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["thousands"] == " ":
-                        formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan]).replace(",", " ").replace(".", ",")
-                        formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan]).replace(",", " ").replace(".", ",")
+                    if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
+                        formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan]).replace(",", " ").replace(".", ",")
+                        formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan]).replace(",", " ").replace(".", ",")
                         formatted_client_per_tariff_plan_total_qty = '{:,.2f}'.format(client_per_tariff_plan_total_qty[tariff_plan]).replace(",", " ").replace(".", ",")
                     else:
-                        formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan])
-                        formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan])
+                        formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan])
+                        formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan])
                         formatted_client_per_tariff_plan_total_qty = '{:,.2f}'.format(client_per_tariff_plan_total_qty[tariff_plan])
 
                     # Rows
                     client_doc_invoice_list_item = [
                         str(invoice_row_n),
-                        acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["row_name"].format(plan=tariff_plan),
+                        acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["row_name"].format(plan=tariff_plan),
                         client_doc_invoice_period,
                         formatted_client_per_tariff_plan_total_qty,
                         formatted_tariff_rate,
@@ -3731,15 +3733,15 @@ if __name__ == "__main__":
                     client_doc_invoice_list.append(client_doc_invoice_list_item)
                 
                 # Format totals after calcs
-                if acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["thousands"] == " ":
-                    formatted_client_total = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(client_total).replace(",", " ").replace(".", ",")
+                if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
+                    formatted_client_total = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_total).replace(",", " ").replace(".", ",")
                 else:
-                    formatted_client_total = acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency_symbol"] + '{:,.2f}'.format(client_total)
+                    formatted_client_total = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_total)
                 
                 client_total_written = num2words(client_total,
                     to='currency',
-                    lang=acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["language"],
-                    currency=acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency"])
+                    lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["language"],
+                    currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
 
                 # Calc dates
 
@@ -3749,51 +3751,51 @@ if __name__ == "__main__":
                     invoice_act_date = invoice_details[client][-1]["timelog_updated"]
                     # Today + 2 weeks
                     in_two_weeks = datetime.today() + timedelta(days=14)
-                    invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]))
+                    invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
 
                 # Monthly
                 if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
-                    if "monthly_act_last_date_of_month" in client_dict["papers"] and client_dict["papers"]["monthly_act_last_date_of_month"]:
+                    if "monthly_act_last_date_of_month" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["monthly_act_last_date_of_month"]:
                         # Last day of month by period
                         next_month = needed_month_per_client[client] + relativedelta(months=1)
                         first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                         last_day_of_needed_month = first_day_of_next_month - relativedelta(days=1)
-                        invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]))
+                        invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     else:
                         # First day of next month by period
                         next_month = needed_month_per_client[client] + relativedelta(months=1)
                         first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                        invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]))
+                        invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     # Today + 4 weeks
                     in_four_weeks = datetime.today() + timedelta(days=28)
-                    invoice_last_day = str(in_four_weeks.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]))
+                    invoice_last_day = str(in_four_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                 
                 # Storage
                 if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients:
-                    if "monthly_act_last_date_of_month" in client_dict["papers"] and client_dict["papers"]["monthly_act_last_date_of_month"]:
+                    if "monthly_act_last_date_of_month" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["monthly_act_last_date_of_month"]:
                         # Last day of month by period
                         next_month = datetime.strptime(needed_month, "%Y-%m") + relativedelta(months=1)
                         first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                         last_day_of_needed_month = first_day_of_next_month - relativedelta(days=1)
-                        invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]))
+                        invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     else:
                         # First day of next month by period
                         next_month = datetime.strptime(needed_month, "%Y-%m") + relativedelta(months=1)
                         first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                        invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]))
+                        invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     # Today + 2 weeks
                     in_two_weeks = datetime.today() + timedelta(days=14)
-                    invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"]))
+                    invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
 
                 # Copy templates
 
                 # Invoice
                 if not args.dry_run_gsuite:
                     try:
-                        client_doc_invoice = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["source"],
+                        client_doc_invoice = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["source"],
                             client_dict["gsuite"]["folder"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " " + str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
+                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " " + str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
                         logger.info("New invoice id: {0}".format(client_doc_invoice))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
@@ -3801,21 +3803,21 @@ if __name__ == "__main__":
                 # Details
                 if not args.dry_run_gsuite:
                     try:
-                        client_doc_details = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["source"],
+                        client_doc_details = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["source"],
                             client_dict["gsuite"]["folder"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["filename"][1] + " " + str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
+                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][1] + " " + str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
                         logger.info("New details id: {0}".format(client_doc_details))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
 
                 # Act
-                if not args.dry_run_gsuite and (client_dict["papers"]["act"]["email"] or client_dict["papers"]["act"]["print"]):
+                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
                     try:
-                        client_doc_act = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["source"],
+                        client_doc_act = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["source"],
                             client_dict["gsuite"]["folder"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["filename"][1] + " " + invoice_act_date, acc_yaml_dict["gsuite"]["drive_user"])
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
+                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["filename"][1] + " " + invoice_act_date, acc_yaml_dict["gsuite"]["drive_user"])
                         logger.info("New act id: {0}".format(client_doc_act))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
@@ -3823,14 +3825,14 @@ if __name__ == "__main__":
                 # Templates
                 
                 client_doc_data = {
-                    "__CONTRACT_RECIPIENT__":   client_dict["contract"]["recipient"],
-                    "__CONTRACT_DETAILS__":     client_dict["contract"]["details"],
-                    "__CONTRACT_NAME__":        client_dict["contract"]["name"],
-                    "__CONTRACT_PERSON__":      client_dict["contract"]["person"],
-                    "__SIGN__":                 client_dict["contract"]["sign"],
+                    "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
+                    "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
+                    "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
+                    "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
+                    "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
                     "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
                     "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
-                    "__INVOICE_DATE__":         str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["date_format"])),
+                    "__INVOICE_DATE__":         str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])),
                     "__ACT_DATE__":             invoice_act_date,
                     "__INV_L_DATE__":           invoice_last_day,
                     "__TOTAL__":                formatted_client_total,
@@ -3885,9 +3887,9 @@ if __name__ == "__main__":
                 invoices_rows_invoices_row[invoices_order_dict['type'] - 1] =                   invoice_type
                 invoices_rows_invoices_row[invoices_order_dict['period'] - 1] =                 client_doc_invoice_period
                 invoices_rows_invoices_row[invoices_order_dict['client'] - 1] =                 client_dict["name"]
-                invoices_rows_invoices_row[invoices_order_dict['merchant'] - 1] =               client_dict["merchant"]
+                invoices_rows_invoices_row[invoices_order_dict['merchant'] - 1] =               client_dict["billing"]["merchant"]
                 invoices_rows_invoices_row[invoices_order_dict['invoice_number'] - 1] =         client_doc_num + "-" + latest_subnum
-                invoices_rows_invoices_row[invoices_order_dict['invoice_currency'] - 1] =       acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]]["currency"]
+                invoices_rows_invoices_row[invoices_order_dict['invoice_currency'] - 1] =       acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]
                 invoices_rows_invoices_row[invoices_order_dict['invoice_sum'] - 1] =            client_total
                 invoices_rows_invoices_row[invoices_order_dict['status'] - 1] =                 "Prepared"
                 invoices_rows_invoices_row[invoices_order_dict['ext_order_number'] - 1] =       woocommerce_order_id
@@ -3911,8 +3913,8 @@ if __name__ == "__main__":
                 if not args.dry_run_gsuite:
                     try:
                         response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_invoice,
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["row_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["table_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["row_num"],
                             json.dumps(client_doc_invoice_list))
                         logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
                     except Exception as e:
@@ -3922,8 +3924,8 @@ if __name__ == "__main__":
                 if not args.dry_run_gsuite:
                     try:
                         response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_invoice,
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["invoice"]["row_num"])
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["table_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["row_num"])
                         logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
@@ -3942,8 +3944,8 @@ if __name__ == "__main__":
                 if not args.dry_run_gsuite:
                     try:
                         response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_details,
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["row_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["table_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["row_num"],
                             json.dumps(client_doc_details_list))
                         logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
                     except Exception as e:
@@ -3953,8 +3955,8 @@ if __name__ == "__main__":
                 if not args.dry_run_gsuite:
                     try:
                         response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_details,
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["details"]["row_num"])
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["table_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["row_num"])
                         logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
@@ -3962,7 +3964,7 @@ if __name__ == "__main__":
                 # Act
 
                 # Templates
-                if not args.dry_run_gsuite and (client_dict["papers"]["act"]["email"] or client_dict["papers"]["act"]["print"]):
+                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
                     try:
                         response = docs_replace_all_text(SA_SECRETS_FILE, client_doc_act, json.dumps(client_doc_data))
                         logger.info("{invoice_type} invoice docs_replace_all_text response: {response}".format(invoice_type=invoice_type, response=response))
@@ -3970,11 +3972,11 @@ if __name__ == "__main__":
                         raise Exception("Caught exception on gsuite execution")
 
                 # Table rows fill
-                if not args.dry_run_gsuite and (client_dict["papers"]["act"]["email"] or client_dict["papers"]["act"]["print"]):
+                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
                     try:
                         response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_act,
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["row_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["table_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["row_num"],
                             # Act table data is the same as in invoice
                             json.dumps(client_doc_invoice_list))
                         logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
@@ -3982,11 +3984,11 @@ if __name__ == "__main__":
                         raise Exception("Caught exception on gsuite execution")
                 
                 # First row removal
-                if not args.dry_run_gsuite and (client_dict["papers"]["act"]["email"] or client_dict["papers"]["act"]["print"]):
+                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
                     try:
                         response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_act,
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["merchant"]]["templates"][client_dict["template"]][invoice_type.lower()]["act"]["row_num"])
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["table_num"],
+                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["row_num"])
                         logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")

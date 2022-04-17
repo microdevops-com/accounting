@@ -1102,15 +1102,15 @@ if __name__ == "__main__":
                     ).format(PROJECTS_SUBDIR=PROJECTS_SUBDIR,
                         path_with_namespace=path_with_namespace,
                         client_name=client_dict["name"],
-                        client_code=client_dict["code"],
+                        client_code=client_dict["billing"]["code"],
                         client_start_date=client_dict["start_date"],
-                        client_contract_recipient=client_dict["contract"]["recipient"],
-                        client_contract_requisites=client_dict["contract"]["details"].replace("\n", "<br>"),
-                        client_contract_name=client_dict["contract"]["name"],
-                        client_contract_person_name=client_dict["contract"]["person"],
-                        client_contract_person_sign=client_dict["contract"]["sign"],
-                        client_papers_envelope_address=client_dict["papers"]["envelope_address"].replace("\n", "<br>") if "envelope_address" in client_dict["papers"] else "",
-                        client_papers_email=client_dict["papers"]["email"]["to"],
+                        client_contract_recipient=client_dict["billing"]["contract"]["recipient"],
+                        client_contract_requisites=client_dict["billing"]["contract"]["details"].replace("\n", "<br>"),
+                        client_contract_name=client_dict["billing"]["contract"]["name"],
+                        client_contract_person_name=client_dict["billing"]["contract"]["person"],
+                        client_contract_person_sign=client_dict["billing"]["contract"]["sign"],
+                        client_papers_envelope_address=client_dict["billing"]["papers"]["envelope_address"].replace("\n", "<br>") if "envelope_address" in client_dict["billing"]["papers"] else "",
+                        client_papers_email=client_dict["billing"]["papers"]["email"]["to"],
                         asset_list_text=asset_list_text
                     )
                     logger.info("Running bash script:")

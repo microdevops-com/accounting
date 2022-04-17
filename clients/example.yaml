@@ -1,6 +1,5 @@
 vendor: Example
 name: Example
-code: EX
 active: True
 gitlab:
   admin_project:
@@ -28,7 +27,15 @@ gitlab:
       - title: root@saltX.example.com # use `./gen_ssh_priv_pub.sh saltX.example.com`
         key: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com
   # 8< ============================================================
-#
+billing:
+  code: EX
+include:
+  dirs:
+    - example
+  skip_files:
+    - example/assets_inactive.yaml
+  files:
+    - other/billing_shared.yaml
 configuration_management:
   # 8< ============================================================
   type: salt-ssh
@@ -162,7 +169,7 @@ configuration_management:
               ...
               -----END PUBLIC KEY-----
   # 8< ============================================================
-servers:
+assets:
   - fqdn: server1.example.com
     location: Hetzner
     active: True

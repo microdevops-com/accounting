@@ -1,3 +1,4 @@
+
 CREATE TABLE IF NOT EXISTS issues_checked (
 	id SERIAL PRIMARY KEY,
 	issue_id INTEGER NOT NULL,
@@ -8,6 +9,18 @@ CREATE TABLE IF NOT EXISTS issues_checked (
 CREATE INDEX IF NOT EXISTS issues_checked_issue_id ON issues_checked (issue_id);
 CREATE INDEX IF NOT EXISTS issues_checked_checked_at ON issues_checked (checked_at);
 CREATE INDEX IF NOT EXISTS issues_checked_transaction_id ON issues_checked (transaction_id);
+
+
+CREATE TABLE IF NOT EXISTS merge_requests_checked (
+	id SERIAL PRIMARY KEY,
+	merge_request_id INTEGER NOT NULL,
+	checked_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+	transaction_id BIGINT NOT NULL DEFAULT txid_current()
+);
+
+CREATE INDEX IF NOT EXISTS merge_requests_checked_merge_request_id ON merge_requests_checked (merge_request_id);
+CREATE INDEX IF NOT EXISTS merge_requests_checked_checked_at ON merge_requests_checked (checked_at);
+CREATE INDEX IF NOT EXISTS merge_requests_checked_transaction_id ON merge_requests_checked (transaction_id);
 
 
 CREATE TABLE IF NOT EXISTS hourly_employee_timelogs_checked (
@@ -21,15 +34,15 @@ CREATE INDEX IF NOT EXISTS hourly_employee_timelogs_checked_checked_at ON hourly
 CREATE INDEX IF NOT EXISTS hourly_employee_timelogs_checked_transaction_id ON hourly_employee_timelogs_checked (transaction_id);
 
 
-CREATE TABLE IF NOT EXISTS hourly_issue_timelogs_checked (
+CREATE TABLE IF NOT EXISTS hourly_timelogs_checked (
 	id SERIAL PRIMARY KEY,
 	timelog_id INTEGER NOT NULL UNIQUE,
 	checked_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
 	transaction_id BIGINT NOT NULL DEFAULT txid_current()
 );
 
-CREATE INDEX IF NOT EXISTS hourly_issue_timelogs_checked_checked_at ON hourly_issue_timelogs_checked (checked_at);
-CREATE INDEX IF NOT EXISTS hourly_issue_timelogs_checked_transaction_id ON hourly_issue_timelogs_checked (transaction_id);
+CREATE INDEX IF NOT EXISTS hourly_timelogs_checked_checked_at ON hourly_timelogs_checked (checked_at);
+CREATE INDEX IF NOT EXISTS hourly_timelogs_checked_transaction_id ON hourly_timelogs_checked (transaction_id);
 
 
 CREATE TABLE IF NOT EXISTS storage_usage (

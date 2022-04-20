@@ -206,13 +206,13 @@ if __name__ == "__main__":
     # Set parser and parse args
     parser = argparse.ArgumentParser(description='{LOGO} functions.'.format(LOGO=LOGO))
     parser.add_argument("--debug", dest="debug", help="enable debug", action="store_true")
-    parser.add_argument("--no-exceptions-on-issue-label-errors", dest="no_exceptions_on_issue_label_errors", help="use with dry-runs to bulk check issue label errors", action="store_true")
+    parser.add_argument("--no-exceptions-on-label-errors", dest="no_exceptions_on_label_errors", help="use with dry-runs to bulk check label errors", action="store_true")
     parser.add_argument("--dry-run-db", dest="dry_run_db", help="do not commit to database", action="store_true")
     parser.add_argument("--dry-run-gitlab", dest="dry_run_gitlab", help="no new objects created in gitlab", action="store_true")
     parser.add_argument("--dry-run-gsuite", dest="dry_run_gsuite", help="no new objects created in gsuite", action="store_true")
     parser.add_argument("--dry-run-print", dest="dry_run_print", help="no print commands executed", action="store_true")
     parser.add_argument("--dry-run-woocommerce", dest="dry_run_woocommerce", help="no woocommerce api commands executed", action="store_true")
-    parser.add_argument("--timelogs-before-date", dest="timelogs_before_date", help="select unchecked timelogs for hourly invoices before date DATE", nargs=1, metavar=("DATE"))
+    parser.add_argument("--timelogs-spent-before-date", dest="timelogs_spent_before_date", help="select unchecked timelogs for hourly invoices spent before date DATE", nargs=1, metavar=("DATE"))
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
     group.add_argument("--include-clients", dest="include_clients", help="include only clients defined by JSON_LIST for all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -221,6 +221,7 @@ if __name__ == "__main__":
     group.add_argument("--yaml-check", dest="yaml_check", help="check yaml structure", action="store_true")
     group.add_argument("--asset-labels", dest="asset_labels", help="sync asset labels", action="store_true")
     group.add_argument("--issues-check", dest="issues_check", help="report issue activities as new issue in accounting project", action="store_true")
+    group.add_argument("--merge-requests-check", dest="merge_requests_check", help="report MR activities as new issue in accounting project", action="store_true")
     group.add_argument("--storage-usage", dest="storage_usage", help="save all clients billable storage usage to database, excluding --exclude-clients or only for --include-clients", action="store_true")
     group.add_argument("--report-hourly-employee-timelogs", dest="report_hourly_employee_timelogs", help="check new timelogs for EMPLOYEE_EMAIL and report them as new issue", nargs=1, metavar=("EMPLOYEE_EMAIL"))
     group.add_argument("--update-envelopes-for-client", dest="update_envelopes_for_client", help="update envelope pdfs in envelopes folder for client CLIENT", nargs=1, metavar=("CLIENT"))
@@ -231,15 +232,20 @@ if __name__ == "__main__":
     group.add_argument("--make-gmail-drafts-for-all-clients", dest="make_gmail_drafts_for_all_clients", help="make GMail drafts with PDFs of invoices with status Prepared/Sent for all clients", action="store_true")
     group.add_argument("--print-papers-for-client", dest="print_papers_for_client", help="print invoice papers with status not Printed for CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--print-papers-for-all-clients", dest="print_papers_for_all_clients", help="print invoice papers with status not Printed for all clients", action="store_true")
-    group.add_argument("--make-hourly-invoice-for-client", dest="make_hourly_invoice_for_client", help="check new timelogs for hourly issues in projects of CLIENT and make invoice", nargs=1, metavar=("CLIENT"))
-    group.add_argument("--make-hourly-invoice-for-all-clients", dest="make_hourly_invoice_for_all_clients", help="check new timelogs for hourly issues in projects of all clients and make invoice for each", action="store_true")
+    group.add_argument("--make-hourly-invoice-for-client", dest="make_hourly_invoice_for_client", help="check new timelogs for hourly issues or MRs in projects of CLIENT and make invoice", nargs=1, metavar=("CLIENT"))
+    group.add_argument("--make-hourly-invoice-for-all-clients", dest="make_hourly_invoice_for_all_clients", help="check new timelogs for hourly issues or MRs in projects of all clients and make invoice for each", action="store_true")
     group.add_argument("--make-monthly-invoice-for-client", dest="make_monthly_invoice_for_client", help="make monthly invoice for month +MONTH by current month for client CLIENT", nargs=2, metavar=("CLIENT", "MONTH"))
     group.add_argument("--make-monthly-invoice-for-all-clients", dest="make_monthly_invoice_for_all_clients", help="make monthly invoice for month +MONTH by current month for all clients excluding --exclude-clients or only for --include-clients", nargs=1, metavar=("MONTH"))
     group.add_argument("--make-storage-invoice-for-client", dest="make_storage_invoice_for_client", help="compute monthly storage usage for month -MONTH of CLIENT and make invoice", nargs=2, metavar=("CLIENT", "MONTH"))
     group.add_argument("--make-storage-invoice-for-all-clients", dest="make_storage_invoice_for_all_clients", help="compute monthly storage usage for month -MONTH of all clients and make invoice for each", nargs=1, metavar=("MONTH"))
     group.add_argument("--list-assets-for-client", dest="list_assets_for_client", help="list assets for CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--list-assets-for-all-clients", dest="list_assets_for_all_clients", help="list assets for all clients", action="store_true")
-    args = parser.parse_args()
+
+    if len(sys.argv) > 1:
+        args = parser.parse_args()
+    else:
+        parser.print_help()
+        sys.exit(1)
 
     # Set logger and console debug
     if args.debug:
@@ -1298,11 +1304,15 @@ if __name__ == "__main__":
                 # Check if client is active
                 if client_dict["active"]:
 
-                    # Make project list (we need to add asset labels to admin_project AND other_billable_projects)
+                    # Make project list (we need to add asset labels to admin_project AND other projects of client from accounting yaml with asset_labels = True)
                     project_list = []
                     project_list.append(client_dict["gitlab"]["admin_project"]["path"])
-                    if "other_billable_projects" in client_dict["gitlab"]:
-                        project_list.extend(client_dict["gitlab"]["other_billable_projects"])
+
+                    for acc_project_path, acc_project_vars  in acc_yaml_dict["projects"].items():
+                        if acc_project_path != client_dict["gitlab"]["admin_project"]["path"]:
+                            if acc_project_vars["client"] == client_dict["name"]:
+                                if "asset_labels" in acc_project_vars and acc_project_vars["asset_labels"]:
+                                    project_list.append(acc_project_path)
 
                     # For each project
                     for project_from_list in project_list:
@@ -1389,15 +1399,16 @@ if __name__ == "__main__":
 
             # New cursor
             cur = conn.cursor()
+            sub_cur = conn.cursor()
 
             # Queries
 
             # Get ids of issues that were modified after last check OR if there were no check at all for that issue
-            # issues.updated_at cannot be used coz last report makes a mention of ticket and it is updated by GitLab automatically like
+            # issues.updated_at cannot be used coz last report makes a mention of issue and it is updated by GitLab automatically like
             # @bot mentioned in issue #xxx 5 minutes ago
             # producing infinite loop
             #
-            # Actually what does up in report of the ticket:
+            # Actually what does up in report of the issue:
             # close - yes
             # reopen - no
             # adding label - no
@@ -1530,7 +1541,8 @@ if __name__ == "__main__":
             # Select non hourly issues
             sql = """
             SELECT
-                    non_hourly_issues.issue_link
+                    non_hourly_issues.namespace_id
+            ,       non_hourly_issues.iid
             ,       non_hourly_issues.title
             ,       non_hourly_issues.author
             ,       non_hourly_issues.created_at
@@ -1538,23 +1550,17 @@ if __name__ == "__main__":
             ,       non_hourly_issues.labels
             ,       non_hourly_issues.time_spent
             ,       non_hourly_issues.id
-            ,       issues_checked.transaction_id
             ,       non_hourly_issues.project_name
+            ,       non_hourly_issues.project_path
+            ,       issues_checked.transaction_id
             FROM
                     dblink
                     (
                             'host={0} user={1} password={2} dbname={3}'
                     ,       '
                             SELECT
-                                    namespaces.path
-                                    ||
-                                    ''/''
-                                    ||
-                                    projects.name
-                                    ||
-                                    ''/issues/''
-                                    ||
-                                    issues.iid                                              AS issue_link
+                                    namespaces.id                                           AS namespace_id
+                            ,       issues.iid                                              AS iid
                             ,       issues.title                                            AS title
                             ,       (
                                             SELECT
@@ -1594,11 +1600,8 @@ if __name__ == "__main__":
                                                     issues.id = timelogs.issue_id
                                     )                                                       AS time_spent
                             ,       issues.id                                               AS id
-                            ,       namespaces.path
-                                    ||
-                                    ''/''
-                                    ||
-                                    projects.name                                           AS project_name
+                            ,       projects.name                                           AS project_name
+                            ,       projects.path                                           AS project_path
                             FROM
                                     issues
                             ,       namespaces
@@ -1635,7 +1638,8 @@ if __name__ == "__main__":
             AS
                     non_hourly_issues
                     (
-                            issue_link          TEXT
+                            namespace_id        INT
+                    ,       iid                 INT
                     ,       title               TEXT
                     ,       author              TEXT
                     ,       created_at          TIMESTAMP
@@ -1644,6 +1648,7 @@ if __name__ == "__main__":
                     ,       time_spent          NUMERIC
                     ,       id                  INTEGER
                     ,       project_name        TEXT
+                    ,       project_path        TEXT
                     )
             ,       issues_checked
             WHERE
@@ -1670,19 +1675,83 @@ if __name__ == "__main__":
                 for row in cur:
                     
                     # Set row fields
-                    row_issue_link          = row[0]
-                    row_issue_title         = row[1]
-                    row_issue_author        = row[2]
-                    row_issue_created_at    = row[3]
-                    row_issue_closed_at     = row[4]
-                    row_issue_labels        = row[5]
-                    row_issue_time_spent    = row[6]
-                    row_issue_id            = row[7]
-                    row_transaction_id      = row[8]
+                    row_issue_namespace_id  = row[0]
+                    row_issue_iid           = row[1]
+                    row_issue_title         = row[2]
+                    row_issue_author        = row[3]
+                    row_issue_created_at    = row[4]
+                    row_issue_closed_at     = row[5]
+                    row_issue_labels        = row[6]
+                    row_issue_time_spent    = row[7]
+                    row_issue_id            = row[8]
                     row_project_name        = row[9]
+                    row_project_path        = row[10]
+                    row_transaction_id      = row[11]
+
+                    # Query namespace path - doing this as new query with unnest is much clearer than adding to the main query
+                    sql = """
+                    SELECT
+                            STRING_AGG(namespace_path, '/') AS n_path
+                    FROM
+                            (
+                                    SELECT
+                                            *
+                                    FROM
+                                            dblink
+                                            (
+                                                    'host={0} user={1} password={2} dbname={3}'
+                                            ,       '
+                                                    SELECT
+                                                            namespaces.path
+                                                    FROM
+                                                            namespaces
+                                                    ,       (
+                                                                    SELECT
+                                                                            ordinality
+                                                                    ,       unnest
+                                                                    FROM
+                                                                            unnest(
+                                                                                    (
+                                                                                            SELECT
+                                                                                                    traversal_ids
+                                                                                            FROM
+                                                                                                    namespaces
+                                                                                            WHERE
+                                                                                                    id = {4}
+                                                                                    )
+                                                                            ) WITH ORDINALITY
+                                                            ) AS namespaces_unnested
+                                                    WHERE
+                                                            namespaces_unnested.unnest = namespaces.id
+                                                    ORDER BY
+                                                            namespaces_unnested.ordinality
+                                                    ;
+                                                    '
+                                            )
+                                    AS
+                                            namespace_paths
+                                            (
+                                                    namespace_path      TEXT
+                                            )
+                            ) AS ns_path
+                    ;
+                    """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME, row_issue_namespace_id)
+                    logger.info("Query:")
+                    logger.info(sql)
+                    try:
+                        sub_cur.execute(sql)
+                        for sub_row in sub_cur:
+                            row_issue_namespace_path = sub_row[0]
+                        logger.info("Query execution status:")
+                        logger.info(sub_cur.statusmessage)
+                    except Exception as e:
+                        raise Exception("Caught exception on query execution")
+
+                    row_project_path_with_namespace = row_issue_namespace_path + "/" + row_project_path
+                    row_issue_link = row_issue_namespace_path + "/" + row_project_path + "/issues/" + str(row_issue_iid)
 
                     # Get client name
-                    client_name = acc_yaml_dict["projects"][row_project_name]["client"].lower()
+                    client_name = acc_yaml_dict["projects"][row_project_path_with_namespace]["client"].lower()
 
                     # Title not bold by default
                     title_bold = ""
@@ -1733,7 +1802,8 @@ if __name__ == "__main__":
             # Select hourly issues
             sql = """
             SELECT
-                    hourly_issues.issue_link
+                    hourly_issues.namespace_id
+            ,       hourly_issues.iid
             ,       hourly_issues.title
             ,       hourly_issues.author
             ,       hourly_issues.created_at
@@ -1741,6 +1811,8 @@ if __name__ == "__main__":
             ,       hourly_issues.labels
             ,       hourly_issues.time_spent
             ,       hourly_issues.id
+            ,       hourly_issues.project_name
+            ,       hourly_issues.project_path
             ,       issues_checked.transaction_id
             FROM
                     dblink
@@ -1748,15 +1820,8 @@ if __name__ == "__main__":
                             'host={0} user={1} password={2} dbname={3}'
                     ,       '
                             SELECT
-                                    namespaces.path
-                                    ||
-                                    ''/''
-                                    ||
-                                    projects.name
-                                    ||
-                                    ''/issues/''
-                                    ||
-                                    issues.iid                                              AS issue_link
+                                    namespaces.id                                           AS namespace_id
+                            ,       issues.iid                                              AS iid
                             ,       issues.title                                            AS title
                             ,       (
                                             SELECT
@@ -1796,6 +1861,8 @@ if __name__ == "__main__":
                                                     issues.id = timelogs.issue_id
                                     )                                                       AS time_spent
                             ,       issues.id                                               AS id
+                            ,       projects.name                                           AS project_name
+                            ,       projects.path                                           AS project_path
                             FROM
                                     issues
                             ,       namespaces
@@ -1832,7 +1899,8 @@ if __name__ == "__main__":
             AS
                     hourly_issues
                     (
-                            issue_link          TEXT
+                            namespace_id        INT
+                    ,       iid                 INT
                     ,       title               TEXT
                     ,       author              TEXT
                     ,       created_at          TIMESTAMP
@@ -1840,6 +1908,8 @@ if __name__ == "__main__":
                     ,       labels              TEXT
                     ,       time_spent          NUMERIC
                     ,       id                  INTEGER
+                    ,       project_name        TEXT
+                    ,       project_path        TEXT
                     )
             ,       issues_checked
             WHERE
@@ -1866,15 +1936,80 @@ if __name__ == "__main__":
                 for row in cur:
                     
                     # Set row fields
-                    row_issue_link          = row[0]
-                    row_issue_title         = row[1]
-                    row_issue_author        = row[2]
-                    row_issue_created_at    = row[3]
-                    row_issue_closed_at     = row[4]
-                    row_issue_labels        = row[5]
-                    row_issue_time_spent    = row[6]
-                    row_issue_id            = row[7]
-                    row_transaction_id      = row[8]
+                    row_issue_namespace_id  = row[0]
+                    row_issue_iid           = row[1]
+                    row_issue_title         = row[2]
+                    row_issue_author        = row[3]
+                    row_issue_created_at    = row[4]
+                    row_issue_closed_at     = row[5]
+                    row_issue_labels        = row[6]
+                    row_issue_time_spent    = row[7]
+                    row_issue_id            = row[8]
+                    row_project_name        = row[9]
+                    row_project_path        = row[10]
+                    row_transaction_id      = row[11]
+
+                    # Query namespace path - doing this as new query with unnest is much clearer than adding to the main query
+                    sql = """
+                    SELECT
+                            STRING_AGG(namespace_path, '/') AS n_path
+                    FROM
+                            (
+                                    SELECT
+                                            *
+                                    FROM
+                                            dblink
+                                            (
+                                                    'host={0} user={1} password={2} dbname={3}'
+                                            ,       '
+                                                    SELECT
+                                                            namespaces.path
+                                                    FROM
+                                                            namespaces
+                                                    ,       (
+                                                                    SELECT
+                                                                            ordinality
+                                                                    ,       unnest
+                                                                    FROM
+                                                                            unnest(
+                                                                                    (
+                                                                                            SELECT
+                                                                                                    traversal_ids
+                                                                                            FROM
+                                                                                                    namespaces
+                                                                                            WHERE
+                                                                                                    id = {4}
+                                                                                    )
+                                                                            ) WITH ORDINALITY
+                                                            ) AS namespaces_unnested
+                                                    WHERE
+                                                            namespaces_unnested.unnest = namespaces.id
+                                                    ORDER BY
+                                                            namespaces_unnested.ordinality
+                                                    ;
+                                                    '
+                                            )
+                                    AS
+                                            namespace_paths
+                                            (
+                                                    namespace_path      TEXT
+                                            )
+                            ) AS ns_path
+                    ;
+                    """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME, row_issue_namespace_id)
+                    logger.info("Query:")
+                    logger.info(sql)
+                    try:
+                        sub_cur.execute(sql)
+                        for sub_row in sub_cur:
+                            row_issue_namespace_path = sub_row[0]
+                        logger.info("Query execution status:")
+                        logger.info(sub_cur.statusmessage)
+                    except Exception as e:
+                        raise Exception("Caught exception on query execution")
+
+                    row_project_path_with_namespace = row_issue_namespace_path + "/" + row_project_path
+                    row_issue_link = row_issue_namespace_path + "/" + row_project_path + "/issues/" + str(row_issue_iid)
 
                     # Title not bold by default
                     title_bold = ""
@@ -1905,7 +2040,7 @@ if __name__ == "__main__":
                 logger.info(cur.statusmessage)
             except Exception as e:
                 raise Exception("Caught exception on query execution")
-            
+
             # Connect to GitLab as Bot
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
             gl.auth()
@@ -1926,11 +2061,680 @@ if __name__ == "__main__":
             if not args.dry_run_db:
                 conn.commit()
             cur.close()
+            sub_cur.close()
+
+        if args.merge_requests_check:
+
+            # For *.yaml in client dir
+            clients_dict = {}
+            for client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
+
+                logger.info("Found client file: {0}".format(client_file))
+
+                # Load client YAML
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
+                if client_dict is None:
+                    raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
+
+                if "hourly_only" in client_dict["billing"]:
+                    clients_dict[client_dict["name"].lower()] = {"hourly_only": client_dict["billing"]["hourly_only"]}
+                else:
+                    # Assume hourly_only = True by default
+                    clients_dict[client_dict["name"].lower()] = {"hourly_only": True}
+
+            # New cursor
+            cur = conn.cursor()
+            sub_cur = conn.cursor()
+
+            # Queries
+
+            # Get ids of MRs that were modified after last check OR if there were no check at all for that MR
+            # merge_requests.updated_at cannot be used coz last report makes a mention of MR and it is updated by GitLab automatically like
+            # @bot mentioned in MR #xxx 5 minutes ago
+            # producing infinite loop
+            #
+            # Actually what does up in report of the MR:
+            # adding label - no
+            # comment - no
+            # adding timelog - yes
+            #
+            # Let us think this is enough for now
+            sql = """
+            CREATE TEMP TABLE
+                    new_merge_requests
+            ON COMMIT DROP
+            AS
+                    SELECT
+                            DISTINCT merge_requests_and_timelogs.merge_request_id
+                    FROM
+                            (
+                                    SELECT
+                                            *
+                                    FROM
+                                            dblink
+                                            (
+                                                    'host={0} user={1} password={2} dbname={3}'
+                                            ,       '
+                                                    SELECT
+                                                            merge_requests.id
+                                                    ,       merge_requests.created_at
+                                                    ,       merge_requests.last_edited_at
+                                                    ,       timelogs.created_at
+                                                    ,       timelogs.updated_at
+                                                    ,       timelogs.spent_at
+                                                    FROM
+                                                            merge_requests
+                                                            LEFT OUTER JOIN
+                                                                    timelogs
+                                                            ON
+                                                                    merge_requests.id = timelogs.merge_request_id
+                                                    ;
+                                                    '
+                                            )
+                                    AS
+                                            merge_requests_and_timelogs
+                                            (
+                                                    merge_request_id                    INTEGER
+                                            ,       merge_requests_created_at           TIMESTAMP WITHOUT TIME ZONE
+                                            ,       merge_requests_last_edited_at       TIMESTAMP WITHOUT TIME ZONE
+                                            ,       timelogs_created_at                 TIMESTAMP WITHOUT TIME ZONE
+                                            ,       timelogs_updated_at                 TIMESTAMP WITHOUT TIME ZONE
+                                            ,       timelogs_spent_at                   TIMESTAMP WITHOUT TIME ZONE
+                                            )
+                            ) merge_requests_and_timelogs
+                            LEFT OUTER JOIN
+                                    merge_requests_checked
+                            ON
+                                    merge_requests_and_timelogs.merge_request_id = merge_requests_checked.merge_request_id
+                    WHERE
+                            merge_requests_and_timelogs.merge_requests_created_at           > ( SELECT MAX(checked_at) FROM merge_requests_checked WHERE merge_request_id = merge_requests_and_timelogs.merge_request_id GROUP BY merge_request_id )
+                            OR
+                            merge_requests_and_timelogs.merge_requests_last_edited_at       > ( SELECT MAX(checked_at) FROM merge_requests_checked WHERE merge_request_id = merge_requests_and_timelogs.merge_request_id GROUP BY merge_request_id )
+                            OR
+                            merge_requests_and_timelogs.timelogs_created_at         > ( SELECT MAX(checked_at) FROM merge_requests_checked WHERE merge_request_id = merge_requests_and_timelogs.merge_request_id GROUP BY merge_request_id )
+                            OR
+                            merge_requests_and_timelogs.timelogs_updated_at         > ( SELECT MAX(checked_at) FROM merge_requests_checked WHERE merge_request_id = merge_requests_and_timelogs.merge_request_id GROUP BY merge_request_id )
+                            OR
+                            merge_requests_and_timelogs.timelogs_spent_at           > ( SELECT MAX(checked_at) FROM merge_requests_checked WHERE merge_request_id = merge_requests_and_timelogs.merge_request_id GROUP BY merge_request_id )
+                            OR
+                            0                                               = ( SELECT count(checked_at) FROM merge_requests_checked WHERE merge_request_id = merge_requests_and_timelogs.merge_request_id )
+            ;
+            """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME)
+            logger.info("Query:")
+            logger.info(sql)
+            try:
+                cur.execute(sql)
+                logger.info("Query execution status:")
+                logger.info(cur.statusmessage)
+            except Exception as e:
+                raise Exception("Caught exception on query execution")
+            
+            # Save ids in temp table to log
+            sql = "SELECT * FROM new_merge_requests;"
+            logger.info("Query:")
+            logger.info(sql)
+            try:
+                cur.execute(sql)
+                for row in cur:
+                    logger.info(row)
+                logger.info("Query execution status:")
+                logger.info(cur.statusmessage)
+            except Exception as e:
+                raise Exception("Caught exception on query execution")
+
+            # Save new merge_requests as checked
+            sql = """
+            INSERT INTO
+                    merge_requests_checked
+                    (
+                            merge_request_id
+                    ,       checked_at
+                    )
+            SELECT
+                    merge_request_id
+            ,       NOW() AT TIME ZONE 'UTC'
+            FROM
+                    new_merge_requests
+            ;
+            """
+            logger.info("Query:")
+            logger.info(sql)
+            try:
+                cur.execute(sql)
+                logger.info("Query execution status:")
+                logger.info(cur.statusmessage)
+            except Exception as e:
+                raise Exception("Caught exception on query execution")
+            
+            # Prepare issue header
+            issue_text = textwrap.dedent("""
+            Please check the report. If errors found - the transaction should be deleted and the report made again.
+            HOC - Hourly Only Client.
+            
+            # Non Hourly MRs
+
+            | TX | MR Link | Title | HOC | Author | Created | Labels | Time Spent |
+            |----|---------|-------|:---:|--------|---------|--------|------------|\
+            """)
+
+            # Select non hourly merge_requests
+            sql = """
+            SELECT
+                    non_hourly_merge_requests.namespace_id
+            ,       non_hourly_merge_requests.iid
+            ,       non_hourly_merge_requests.title
+            ,       non_hourly_merge_requests.author
+            ,       non_hourly_merge_requests.created_at
+            ,       non_hourly_merge_requests.labels
+            ,       non_hourly_merge_requests.time_spent
+            ,       non_hourly_merge_requests.id
+            ,       non_hourly_merge_requests.project_name
+            ,       non_hourly_merge_requests.project_path
+            ,       merge_requests_checked.transaction_id
+            FROM
+                    dblink
+                    (
+                            'host={0} user={1} password={2} dbname={3}'
+                    ,       '
+                            SELECT
+                                    namespaces.id                                           AS namespace_id
+                            ,       merge_requests.iid                                              AS iid
+                            ,       merge_requests.title                                            AS title
+                            ,       (
+                                            SELECT
+                                                    email
+                                            FROM
+                                                    users
+                                            WHERE
+                                                    merge_requests.author_id = users.id
+                                    )                                                       AS author
+                            ,       to_char(merge_requests.created_at, ''YYYY-MM-DD HH24:MI:SS'')   AS created_at
+                            ,       (
+                                            SELECT
+                                                    STRING_AGG(
+                                                            (
+                                                                    SELECT
+                                                                            title
+                                                                    FROM
+                                                                            labels
+                                                                    WHERE
+                                                                            labels.id = label_links.label_id
+                                                            )
+                                                    , '', '')
+                                            FROM
+                                                    label_links
+                                            WHERE
+                                                    label_links.target_id = merge_requests.id
+                                                    AND
+                                                    target_type = ''MergeRequest''
+                                    )                                                       AS labels
+                            ,       (
+                                            SELECT
+                                                    round(sum(time_spent)/60::numeric/60, 2)
+                                            FROM
+                                                    timelogs
+                                            WHERE
+                                                    merge_requests.id = timelogs.merge_request_id
+                                    )                                                       AS time_spent
+                            ,       merge_requests.id                                               AS id
+                            ,       projects.name                                           AS project_name
+                            ,       projects.path                                           AS project_path
+                            FROM
+                                    merge_requests
+                            ,       namespaces
+                            ,       projects
+                            WHERE
+                                    namespaces.id = projects.namespace_id
+                                    AND
+                                    merge_requests.target_project_id = projects.id
+                                    AND
+                                    ''Hourly'' NOT IN
+                                            (
+                                                    SELECT
+                                                            (
+                                                                    SELECT
+                                                                            title
+                                                                    FROM
+                                                                            labels
+                                                                    WHERE
+                                                                            labels.id = label_links.label_id
+                                                            )
+                                                    FROM
+                                                            label_links
+                                                    WHERE
+                                                            label_links.target_id = merge_requests.id
+                                                            AND
+                                                            target_type = ''MergeRequest''
+                                            )
+                            ORDER BY
+                                    merge_requests.created_at
+                            ;
+                            '
+                    )
+            AS
+                    non_hourly_merge_requests
+                    (
+                            namespace_id        INT
+                    ,       iid                 INT
+                    ,       title               TEXT
+                    ,       author              TEXT
+                    ,       created_at          TIMESTAMP
+                    ,       labels              TEXT
+                    ,       time_spent          NUMERIC
+                    ,       id                  INTEGER
+                    ,       project_name        TEXT
+                    ,       project_path        TEXT
+                    )
+            ,       merge_requests_checked
+            WHERE
+                    non_hourly_merge_requests.id IN
+                            (
+                                    SELECT
+                                            merge_request_id
+                                    FROM
+                                            new_merge_requests
+                            )
+                    AND
+                    merge_requests_checked.merge_request_id = non_hourly_merge_requests.id
+                    AND
+                    merge_requests_checked.transaction_id = ( SELECT MAX(transaction_id) FROM merge_requests_checked WHERE merge_request_id = non_hourly_merge_requests.id GROUP BY merge_request_id )
+            ;
+            """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME)
+            logger.info("Query:")
+            logger.info(sql)
+
+            # Read rows
+            try:
+                cur.execute(sql)
+                
+                for row in cur:
+                    
+                    # Set row fields
+                    row_merge_request_namespace_id = row[0]
+                    row_merge_request_iid          = row[1]
+                    row_merge_request_title        = row[2]
+                    row_merge_request_author       = row[3]
+                    row_merge_request_created_at   = row[4]
+                    row_merge_request_labels       = row[5]
+                    row_merge_request_time_spent   = row[6]
+                    row_merge_request_id           = row[7]
+                    row_project_name               = row[8]
+                    row_project_path               = row[9]
+                    row_transaction_id             = row[10]
+
+                    # Query namespace path - doing this as new query with unnest is much clearer than adding to the main query
+                    sql = """
+                    SELECT
+                            STRING_AGG(namespace_path, '/') AS n_path
+                    FROM
+                            (
+                                    SELECT
+                                            *
+                                    FROM
+                                            dblink
+                                            (
+                                                    'host={0} user={1} password={2} dbname={3}'
+                                            ,       '
+                                                    SELECT
+                                                            namespaces.path
+                                                    FROM
+                                                            namespaces
+                                                    ,       (
+                                                                    SELECT
+                                                                            ordinality
+                                                                    ,       unnest
+                                                                    FROM
+                                                                            unnest(
+                                                                                    (
+                                                                                            SELECT
+                                                                                                    traversal_ids
+                                                                                            FROM
+                                                                                                    namespaces
+                                                                                            WHERE
+                                                                                                    id = {4}
+                                                                                    )
+                                                                            ) WITH ORDINALITY
+                                                            ) AS namespaces_unnested
+                                                    WHERE
+                                                            namespaces_unnested.unnest = namespaces.id
+                                                    ORDER BY
+                                                            namespaces_unnested.ordinality
+                                                    ;
+                                                    '
+                                            )
+                                    AS
+                                            namespace_paths
+                                            (
+                                                    namespace_path      TEXT
+                                            )
+                            ) AS ns_path
+                    ;
+                    """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME, row_merge_request_namespace_id)
+                    logger.info("Query:")
+                    logger.info(sql)
+                    try:
+                        sub_cur.execute(sql)
+                        for sub_row in sub_cur:
+                            row_merge_request_namespace_path = sub_row[0]
+                        logger.info("Query execution status:")
+                        logger.info(sub_cur.statusmessage)
+                    except Exception as e:
+                        raise Exception("Caught exception on query execution")
+
+                    row_project_path_with_namespace = row_merge_request_namespace_path + "/" + row_project_path
+                    row_merge_request_link = row_merge_request_namespace_path + "/" + row_project_path + "/merge_requests/" + str(row_merge_request_iid)
+
+                    # Get client name
+                    client_name = acc_yaml_dict["projects"][row_project_path_with_namespace]["client"].lower()
+
+                    # Title not bold by default
+                    title_bold = ""
+
+                    # Check if client is hourly_only
+                    hourly_only_sign = ""
+                    if client_name in clients_dict:
+                        if clients_dict[client_name]["hourly_only"]:
+                            title_bold = "**"
+                            hourly_only_sign = "**+**"
+
+                    # Check if there is time spent -> bold title
+                    if not row_merge_request_time_spent is None:
+                        title_bold = "**"
+                    
+                    # Add report row
+                    issue_text = "{}\n{}".format(issue_text, "| {} | {}/{} | {}{}{} | {} | {} | {} | {} | {} |".format(
+                        row_transaction_id,
+                        acc_yaml_dict["gitlab"]["url"],
+                        row_merge_request_link,
+                        title_bold,
+                        row_merge_request_title.replace("|", "-"),
+                        title_bold,
+                        hourly_only_sign,
+                        row_merge_request_author,
+                        row_merge_request_created_at.strftime("%Y-%m-%d"),
+                        row_merge_request_labels if not row_merge_request_labels is None else "",
+                        "**{}**".format(row_merge_request_time_spent) if not row_merge_request_time_spent is None else ""
+                    ))
+
+                    # Save raw data to log
+                    logger.info(row)
+
+                logger.info("Query execution status:")
+                logger.info(cur.statusmessage)
+            except Exception as e:
+                raise Exception("Caught exception on query execution")
+            
+            # Add more text and second header
+            issue_text = "{}\n{}".format(issue_text, textwrap.dedent("""
+            # Hourly MRs
+
+            | TX | MR Link | Title | Author | Created | Labels | Time Spent |
+            |----|---------|-------|--------|---------|--------|------------|\
+            """))
+            
+            # Select hourly merge_requests
+            sql = """
+            SELECT
+                    hourly_merge_requests.namespace_id
+            ,       hourly_merge_requests.iid
+            ,       hourly_merge_requests.title
+            ,       hourly_merge_requests.author
+            ,       hourly_merge_requests.created_at
+            ,       hourly_merge_requests.labels
+            ,       hourly_merge_requests.time_spent
+            ,       hourly_merge_requests.id
+            ,       hourly_merge_requests.project_name
+            ,       hourly_merge_requests.project_path
+            ,       merge_requests_checked.transaction_id
+            FROM
+                    dblink
+                    (
+                            'host={0} user={1} password={2} dbname={3}'
+                    ,       '
+                            SELECT
+                                    namespaces.id                                           AS namespace_id
+                            ,       merge_requests.iid                                              AS iid
+                            ,       merge_requests.title                                            AS title
+                            ,       (
+                                            SELECT
+                                                    email
+                                            FROM
+                                                    users
+                                            WHERE
+                                                    merge_requests.author_id = users.id
+                                    )                                                       AS author
+                            ,       to_char(merge_requests.created_at, ''YYYY-MM-DD HH24:MI:SS'')   AS created_at
+                            ,       (
+                                            SELECT
+                                                    STRING_AGG(
+                                                            (
+                                                                    SELECT
+                                                                            title
+                                                                    FROM
+                                                                            labels
+                                                                    WHERE
+                                                                            labels.id = label_links.label_id
+                                                            )
+                                                    , '', '')
+                                            FROM
+                                                    label_links
+                                            WHERE
+                                                    label_links.target_id = merge_requests.id
+                                                    AND
+                                                    target_type = ''MergeRequest''
+                                    )                                                       AS labels
+                            ,       (
+                                            SELECT
+                                                    round(sum(time_spent)/60::numeric/60, 2)
+                                            FROM
+                                                    timelogs
+                                            WHERE
+                                                    merge_requests.id = timelogs.merge_request_id
+                                    )                                                       AS time_spent
+                            ,       merge_requests.id                                               AS id
+                            ,       projects.name                                           AS project_name
+                            ,       projects.path                                           AS project_path
+                            FROM
+                                    merge_requests
+                            ,       namespaces
+                            ,       projects
+                            WHERE
+                                    namespaces.id = projects.namespace_id
+                                    AND
+                                    merge_requests.target_project_id = projects.id
+                                    AND
+                                    ''Hourly'' IN
+                                            (
+                                                    SELECT
+                                                            (
+                                                                    SELECT
+                                                                            title
+                                                                    FROM
+                                                                            labels
+                                                                    WHERE
+                                                                            labels.id = label_links.label_id
+                                                            )
+                                                    FROM
+                                                            label_links
+                                                    WHERE
+                                                            label_links.target_id = merge_requests.id
+                                                            AND
+                                                            target_type = ''MergeRequest''
+                                            )
+                            ORDER BY
+                                    merge_requests.created_at
+                            ;
+                            '
+                    )
+            AS
+                    hourly_merge_requests
+                    (
+                            namespace_id        INT
+                    ,       iid                 INT
+                    ,       title               TEXT
+                    ,       author              TEXT
+                    ,       created_at          TIMESTAMP
+                    ,       labels              TEXT
+                    ,       time_spent          NUMERIC
+                    ,       id                  INTEGER
+                    ,       project_name        TEXT
+                    ,       project_path        TEXT
+                    )
+            ,       merge_requests_checked
+            WHERE
+                    hourly_merge_requests.id IN
+                            (
+                                    SELECT
+                                            merge_request_id
+                                    FROM
+                                            new_merge_requests
+                            )
+                    AND
+                    merge_requests_checked.merge_request_id = hourly_merge_requests.id
+                    AND
+                    merge_requests_checked.transaction_id = ( SELECT MAX(transaction_id) FROM merge_requests_checked WHERE merge_request_id = hourly_merge_requests.id GROUP BY merge_request_id )
+            ;
+            """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME)
+            logger.info("Query:")
+            logger.info(sql)
+
+            # Read rows
+            try:
+                cur.execute(sql)
+                
+                for row in cur:
+                    
+                    # Set row fields
+                    row_merge_request_namespace_id = row[0]
+                    row_merge_request_iid          = row[1]
+                    row_merge_request_title        = row[2]
+                    row_merge_request_author       = row[3]
+                    row_merge_request_created_at   = row[4]
+                    row_merge_request_labels       = row[5]
+                    row_merge_request_time_spent   = row[6]
+                    row_merge_request_id           = row[7]
+                    row_project_name               = row[8]
+                    row_project_path               = row[9]
+                    row_transaction_id             = row[10]
+
+                    # Query namespace path - doing this as new query with unnest is much clearer than adding to the main query
+                    sql = """
+                    SELECT
+                            STRING_AGG(namespace_path, '/') AS n_path
+                    FROM
+                            (
+                                    SELECT
+                                            *
+                                    FROM
+                                            dblink
+                                            (
+                                                    'host={0} user={1} password={2} dbname={3}'
+                                            ,       '
+                                                    SELECT
+                                                            namespaces.path
+                                                    FROM
+                                                            namespaces
+                                                    ,       (
+                                                                    SELECT
+                                                                            ordinality
+                                                                    ,       unnest
+                                                                    FROM
+                                                                            unnest(
+                                                                                    (
+                                                                                            SELECT
+                                                                                                    traversal_ids
+                                                                                            FROM
+                                                                                                    namespaces
+                                                                                            WHERE
+                                                                                                    id = {4}
+                                                                                    )
+                                                                            ) WITH ORDINALITY
+                                                            ) AS namespaces_unnested
+                                                    WHERE
+                                                            namespaces_unnested.unnest = namespaces.id
+                                                    ORDER BY
+                                                            namespaces_unnested.ordinality
+                                                    ;
+                                                    '
+                                            )
+                                    AS
+                                            namespace_paths
+                                            (
+                                                    namespace_path      TEXT
+                                            )
+                            ) AS ns_path
+                    ;
+                    """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME, row_merge_request_namespace_id)
+                    logger.info("Query:")
+                    logger.info(sql)
+                    try:
+                        sub_cur.execute(sql)
+                        for sub_row in sub_cur:
+                            row_merge_request_namespace_path = sub_row[0]
+                        logger.info("Query execution status:")
+                        logger.info(sub_cur.statusmessage)
+                    except Exception as e:
+                        raise Exception("Caught exception on query execution")
+
+                    row_project_path_with_namespace = row_merge_request_namespace_path + "/" + row_project_path
+                    row_merge_request_link = row_merge_request_namespace_path + "/" + row_project_path + "/merge_requests/" + str(row_merge_request_iid)
+
+                    # Title not bold by default
+                    title_bold = ""
+
+                    # Check if time spent is zero
+                    if row_merge_request_time_spent is None or row_merge_request_time_spent == 0:
+                        title_bold = "**"
+                    
+                    # Add report row
+                    issue_text = "{}\n{}".format(issue_text, "| {} | {}/{} | {}{}{} | {} | {} | {} | {} |".format(
+                        row_transaction_id,
+                        acc_yaml_dict["gitlab"]["url"],
+                        row_merge_request_link,
+                        title_bold,
+                        row_merge_request_title.replace("|", "-"),
+                        title_bold,
+                        row_merge_request_author,
+                        row_merge_request_created_at.strftime("%Y-%m-%d"),
+                        row_merge_request_labels if not row_merge_request_labels is None else "",
+                        row_merge_request_time_spent if not row_merge_request_time_spent is None else ""
+                    ))
+
+                    # Save raw data to log
+                    logger.info(row)
+
+                logger.info("Query execution status:")
+                logger.info(cur.statusmessage)
+            except Exception as e:
+                raise Exception("Caught exception on query execution")
+
+            # Connect to GitLab as Bot
+            gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
+            gl.auth()
+
+            # Post report as an issue in GitLab
+            logger.info("Going to create new issue:")
+            logger.info("Title: New MRs Check Report")
+            logger.info("Body:")
+            logger.info(issue_text)
+            project = gl.projects.get(acc_yaml_dict["accounting"]["project"])
+            if not args.dry_run_gitlab:
+                issue = project.issues.create({"title": "New MRs Check Report", "description": issue_text})
+                # Add assignee
+                issue.assignee_ids = [acc_yaml_dict["accounting"]["manager_id"]]
+                issue.save()
+
+            # Commit and close cursor
+            if not args.dry_run_db:
+                conn.commit()
+            cur.close()
+            sub_cur.close()
 
         if args.report_hourly_employee_timelogs is not None:
 
             # New cursor
             cur = conn.cursor()
+            sub_cur = conn.cursor()
 
             # Queries
 
@@ -2031,7 +2835,8 @@ if __name__ == "__main__":
             # Get timelogs and issue details for ids in temp table
             sql = """
             SELECT
-                    issue_link
+                    issue_namespace_id
+            ,       issue_iid
             ,       issue_title
             ,       issue_author
             ,       issue_created
@@ -2042,6 +2847,9 @@ if __name__ == "__main__":
             ,       timelog_user_email
             ,       timelog_time_spent
             ,       timelog_updated
+            ,       timelog_note_id
+            ,       issue_project_name
+            ,       issue_project_path
             ,       hourly_employee_timelogs_checked.transaction_id
             FROM
                     dblink
@@ -2049,15 +2857,8 @@ if __name__ == "__main__":
                             'host={0} user={1} password={2} dbname={3}'
                     ,       '
                             SELECT
-                                    namespaces.path
-                                    ||
-                                    ''/''
-                                    ||
-                                    projects.name
-                                    ||
-                                    ''/issues/''
-                                    ||
-                                    issues.iid                                                  AS issue_link
+                                    namespaces.id                                               AS issue_namespace_id
+                            ,       issues.iid                                                  AS issue_iid
                             ,       issues.title                                                AS issue_title
                             ,       (
                                             SELECT
@@ -2114,6 +2915,9 @@ if __name__ == "__main__":
                             ,       users.email                                                 AS timelog_user_email
                             ,       timelogs.time_spent                                         AS timelog_time_spent
                             ,       timelogs.updated_at                                         AS timelog_updated
+                            ,       timelogs.note_id                                            AS timelog_note_id
+                            ,       projects.name                                               AS issue_project_name
+                            ,       projects.path                                               AS issue_project_path
                             FROM
                                     timelogs
                             ,       users
@@ -2134,7 +2938,8 @@ if __name__ == "__main__":
             AS
                     hourly_employee_timelogs_checked_transaction_report
                     (
-                            issue_link              TEXT
+                            issue_namespace_id      INT
+                    ,       issue_iid               INT
                     ,       issue_title             TEXT
                     ,       issue_author            TEXT
                     ,       issue_created           TIMESTAMP
@@ -2145,6 +2950,9 @@ if __name__ == "__main__":
                     ,       timelog_user_email      TEXT
                     ,       timelog_time_spent      INT
                     ,       timelog_updated         TIMESTAMP
+                    ,       timelog_note_id         INT
+                    ,       issue_project_name      TEXT
+                    ,       issue_project_path      TEXT
                     )
             ,       hourly_employee_timelogs_checked
             WHERE
@@ -2183,18 +2991,86 @@ if __name__ == "__main__":
                 for row in cur:
                     
                     # Set row fields
-                    row_issue_link          = row[0]
-                    row_issue_title         = row[1]
-                    row_issue_author        = row[2]
-                    row_issue_created       = row[3]
-                    row_issue_closed        = row[4]
-                    row_issue_labels        = row[5]
-                    row_issue_is_hourly     = row[6]
-                    row_timelog_id          = row[7]
-                    row_user_email          = row[8]
-                    row_time_spent          = row[9]
-                    row_timelog_updated     = row[10]
-                    row_transaction_id      = row[11]
+                    row_issue_namespace_id  = row[0]
+                    row_issue_iid           = row[1]
+                    row_issue_title         = row[2]
+                    row_issue_author        = row[3]
+                    row_issue_created       = row[4]
+                    row_issue_closed        = row[5]
+                    row_issue_labels        = row[6]
+                    row_issue_is_hourly     = row[7]
+                    row_timelog_id          = row[8]
+                    row_user_email          = row[9]
+                    row_time_spent          = row[10]
+                    row_timelog_updated     = row[11]
+                    row_timelog_note_id     = row[12]
+                    row_project_name        = row[13]
+                    row_project_path        = row[14]
+                    row_transaction_id      = row[15]
+
+                    # Query namespace path - doing this as new query with unnest is much clearer than adding to the main query
+                    sql = """
+                    SELECT
+                            STRING_AGG(namespace_path, '/') AS n_path
+                    FROM
+                            (
+                                    SELECT
+                                            *
+                                    FROM
+                                            dblink
+                                            (
+                                                    'host={0} user={1} password={2} dbname={3}'
+                                            ,       '
+                                                    SELECT
+                                                            namespaces.path
+                                                    FROM
+                                                            namespaces
+                                                    ,       (
+                                                                    SELECT
+                                                                            ordinality
+                                                                    ,       unnest
+                                                                    FROM
+                                                                            unnest(
+                                                                                    (
+                                                                                            SELECT
+                                                                                                    traversal_ids
+                                                                                            FROM
+                                                                                                    namespaces
+                                                                                            WHERE
+                                                                                                    id = {4}
+                                                                                    )
+                                                                            ) WITH ORDINALITY
+                                                            ) AS namespaces_unnested
+                                                    WHERE
+                                                            namespaces_unnested.unnest = namespaces.id
+                                                    ORDER BY
+                                                            namespaces_unnested.ordinality
+                                                    ;
+                                                    '
+                                            )
+                                    AS
+                                            namespace_paths
+                                            (
+                                                    namespace_path      TEXT
+                                            )
+                            ) AS ns_path
+                    ;
+                    """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME, row_issue_namespace_id)
+                    logger.info("Query:")
+                    logger.info(sql)
+                    try:
+                        sub_cur.execute(sql)
+                        for sub_row in sub_cur:
+                            row_issue_namespace_path = sub_row[0]
+                        logger.info("Query execution status:")
+                        logger.info(sub_cur.statusmessage)
+                    except Exception as e:
+                        raise Exception("Caught exception on query execution")
+
+                    row_project_path_with_namespace = row_issue_namespace_path + "/" + row_project_path
+                    row_issue_link = row_issue_namespace_path + "/" + row_project_path + "/issues/" + str(row_issue_iid)
+                    if row_timelog_note_id is not None:
+                        row_issue_link = row_issue_link + "#note_" + str(row_timelog_note_id)
                     
                     # Add report row
                     issue_text = "{}\n{}".format(issue_text, "| {} | {}/{} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
@@ -2229,19 +3105,306 @@ if __name__ == "__main__":
 
             # Add issue footer
             issue_text = "{}\n{}".format(issue_text, "|  |  |  |  |  |  |  |  |  |  | **{}** |".format(sum_hours))
-            
+
             # Connect to GitLab as Bot
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
             gl.auth()
 
             # Post report as an issue in GitLab
             logger.info("Going to create new issue:")
-            logger.info("Title: New Hourly Employee Unchecked Timelogs Report for Payout - {}".format(hourly_employee))
+            logger.info("Title: New Hourly Employee Unchecked Issue Timelogs Report for Payout - {}".format(hourly_employee))
             logger.info("Body:")
             logger.info(issue_text)
             project = gl.projects.get(acc_yaml_dict["accounting"]["project"])
             if not args.dry_run_gitlab:
-                issue = project.issues.create({"title": "New Hourly Employee Unchecked Timelogs Report for Payout - {}".format(hourly_employee), "description": issue_text})
+                issue = project.issues.create({"title": "New Hourly Employee Unchecked Issue Timelogs Report for Payout - {}".format(hourly_employee), "description": issue_text})
+                # Add label
+                issue.labels = ["Employee", hourly_employee]
+                # Add assignee
+                issue.assignee_ids = [acc_yaml_dict["accounting"]["manager_id"]]
+                issue.save()
+
+            # Get timelogs and merge_request details for ids in temp table
+            sql = """
+            SELECT
+                    merge_request_namespace_id
+            ,       merge_request_iid
+            ,       merge_request_title
+            ,       merge_request_author
+            ,       merge_request_created
+            ,       merge_request_labels
+            ,       merge_request_is_hourly
+            ,       hourly_employee_timelogs_checked_transaction_report.timelog_id
+            ,       timelog_user_email
+            ,       timelog_time_spent
+            ,       timelog_updated
+            ,       timelog_note_id
+            ,       merge_request_project_name
+            ,       merge_request_project_path
+            ,       hourly_employee_timelogs_checked.transaction_id
+            FROM
+                    dblink
+                    (
+                            'host={0} user={1} password={2} dbname={3}'
+                    ,       '
+                            SELECT
+                                    namespaces.id                                               AS merge_request_namespace_id
+                            ,       merge_requests.iid                                                  AS merge_request_iid
+                            ,       merge_requests.title                                                AS merge_request_title
+                            ,       (
+                                            SELECT
+                                                    email
+                                            FROM
+                                                    users
+                                            WHERE
+                                                    merge_requests.author_id = users.id
+                                    )                                                           AS merge_request_author
+                            ,       to_char(merge_requests.created_at, ''YYYY-MM-DD HH24:MI:SS'')       AS merge_request_created
+                            ,       (
+                                            SELECT
+                                                    string_agg(
+                                                            (
+                                                                    SELECT
+                                                                            title
+                                                                    FROM
+                                                                            labels
+                                                                    WHERE
+                                                                            labels.id = label_links.label_id
+                                                            )
+                                                    , '', '')
+                                            FROM
+                                                    label_links
+                                            WHERE
+                                                    label_links.target_id = merge_requests.id
+                                                    AND
+                                                    target_type = ''MergeRequest''
+                                    )                                                           AS merge_request_labels
+                            ,       CASE
+                                            WHEN ''Hourly'' IN
+                                                    (
+                                                            SELECT
+                                                                    (
+                                                                            SELECT
+                                                                                    title
+                                                                            FROM
+                                                                                    labels
+                                                                            WHERE
+                                                                                    labels.id = label_links.label_id
+                                                                    )
+                                                            FROM
+                                                                    label_links
+                                                            WHERE
+                                                                    label_links.target_id = merge_requests.id
+                                                                    AND
+                                                                    target_type = ''MergeRequest''
+                                                    )
+                                            THEN true
+                                            ELSE false
+                                    END                                                         AS merge_request_is_hourly
+                            ,       timelogs.id                                                 AS timelog_id
+                            ,       users.email                                                 AS timelog_user_email
+                            ,       timelogs.time_spent                                         AS timelog_time_spent
+                            ,       timelogs.updated_at                                         AS timelog_updated
+                            ,       timelogs.note_id                                            AS timelog_note_id
+                            ,       projects.name                                               AS merge_request_project_name
+                            ,       projects.path                                               AS merge_request_project_path
+                            FROM
+                                    timelogs
+                            ,       users
+                            ,       merge_requests
+                            ,       projects
+                            ,       namespaces
+                            WHERE
+                                    timelogs.merge_request_id = merge_requests.id
+                                    AND
+                                    timelogs.user_id = users.id
+                                    AND
+                                    merge_requests.target_project_id = projects.id
+                                    AND
+                                    projects.namespace_id = namespaces.id
+                            ;
+                            '
+                    )
+            AS
+                    hourly_employee_timelogs_checked_transaction_report
+                    (
+                            merge_request_namespace_id      INT
+                    ,       merge_request_iid               INT
+                    ,       merge_request_title             TEXT
+                    ,       merge_request_author            TEXT
+                    ,       merge_request_created           TIMESTAMP
+                    ,       merge_request_labels            TEXT
+                    ,       merge_request_is_hourly         BOOL
+                    ,       timelog_id                      INT
+                    ,       timelog_user_email              TEXT
+                    ,       timelog_time_spent              INT
+                    ,       timelog_updated                 TIMESTAMP
+                    ,       timelog_note_id                 INT
+                    ,       merge_request_project_name      TEXT
+                    ,       merge_request_project_path      TEXT
+                    )
+            ,       hourly_employee_timelogs_checked
+            WHERE
+                    hourly_employee_timelogs_checked_transaction_report.timelog_id IN
+                            (
+                                    SELECT
+                                            timelog_id
+                                    FROM
+                                            hourly_employee_timelogs_unchecked
+                            )
+                    AND
+                    hourly_employee_timelogs_checked_transaction_report.timelog_id = hourly_employee_timelogs_checked.timelog_id
+            ORDER BY
+                    hourly_employee_timelogs_checked_transaction_report.timelog_updated
+            ;
+            """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME)
+            logger.info("Query:")
+            logger.info(sql)
+           
+            # Set sum to zero
+            sum_seconds = 0
+
+            # Prepare issue header
+            issue_text = textwrap.dedent("""
+            Please check the report. If errors found - the transaction should be deleted and the report made again.
+            Hourly MRs are checked by client first, their Time Spent is not added to the sum.
+
+            | TX | MR Link | Title | Author | Created | Labels | Time Log User Email | Time Log Updated | Hourly for Client | Time Spent |
+            |----|---------|-------|--------|---------|--------|---------------------|------------------|-------------------|------------|\
+            """)
+
+            # Read rows
+            try:
+                cur.execute(sql)
+                
+                for row in cur:
+                    
+                    # Set row fields
+                    row_merge_request_namespace_id  = row[0]
+                    row_merge_request_iid           = row[1]
+                    row_merge_request_title         = row[2]
+                    row_merge_request_author        = row[3]
+                    row_merge_request_created       = row[4]
+                    row_merge_request_labels        = row[5]
+                    row_merge_request_is_hourly     = row[6]
+                    row_timelog_id                  = row[7]
+                    row_user_email                  = row[8]
+                    row_time_spent                  = row[9]
+                    row_timelog_updated             = row[10]
+                    row_timelog_note_id             = row[11]
+                    row_project_name                = row[12]
+                    row_project_path                = row[13]
+                    row_transaction_id              = row[14]
+
+                    # Query namespace path - doing this as new query with unnest is much clearer than adding to the main query
+                    sql = """
+                    SELECT
+                            STRING_AGG(namespace_path, '/') AS n_path
+                    FROM
+                            (
+                                    SELECT
+                                            *
+                                    FROM
+                                            dblink
+                                            (
+                                                    'host={0} user={1} password={2} dbname={3}'
+                                            ,       '
+                                                    SELECT
+                                                            namespaces.path
+                                                    FROM
+                                                            namespaces
+                                                    ,       (
+                                                                    SELECT
+                                                                            ordinality
+                                                                    ,       unnest
+                                                                    FROM
+                                                                            unnest(
+                                                                                    (
+                                                                                            SELECT
+                                                                                                    traversal_ids
+                                                                                            FROM
+                                                                                                    namespaces
+                                                                                            WHERE
+                                                                                                    id = {4}
+                                                                                    )
+                                                                            ) WITH ORDINALITY
+                                                            ) AS namespaces_unnested
+                                                    WHERE
+                                                            namespaces_unnested.unnest = namespaces.id
+                                                    ORDER BY
+                                                            namespaces_unnested.ordinality
+                                                    ;
+                                                    '
+                                            )
+                                    AS
+                                            namespace_paths
+                                            (
+                                                    namespace_path      TEXT
+                                            )
+                            ) AS ns_path
+                    ;
+                    """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME, row_merge_request_namespace_id)
+                    logger.info("Query:")
+                    logger.info(sql)
+                    try:
+                        sub_cur.execute(sql)
+                        for sub_row in sub_cur:
+                            row_merge_request_namespace_path = sub_row[0]
+                        logger.info("Query execution status:")
+                        logger.info(sub_cur.statusmessage)
+                    except Exception as e:
+                        raise Exception("Caught exception on query execution")
+
+                    row_project_path_with_namespace = row_merge_request_namespace_path + "/" + row_project_path
+                    row_merge_request_link = row_merge_request_namespace_path + "/" + row_project_path + "/merge_requests/" + str(row_merge_request_iid)
+                    if row_timelog_note_id is not None:
+                        row_merge_request_link = row_merge_request_link + "#note_" + str(row_timelog_note_id)
+                    
+                    # Add report row
+                    issue_text = "{}\n{}".format(issue_text, "| {} | {}/{} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
+                        row_transaction_id,
+                        acc_yaml_dict["gitlab"]["url"],
+                        row_merge_request_link,
+                        row_merge_request_title.replace("|", "-"),
+                        row_merge_request_author,
+                        row_merge_request_created.strftime("%Y-%m-%d"),
+                        row_merge_request_labels if not row_merge_request_labels is None else "",
+                        row_user_email,
+                        row_timelog_updated.strftime("%Y-%m-%d"),
+                        round((row_time_spent/60)/60, 2) if row_merge_request_is_hourly else "",
+                        round((row_time_spent/60)/60, 2) if not row_merge_request_is_hourly else ""
+                    ))
+
+                    # Save raw data to log
+                    logger.info(row)
+
+                    # Add to sum if not hourly
+                    if not row_merge_request_is_hourly:
+                        sum_seconds = sum_seconds + row_time_spent
+                
+                logger.info("Query execution status:")
+                logger.info(cur.statusmessage)
+            except Exception as e:
+                raise Exception("Caught exception on query execution")
+
+            # Compute sum hours
+            sum_hours = round(((sum_seconds/60)/60), 2)
+
+            # Add issue footer
+            issue_text = "{}\n{}".format(issue_text, "|  |  |  |  |  |  |  |  |  | **{}** |".format(sum_hours))
+
+            # Connect to GitLab as Bot
+            gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
+            gl.auth()
+
+            # Post report as an issue in GitLab
+            logger.info("Going to create new issue:")
+            logger.info("Title: New Hourly Employee Unchecked MR Timelogs Report for Payout - {}".format(hourly_employee))
+            logger.info("Body:")
+            logger.info(issue_text)
+            project = gl.projects.get(acc_yaml_dict["accounting"]["project"])
+            if not args.dry_run_gitlab:
+                issue = project.issues.create({"title": "New Hourly Employee Unchecked MR Timelogs Report for Payout - {}".format(hourly_employee), "description": issue_text})
                 # Add label
                 issue.labels = ["Employee", hourly_employee]
                 # Add assignee
@@ -2252,6 +3415,7 @@ if __name__ == "__main__":
             if not args.dry_run_db:
                 conn.commit()
             cur.close()
+            sub_cur.close()
         
         if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients \
         or args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None \
@@ -2263,6 +3427,7 @@ if __name__ == "__main__":
             
                 # New cursor
                 cur = conn.cursor()
+                sub_cur = conn.cursor()
 
                 # Queries
 
@@ -2270,12 +3435,12 @@ if __name__ == "__main__":
                 if args.make_hourly_invoice_for_all_clients:
                     
                     # Limit timelogs by date if needed
-                    if args.timelogs_before_date is not None:
-                        where_timelogs = "WHERE timelogs.updated_at < ''{date}''".format(date=args.timelogs_before_date[0])
+                    if args.timelogs_spent_before_date is not None:
+                        where_timelogs = "AND timelogs.spent_at < ''{date}''".format(date=args.timelogs_spent_before_date[0])
                     else:
                         where_timelogs = ""
 
-                    # Get unchecked timelogs for hourly issues to temp table for all clients
+                    # Get unchecked timelogs for hourly issues and mrs to 2 temp tables for all clients
                     sql = """
                     CREATE TEMP TABLE
                             hourly_issue_timelogs_unchecked
@@ -2296,7 +3461,9 @@ if __name__ == "__main__":
                                                                     timelogs.id
                                                             FROM
                                                                     timelogs
-                                                            {where_timelogs}
+                                                            WHERE
+                                                                    timelogs.issue_id IS NOT NULL
+                                                                    {where_timelogs}
                                                             ;
                                                             '
                                                     )
@@ -2312,7 +3479,47 @@ if __name__ == "__main__":
                                                     SELECT
                                                             timelog_id
                                                     FROM
-                                                            hourly_issue_timelogs_checked
+                                                            hourly_timelogs_checked
+                                            )
+                    ;
+                    CREATE TEMP TABLE
+                            hourly_merge_request_timelogs_unchecked
+                    ON COMMIT DROP
+                    AS
+                            SELECT
+                                    timelogs.timelog_id
+                            FROM
+                                    (
+                                            SELECT
+                                                    *
+                                            FROM
+                                                    dblink
+                                                    (
+                                                            'host={host} user={user} password={password} dbname={dbname}'
+                                                    ,       '
+                                                            SELECT
+                                                                    timelogs.id
+                                                            FROM
+                                                                    timelogs
+                                                            WHERE
+                                                                    timelogs.merge_request_id IS NOT NULL
+                                                                    {where_timelogs}
+                                                            ;
+                                                            '
+                                                    )
+                                            AS
+                                                    timelogs
+                                                    (
+                                                            timelog_id INTEGER
+                                                    )
+                                    ) timelogs
+                            WHERE
+                                    timelogs.timelog_id NOT IN
+                                            (
+                                                    SELECT
+                                                            timelog_id
+                                                    FROM
+                                                            hourly_timelogs_checked
                                             )
                     ;
                     """.format(host=GL_PG_DB_HOST, user=GL_PG_DB_USER, password=GL_PG_DB_PASS, dbname=GL_PG_DB_NAME, where_timelogs=where_timelogs)
@@ -2330,19 +3537,29 @@ if __name__ == "__main__":
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client_name, YAML_EXT))
 
-                    # Join admin project and other billable projects if any
-                    timelogs_check_client_projects = "''" + client_dict["gitlab"]["admin_project"]["path"] + "''"
-                    if "other_billable_projects" in client_dict["gitlab"]:
-                        for billable_project in client_dict["gitlab"]["other_billable_projects"]:
-                            timelogs_check_client_projects = timelogs_check_client_projects + ", ''" + billable_project + "''"
+                    # Find project ids for needed projects
+
+                    # Connect to GitLab
+                    gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)
+                    gl.auth()
+
+                    # Get admin project and other client projects from accounting yaml ids to search in query
+                    c_project = gl.projects.get(client_dict["gitlab"]["admin_project"]["path"])
+                    timelogs_check_client_projects = str(c_project.id)
+
+                    for acc_project_path, acc_project_vars  in acc_yaml_dict["projects"].items():
+                        if acc_project_path != client_dict["gitlab"]["admin_project"]["path"]:
+                            if acc_project_vars["client"] == client_dict["name"]:
+                                c_project = gl.projects.get(acc_project_path)
+                                timelogs_check_client_projects = timelogs_check_client_projects + ", " + str(c_project.id)
 
                     # Limit timelogs by date if needed
-                    if args.timelogs_before_date is not None:
-                        where_timelogs = "AND timelogs.updated_at < ''{date}''".format(date=args.timelogs_before_date[0])
+                    if args.timelogs_spent_before_date is not None:
+                        where_timelogs = "AND timelogs.spent_at < ''{date}''".format(date=args.timelogs_spent_before_date[0])
                     else:
                         where_timelogs = ""
 
-                    # Get unchecked timelogs for hourly issues to temp table for specific client
+                    # Get unchecked timelogs for hourly issues and mrs to 2 temp tables for specific client
 
                     sql = """
                     CREATE TEMP TABLE
@@ -2366,19 +3583,12 @@ if __name__ == "__main__":
                                                                     timelogs
                                                             ,       issues
                                                             ,       projects
-                                                            ,       namespaces
                                                             WHERE
                                                                     timelogs.issue_id = issues.id
                                                                     AND
                                                                     issues.project_id = projects.id
                                                                     AND
-                                                                    projects.namespace_id = namespaces.id
-                                                                    AND
-                                                                    namespaces.path
-                                                                    ||
-                                                                    ''/''
-                                                                    ||
-                                                                    projects.name IN
+                                                                    projects.id IN
                                                                             (
                                                                                     {projects}
                                                                             )
@@ -2398,7 +3608,56 @@ if __name__ == "__main__":
                                                     SELECT
                                                             timelog_id
                                                     FROM
-                                                            hourly_issue_timelogs_checked
+                                                            hourly_timelogs_checked
+                                            )
+                    ;
+                    CREATE TEMP TABLE
+                            hourly_merge_request_timelogs_unchecked
+                    ON COMMIT DROP
+                    AS
+                            SELECT
+                                    timelogs.timelog_id
+                            FROM
+                                    (
+                                            SELECT
+                                                    *
+                                            FROM
+                                                    dblink
+                                                    (
+                                                            'host={host} user={user} password={password} dbname={dbname}'
+                                                    ,       '
+                                                            SELECT
+                                                                    timelogs.id
+                                                            FROM
+                                                                    timelogs
+                                                            ,       merge_requests
+                                                            ,       projects
+                                                            WHERE
+                                                                    timelogs.merge_request_id = merge_requests.id
+                                                                    AND
+                                                                    merge_requests.target_project_id = projects.id
+                                                                    AND
+                                                                    projects.id IN
+                                                                            (
+                                                                                    {projects}
+                                                                            )
+                                                                    {where_timelogs}
+                                                                    ;
+                                                            '
+                                                    )
+                                            AS
+                                                    timelogs
+                                                    (
+                                                            timelog_id INTEGER
+                                                    )
+                                    ) timelogs
+                            WHERE
+                                    timelogs.timelog_id NOT IN
+                                            (
+                                                    SELECT
+                                                            timelog_id
+                                                    FROM
+                                                            hourly_timelogs_checked
                                             )
                     ;
                     """.format(host=GL_PG_DB_HOST, user=GL_PG_DB_USER, password=GL_PG_DB_PASS, dbname=GL_PG_DB_NAME, projects=timelogs_check_client_projects, where_timelogs=where_timelogs)
@@ -2413,7 +3672,20 @@ if __name__ == "__main__":
                     raise Exception("Caught exception on query execution")
                 
                 # Save ids in temp table to log
+
                 sql = "SELECT * FROM hourly_issue_timelogs_unchecked;"
+                logger.info("Query:")
+                logger.info(sql)
+                try:
+                    cur.execute(sql)
+                    for row in cur:
+                        logger.info(row)
+                    logger.info("Query execution status:")
+                    logger.info(cur.statusmessage)
+                except Exception as e:
+                    raise Exception("Caught exception on query execution")
+
+                sql = "SELECT * FROM hourly_merge_request_timelogs_unchecked;"
                 logger.info("Query:")
                 logger.info(sql)
                 try:
@@ -2428,7 +3700,7 @@ if __name__ == "__main__":
                 # Save ids in temp table as checked
                 sql = """
                 INSERT INTO
-                        hourly_issue_timelogs_checked
+                        hourly_timelogs_checked
                         (
                                 timelog_id
                         ,       checked_at
@@ -2438,6 +3710,18 @@ if __name__ == "__main__":
                 ,       NOW() AT TIME ZONE 'UTC'
                 FROM
                         hourly_issue_timelogs_unchecked
+                ;
+                INSERT INTO
+                        hourly_timelogs_checked
+                        (
+                                timelog_id
+                        ,       checked_at
+                        )
+                SELECT
+                        timelog_id
+                ,       NOW() AT TIME ZONE 'UTC'
+                FROM
+                        hourly_merge_request_timelogs_unchecked
                 ;
                 """
                 logger.info("Query:")
@@ -2449,42 +3733,36 @@ if __name__ == "__main__":
                 except Exception as e:
                     raise Exception("Caught exception on query execution")
 
-                # Get timelogs and issue details for ids in temp table
+                # Get timelogs and issue union mrs details for ids in temp table
                 sql = """
                 SELECT
                         project_name
-                ,       issue_link
+                ,       project_path
+                ,       project_namespace_id
+                ,       issue_iid
                 ,       issue_title
                 ,       issue_author
                 ,       issue_created
                 ,       issue_closed
                 ,       issue_labels
                 ,       issue_is_hourly
-                ,       hourly_issue_timelogs_checked_transaction_report.timelog_id
+                ,       hourly_issue_timelogs_checked_transaction_report.timelog_id AS tr_timelog_id
                 ,       timelog_user_email
                 ,       timelog_time_spent
                 ,       timelog_updated
-                ,       hourly_issue_timelogs_checked.transaction_id
+                ,       timelog_note_id
+                ,       hourly_timelogs_checked.transaction_id
+                ,       'issue' AS timelog_kind
                 FROM
                         dblink
                         (
                                 'host={0} user={1} password={2} dbname={3}'
                         ,       '
                                 SELECT
-                                        namespaces.path
-                                        ||
-                                        ''/''
-                                        ||
                                         projects.name                                               AS project_name
-                                ,       namespaces.path
-                                        ||
-                                        ''/''
-                                        ||
-                                        projects.name
-                                        ||
-                                        ''/issues/''
-                                        ||
-                                        issues.iid                                                  AS issue_link
+                                ,       projects.path                                               AS project_path
+                                ,       namespaces.id                                               AS project_namespace_id
+                                ,       issues.iid                                                  AS issue_iid
                                 ,       issues.title                                                AS issue_title
                                 ,       (
                                                 SELECT
@@ -2541,6 +3819,7 @@ if __name__ == "__main__":
                                 ,       users.email                                                 AS timelog_user_email
                                 ,       timelogs.time_spent                                         AS timelog_time_spent
                                 ,       timelogs.updated_at                                         AS timelog_updated
+                                ,       timelogs.note_id                                            AS timelog_note_id
                                 FROM
                                         timelogs
                                 ,       users
@@ -2562,7 +3841,9 @@ if __name__ == "__main__":
                         hourly_issue_timelogs_checked_transaction_report
                         (
                                 project_name            TEXT
-                        ,       issue_link              TEXT
+                        ,       project_path            TEXT
+                        ,       project_namespace_id    INT
+                        ,       issue_iid               INT
                         ,       issue_title             TEXT
                         ,       issue_author            TEXT
                         ,       issue_created           TIMESTAMP
@@ -2573,8 +3854,9 @@ if __name__ == "__main__":
                         ,       timelog_user_email      TEXT
                         ,       timelog_time_spent      INT
                         ,       timelog_updated         TIMESTAMP
+                        ,       timelog_note_id         TEXT
                         )
-                ,       hourly_issue_timelogs_checked
+                ,       hourly_timelogs_checked
                 WHERE
                         hourly_issue_timelogs_checked_transaction_report.timelog_id IN
                                 (
@@ -2584,9 +3866,142 @@ if __name__ == "__main__":
                                                 hourly_issue_timelogs_unchecked
                                 )
                         AND
-                        hourly_issue_timelogs_checked_transaction_report.timelog_id = hourly_issue_timelogs_checked.timelog_id
+                        hourly_issue_timelogs_checked_transaction_report.timelog_id = hourly_timelogs_checked.timelog_id
+                UNION ALL
+                SELECT
+                        project_name
+                ,       project_path
+                ,       project_namespace_id
+                ,       merge_request_iid
+                ,       merge_request_title
+                ,       merge_request_author
+                ,       merge_request_created
+                ,       merge_request_closed
+                ,       merge_request_labels
+                ,       merge_request_is_hourly
+                ,       hourly_merge_request_timelogs_checked_transaction_report.timelog_id AS tr_timelog_id
+                ,       timelog_user_email
+                ,       timelog_time_spent
+                ,       timelog_updated
+                ,       timelog_note_id
+                ,       hourly_timelogs_checked.transaction_id
+                ,       'merge_request' AS timelog_kind
+                FROM
+                        dblink
+                        (
+                                'host={0} user={1} password={2} dbname={3}'
+                        ,       '
+                                SELECT
+                                        projects.name                                                   AS project_name
+                                ,       projects.path                                                   AS project_path
+                                ,       namespaces.id                                                   AS project_namespace_id
+                                ,       merge_requests.iid                                              AS merge_request_iid
+                                ,       merge_requests.title                                            AS merge_request_title
+                                ,       (
+                                                SELECT
+                                                        email
+                                                FROM
+                                                        users
+                                                WHERE
+                                                        merge_requests.author_id = users.id
+                                        )                                                               AS merge_request_author
+                                ,       to_char(merge_requests.created_at, ''YYYY-MM-DD HH24:MI:SS'')   AS merge_request_created
+                                ,       NULL                                                            AS merge_request_closed
+                                ,       (
+                                                SELECT
+                                                        string_agg(
+                                                                (
+                                                                        SELECT
+                                                                                title
+                                                                        FROM
+                                                                                labels
+                                                                        WHERE
+                                                                                labels.id = label_links.label_id
+                                                                )
+                                                        , '', '')
+                                                FROM
+                                                        label_links
+                                                WHERE
+                                                        label_links.target_id = merge_requests.id
+                                                        AND
+                                                        target_type = ''MergeRequest''
+                                        )                                                           AS merge_request_labels
+                                ,       CASE
+                                                WHEN ''Hourly'' IN
+                                                        (
+                                                                SELECT
+                                                                        (
+                                                                                SELECT
+                                                                                        title
+                                                                                FROM
+                                                                                        labels
+                                                                                WHERE
+                                                                                        labels.id = label_links.label_id
+                                                                        )
+                                                                FROM
+                                                                        label_links
+                                                                WHERE
+                                                                        label_links.target_id = merge_requests.id
+                                                                        AND
+                                                                        target_type = ''MergeRequest''
+                                                        )
+                                                THEN true
+                                                ELSE false
+                                        END                                                         AS merge_request_is_hourly
+                                ,       timelogs.id                                                 AS timelog_id
+                                ,       users.email                                                 AS timelog_user_email
+                                ,       timelogs.time_spent                                         AS timelog_time_spent
+                                ,       timelogs.updated_at                                         AS timelog_updated
+                                ,       timelogs.note_id                                            AS note_id
+                                FROM
+                                        timelogs
+                                ,       users
+                                ,       merge_requests
+                                ,       projects
+                                ,       namespaces
+                                WHERE
+                                        timelogs.merge_request_id = merge_requests.id
+                                        AND
+                                        timelogs.user_id = users.id
+                                        AND
+                                        merge_requests.target_project_id = projects.id
+                                        AND
+                                        projects.namespace_id = namespaces.id
+                                ;
+                                '
+                        )
+                AS
+                        hourly_merge_request_timelogs_checked_transaction_report
+                        (
+                                project_name            TEXT
+                        ,       project_path            TEXT
+                        ,       project_namespace_id    INT
+                        ,       merge_request_iid       INT
+                        ,       merge_request_title     TEXT
+                        ,       merge_request_author    TEXT
+                        ,       merge_request_created   TIMESTAMP
+                        ,       merge_request_closed    TIMESTAMP
+                        ,       merge_request_labels    TEXT
+                        ,       merge_request_is_hourly BOOL
+                        ,       timelog_id              INT
+                        ,       timelog_user_email      TEXT
+                        ,       timelog_time_spent      INT
+                        ,       timelog_updated         TIMESTAMP
+                        ,       timelog_note_id         TEXT
+                        )
+                ,       hourly_timelogs_checked
+                WHERE
+                        hourly_merge_request_timelogs_checked_transaction_report.timelog_id IN
+                                (
+                                        SELECT
+                                                timelog_id
+                                        FROM
+                                                hourly_merge_request_timelogs_unchecked
+                                )
+                        AND
+                        hourly_merge_request_timelogs_checked_transaction_report.timelog_id = hourly_timelogs_checked.timelog_id
                 ORDER BY
-                        hourly_issue_timelogs_checked_transaction_report.timelog_updated
+                        tr_timelog_id
                 ;
                 """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME)
                 logger.info("Query:")
@@ -2595,6 +4010,8 @@ if __name__ == "__main__":
                 # Dict of lists to store hourly details for clients (no sense to mix different clients in one list)
                 hourly_details = {}
 
+                # imr belows stands for "issue or merge request"
+
                 # Read rows
                 try:
                     cur.execute(sql)
@@ -2602,19 +4019,90 @@ if __name__ == "__main__":
                     for row in cur:
                        
                         # Set row fields
-                        row_project_name        = row[0]
-                        row_issue_link          = row[1]
-                        row_issue_title         = row[2]
-                        row_issue_author        = row[3]
-                        row_issue_created       = row[4]
-                        row_issue_closed        = row[5]
-                        row_issue_labels        = row[6]
-                        row_issue_is_hourly     = row[7]
-                        row_timelog_id          = row[8]
-                        row_user_email          = row[9]
-                        row_time_spent          = row[10]
-                        row_timelog_updated     = row[11]
-                        row_transaction_id      = row[12]
+                        row_project_name         = row[0]
+                        row_project_path         = row[1]
+                        row_project_namespace_id = row[2]
+                        row_imr_iid              = row[3]
+                        row_imr_title            = row[4]
+                        row_imr_author           = row[5]
+                        row_imr_created          = row[6]
+                        row_imr_closed           = row[7]
+                        row_imr_labels           = row[8]
+                        row_imr_is_hourly        = row[9]
+                        row_timelog_id           = row[10]
+                        row_user_email           = row[11]
+                        row_time_spent           = row[12]
+                        row_timelog_updated      = row[13]
+                        row_timelog_note_id      = row[14]
+                        row_transaction_id       = row[15]
+                        row_timelog_kind         = row[16]
+
+                        # Query namespace path - doing this as new query with unnest is much clearer than adding to the main query
+                        sql = """
+                        SELECT
+                                STRING_AGG(namespace_path, '/') AS n_path
+                        FROM
+                                (
+                                        SELECT
+                                                *
+                                        FROM
+                                                dblink
+                                                (
+                                                        'host={0} user={1} password={2} dbname={3}'
+                                                ,       '
+                                                        SELECT
+                                                                namespaces.path
+                                                        FROM
+                                                                namespaces
+                                                        ,       (
+                                                                        SELECT
+                                                                                ordinality
+                                                                        ,       unnest
+                                                                        FROM
+                                                                                unnest(
+                                                                                        (
+                                                                                                SELECT
+                                                                                                        traversal_ids
+                                                                                                FROM
+                                                                                                        namespaces
+                                                                                                WHERE
+                                                                                                        id = {4}
+                                                                                        )
+                                                                                ) WITH ORDINALITY
+                                                                ) AS namespaces_unnested
+                                                        WHERE
+                                                                namespaces_unnested.unnest = namespaces.id
+                                                        ORDER BY
+                                                                namespaces_unnested.ordinality
+                                                        ;
+                                                        '
+                                                )
+                                        AS
+                                                namespace_paths
+                                                (
+                                                        namespace_path      TEXT
+                                                )
+                                ) AS ns_path
+                        ;
+                        """.format(GL_PG_DB_HOST, GL_PG_DB_USER, GL_PG_DB_PASS, GL_PG_DB_NAME, row_project_namespace_id)
+                        logger.info("Query:")
+                        logger.info(sql)
+                        try:
+                            sub_cur.execute(sql)
+                            for sub_row in sub_cur:
+                                row_project_namespace_path = sub_row[0]
+                            logger.info("Query execution status:")
+                            logger.info(sub_cur.statusmessage)
+                        except Exception as e:
+                            raise Exception("Caught exception on query execution")
+
+                        row_project_path_with_namespace = row_project_namespace_path + "/" + row_project_path
+                        if row_timelog_kind == "issue":
+                            row_imr_link = row_project_namespace_path + "/" + row_project_path + "/issues/" + str(row_imr_iid)
+                        elif row_timelog_kind == "merge_request":
+                            row_imr_link = row_project_namespace_path + "/" + row_project_path + "/merge_requests/" + str(row_imr_iid)
+                        if row_timelog_note_id is not None:
+                            row_imr_link = row_imr_link + "#note_" + str(row_timelog_note_id)
 
                         # Init empty tariff for row
                         row_tariff_rate = 0
@@ -2622,20 +4110,20 @@ if __name__ == "__main__":
                         row_tariff_plan = ""
                         row_wc_pid = None
 
-                        # Add to report if hourly issue only
-                        if row_issue_is_hourly:
+                        # Add to report if hourly imr only
+                        if row_imr_is_hourly:
 
-                            logger.info("Checking issue {}/{}".format(acc_yaml_dict["gitlab"]["url"], row_issue_link))
+                            logger.info("Checking imr {}/{}".format(acc_yaml_dict["gitlab"]["url"], row_imr_link))
 
-                            # Get issue labels
-                            row_issue_labels_split = row_issue_labels.split(", ")
-                            for row_issue_labels_split_label in row_issue_labels_split:
+                            # Get imr labels
+                            row_imr_labels_split = row_imr_labels.split(", ")
+                            for row_imr_labels_split_label in row_imr_labels_split:
                                 
                                 # Init empty checked_tariffs
                                 checked_tariffs = None
 
                                 # Get client name
-                                client_name = acc_yaml_dict["projects"][row_project_name]["client"].lower()
+                                client_name = acc_yaml_dict["projects"][row_project_path_with_namespace]["client"].lower()
 
                                 # Load client YAML
                                 client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
@@ -2654,13 +4142,13 @@ if __name__ == "__main__":
                                         for client_asset in asset_list:
 
                                             # Check if asset name matches label
-                                            if client_asset["fqdn"] == row_issue_labels_split_label:
+                                            if client_asset["fqdn"] == row_imr_labels_split_label:
 
                                                 # Find checked tariff
                                                 try:
                                                     checked_tariffs = activated_tariff(client_asset["tariffs"], row_timelog_updated, logger)["tariffs"]
                                                 except:
-                                                    logger.error("Asset {asset} issue {gitlab}/{issue} find active tariff error".format(asset=client_asset["fqdn"], gitlab=acc_yaml_dict["gitlab"]["url"], issue=row_issue_link))
+                                                    logger.error("Asset {asset} imr {gitlab}/{imr} find active tariff error".format(asset=client_asset["fqdn"], gitlab=acc_yaml_dict["gitlab"]["url"], imr=row_imr_link))
                                                     raise
 
                                 # Check if we have some tariff to check
@@ -2703,8 +4191,8 @@ if __name__ == "__main__":
                                                     # Check if hourly tariff is not the same as found
                                                     if not (checked_tariff_rate == tariff_dict["hourly"]["rate"] and checked_tariff_currency == tariff_dict["hourly"]["currency"]):
 
-                                                        error_text = "Error found on label {}, several tariffs may apply to the same label, but hourly rate should be the same, checked_tariff_rate = {}, tariff_dict_hourly_rate = {}, checked_tariff_currency = {}, tariff_dict_hourly_currency = {}".format(row_issue_labels_split_label, checked_tariff_rate, tariff_dict["hourly"]["rate"], checked_tariff_currency, tariff_dict["hourly"]["currency"])
-                                                        if args.no_exceptions_on_issue_label_errors:
+                                                        error_text = "Error found on label {}, several tariffs may apply to the same label, but hourly rate should be the same, checked_tariff_rate = {}, tariff_dict_hourly_rate = {}, checked_tariff_currency = {}, tariff_dict_hourly_currency = {}".format(row_imr_labels_split_label, checked_tariff_rate, tariff_dict["hourly"]["rate"], checked_tariff_currency, tariff_dict["hourly"]["currency"])
+                                                        if args.no_exceptions_on_label_errors:
                                                             print(error_text)
                                                         else:
                                                             raise Exception(error_text)
@@ -2733,8 +4221,8 @@ if __name__ == "__main__":
                                                     # Check if hourly tariff is not the same as found
                                                     if not (checked_tariff_rate == checked_tariff["hourly"]["rate"] and checked_tariff_currency == checked_tariff["hourly"]["currency"]):
 
-                                                        error_text = "Error found on label {}, several tariffs may apply to the same label, but hourly rate should be the same checked_tariff_rate = {}, checked_tariff_hourly_rate = {}, checked_tariff_currency = {}, checked_tariff_hourly_currency = {}".format(row_issue_labels_split_label, checked_tariff_rate, checked_tariff["hourly"]["rate"], checked_tariff_currency, checked_tariff["hourly"]["currency"])
-                                                        if args.no_exceptions_on_issue_label_errors:
+                                                        error_text = "Error found on label {}, several tariffs may apply to the same label, but hourly rate should be the same checked_tariff_rate = {}, checked_tariff_hourly_rate = {}, checked_tariff_currency = {}, checked_tariff_hourly_currency = {}".format(row_imr_labels_split_label, checked_tariff_rate, checked_tariff["hourly"]["rate"], checked_tariff_currency, checked_tariff["hourly"]["currency"])
+                                                        if args.no_exceptions_on_label_errors:
                                                             print(error_text)
                                                         else:
                                                             raise Exception(error_text)
@@ -2754,8 +4242,8 @@ if __name__ == "__main__":
                                         # Check if hourly tariff is not the same as found
                                         if not (row_tariff_rate == checked_tariff_rate and row_tariff_currency == checked_tariff_currency):
 
-                                            error_text = "Error found on label {} for issue {}/{}, several tariff labels may apply to the same issue, but hourly rate should be the same row_tariff_rate = {}, checked_tariff_rate = {}, row_tariff_currency = {}, checked_tariff_currency = {}".format(row_issue_labels_split_label, acc_yaml_dict["gitlab"]["url"], row_issue_link, row_tariff_rate, checked_tariff_rate, row_tariff_currency, checked_tariff_currency)
-                                            if args.no_exceptions_on_issue_label_errors:
+                                            error_text = "Error found on label {} for imr {}/{}, several tariff labels may apply to the same imr, but hourly rate should be the same row_tariff_rate = {}, checked_tariff_rate = {}, row_tariff_currency = {}, checked_tariff_currency = {}".format(row_imr_labels_split_label, acc_yaml_dict["gitlab"]["url"], row_imr_link, row_tariff_rate, checked_tariff_rate, row_tariff_currency, checked_tariff_currency)
+                                            if args.no_exceptions_on_label_errors:
                                                 print(error_text)
                                             else:
                                                 raise Exception(error_text)
@@ -2766,8 +4254,8 @@ if __name__ == "__main__":
                             # Check if tariff was found for the row
                             if row_tariff_rate == 0 or row_tariff_currency == "":
 
-                                error_text = "Error found on issue {}/{}, each Hourly issue should has at least one tariff label which defines non zero tariff rate and currency".format(acc_yaml_dict["gitlab"]["url"], row_issue_link)
-                                if args.no_exceptions_on_issue_label_errors:
+                                error_text = "Error found on imr {}/{}, each Hourly imr should has at least one tariff label which defines non zero tariff rate and currency".format(acc_yaml_dict["gitlab"]["url"], row_imr_link)
+                                if args.no_exceptions_on_label_errors:
                                     print(error_text)
                                 else:
                                     raise Exception(error_text)
@@ -2775,7 +4263,7 @@ if __name__ == "__main__":
                             # Else log rate and currency
                             else:
 
-                                logger.info("Found hourly tariff rate {} and currency {} on issue {}/{}".format(row_tariff_rate, row_tariff_currency, acc_yaml_dict["gitlab"]["url"], row_issue_link))
+                                logger.info("Found hourly tariff rate {} and currency {} on imr {}/{}".format(row_tariff_rate, row_tariff_currency, acc_yaml_dict["gitlab"]["url"], row_imr_link))
 
                             # Calc row_time_spent_hours
                             row_time_spent_hours = round((row_time_spent/60)/60, 2)
@@ -2785,12 +4273,12 @@ if __name__ == "__main__":
                             hourly_details_new_item = {
                                 'project_name': row_project_name,
                                 'project_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_project_name,
-                                'issue_title': row_issue_title,
-                                'issue_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_issue_link,
-                                'issue_author': row_issue_author,
-                                'issue_created': row_issue_created.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]),
-                                'issue_closed': row_issue_closed.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]) if not row_issue_closed is None else "",
-                                'issue_labels': ", ".join(sorted(row_issue_labels.split(", "))) if not row_issue_labels is None else "",
+                                'imr_title': row_imr_title,
+                                'imr_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_imr_link,
+                                'imr_author': row_imr_author,
+                                'imr_created': row_imr_created.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]),
+                                'imr_closed': row_imr_closed.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]) if not row_imr_closed is None else "",
+                                'imr_labels': ", ".join(sorted(row_imr_labels.split(", "))) if not row_imr_labels is None else "",
                                 'timelog_employee_email': row_user_email,
                                 'timelog_updated': row_timelog_updated.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]),
                                 'timelog_spent_hours': row_time_spent_hours,
@@ -2927,6 +4415,12 @@ if __name__ == "__main__":
                                             # Add migrated key
                                             if "migrated_from" in asset_tariff:
                                                 tariff_dict["migrated"] = True
+                                            
+                                            # Add employee_share key as dict
+                                            if "employee_share" in asset_tariff:
+                                                tariff_dict["employee_share"] = {}
+                                                for empl_email, empl_share in asset_tariff["employee_share"].items():
+                                                    tariff_dict["employee_share"][empl_email] = empl_share
 
                                             # Add tariff to the tariff list for the asset
                                             client_asset_tariffs_dict[client][asset["fqdn"]].append(tariff_dict)
@@ -2941,6 +4435,12 @@ if __name__ == "__main__":
                                             # Add migrated key
                                             if "migrated_from" in asset_tariff:
                                                 tariff_dict["migrated"] = True
+                                            
+                                            # Add employee_share key as dict
+                                            if "employee_share" in asset_tariff:
+                                                tariff_dict["employee_share"] = {}
+                                                for empl_email, empl_share in asset_tariff["employee_share"].items():
+                                                    tariff_dict["employee_share"][empl_email] = empl_share
                                 
                                             # Add tariff to the tariff list for the asset
                                             client_asset_tariffs_dict[client][asset["fqdn"]].append(asset_tariff)
@@ -3056,6 +4556,12 @@ if __name__ == "__main__":
 
                                     period_portion = 0
                             
+                            # Calc employee share
+                            price_in_period_employee_share = {}
+                            if "employee_share" in tariff:
+                                for empl_email, empl_share in tariff["employee_share"].items():
+                                    price_in_period_employee_share[empl_email] = round(empl_share * tariff["monthly"]["rate"] * period_portion / 100, 2)
+
                             # Prepare row to save in monthly_details
                             monthly_details_new_item = {
                                 "asset_fqdn":                       asset,
@@ -3069,7 +4575,8 @@ if __name__ == "__main__":
                                 "period":                           monthly_period,
                                 "period_portion":                   period_portion,
                                 "price_in_period":                  round(tariff["monthly"]["rate"] * period_portion, 2),
-                                "woocommerce_product_id":           tariff["monthly"]["woocommerce_product_id"] if "woocommerce_product_id" in tariff["monthly"] else None
+                                "woocommerce_product_id":           tariff["monthly"]["woocommerce_product_id"] if "woocommerce_product_id" in tariff["monthly"] else None,
+                                "price_in_period_employee_share":   price_in_period_employee_share
                             }
 
                             # Save monthly details for a client
@@ -3396,8 +4903,8 @@ if __name__ == "__main__":
                 for detail in invoice_details[client]:
                     if detail["tariff_currency"] != acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]:
                         if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
-                            logger.error("Issue {issue} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
-                                issue=detail["issue_link"],
+                            logger.error("Issue or MR {imr} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
+                                imr=detail["imr_link"],
                                 currency=detail["tariff_currency"],
                                 merchant=client_dict["billing"]["merchant"],
                                 template=client_dict["billing"]["template"]
@@ -3494,9 +5001,9 @@ if __name__ == "__main__":
                         # Populate details rows
                         client_doc_details_list_item = [
                             str(details_row_n),
-                            detail["issue_link"],
-                            detail["issue_title"],
-                            detail["issue_labels"] + "\n" + detail["tariff_plan"],
+                            detail["imr_link"],
+                            detail["imr_title"],
+                            detail["imr_labels"] + "\n" + detail["tariff_plan"],
                             detail["timelog_updated"],
                             formatted_timelog_spent_hours,
                             formatted_tariff_rate,
@@ -3526,6 +5033,13 @@ if __name__ == "__main__":
                         client_per_tariff_plan_tariff_rate[detail["tariff_plan"]] = detail["tariff_rate"]
                         client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
                         
+                        # Precalc per employee
+                        if "price_in_period_employee_share" in detail:
+                            for empl_email, empl_share in detail["price_in_period_employee_share"].items():
+                                if empl_email not in client_per_employee_share:
+                                    client_per_employee_share[empl_email] = float(0)
+                                client_per_employee_share[empl_email] += empl_share
+
                         # Format detail rows with template settings
                         if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
                             formatted_period_portion = '{:,.2f}'.format(detail["period_portion"]).replace(",", " ").replace(".", ",")
@@ -3840,10 +5354,13 @@ if __name__ == "__main__":
                     "__ORDER_NUM__":            woocommerce_order_id
                 }
                 
-                # Employee sheet for Hourly
+                # Employee Share sheet
 
                 invoices_rows_emplloyee = []
-                if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
+
+                # Employee Share sheet for Hourly or Monthly
+                if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients \
+                or args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients:
                     for employee in client_per_employee_share:
 
                         # Make row of empty values of range size
@@ -3874,7 +5391,7 @@ if __name__ == "__main__":
                         # Append
                         invoices_rows_emplloyee.append(invoices_rows_emplloyee_row)
 
-                # Invoice sheet
+                # Invoices sheet
 
                 # Make row of empty values of range size
                 invoices_rows_invoices_row = []
@@ -4017,6 +5534,7 @@ if __name__ == "__main__":
             
             if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
                 cur.close()
+                sub_cur.close()
             
             if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients:
                 cur.close()

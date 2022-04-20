@@ -4416,11 +4416,11 @@ if __name__ == "__main__":
                                             if "migrated_from" in asset_tariff:
                                                 tariff_dict["migrated"] = True
                                             
-                                            # Add employee_share key as dict
-                                            if "employee_share" in asset_tariff:
-                                                tariff_dict["employee_share"] = {}
-                                                for empl_email, empl_share in asset_tariff["employee_share"].items():
-                                                    tariff_dict["employee_share"][empl_email] = empl_share
+                                            # Add monthly_employee_share key as dict
+                                            if "monthly_employee_share" in asset_tariff:
+                                                tariff_dict["monthly_employee_share"] = {}
+                                                for empl_email, empl_share in asset_tariff["monthly_employee_share"].items():
+                                                    tariff_dict["monthly_employee_share"][empl_email] = empl_share
 
                                             # Add tariff to the tariff list for the asset
                                             client_asset_tariffs_dict[client][asset["fqdn"]].append(tariff_dict)
@@ -4436,11 +4436,11 @@ if __name__ == "__main__":
                                             if "migrated_from" in asset_tariff:
                                                 tariff_dict["migrated"] = True
                                             
-                                            # Add employee_share key as dict
-                                            if "employee_share" in asset_tariff:
-                                                tariff_dict["employee_share"] = {}
-                                                for empl_email, empl_share in asset_tariff["employee_share"].items():
-                                                    tariff_dict["employee_share"][empl_email] = empl_share
+                                            # Add monthly_employee_share key as dict
+                                            if "monthly_employee_share" in asset_tariff:
+                                                tariff_dict["monthly_employee_share"] = {}
+                                                for empl_email, empl_share in asset_tariff["monthly_employee_share"].items():
+                                                    tariff_dict["monthly_employee_share"][empl_email] = empl_share
                                 
                                             # Add tariff to the tariff list for the asset
                                             client_asset_tariffs_dict[client][asset["fqdn"]].append(asset_tariff)
@@ -4558,8 +4558,8 @@ if __name__ == "__main__":
                             
                             # Calc employee share
                             price_in_period_employee_share = {}
-                            if "employee_share" in tariff:
-                                for empl_email, empl_share in tariff["employee_share"].items():
+                            if "monthly_employee_share" in tariff:
+                                for empl_email, empl_share in tariff["monthly_employee_share"].items():
                                     price_in_period_employee_share[empl_email] = round(empl_share * tariff["monthly"]["rate"] * period_portion / 100, 2)
 
                             # Prepare row to save in monthly_details

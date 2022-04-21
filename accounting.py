@@ -5116,7 +5116,7 @@ if __name__ == "__main__":
 
                 # Make WooCommerce order draft if woocommerce key in merchant and woocommerce: True in client
 
-                if "woocommerce" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]] and "woocommerce" in client_dict and client_dict["billing"]["woocommerce"]["draft_order"] and not args.dry_run_woocommerce:
+                if "woocommerce" in client_dict["billing"] and client_dict["billing"]["woocommerce"]["draft_order"] and not args.dry_run_woocommerce:
 
                     # Prepare order items, API doesn't accept decimal until:
                     # /var/www/microdevopscom/wordpress/wp-content/plugins/woocommerce/includes/rest-api/Controllers/Version2/class-wc-rest-orders-v2-controller.php

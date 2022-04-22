@@ -38,6 +38,11 @@ if __name__ == "__main__":
                           help="enable debug",
                           action="store_true")
 
+    parser.add_argument("--ignore-jobs-disabled",
+                          dest="ignore_jobs_disabled",
+                          help="ignore jobs_disabled if set in yaml",
+                          action="store_true")
+
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--pipeline-salt-cmd-for-asset-for-client",
                           dest="pipeline_salt_cmd_for_asset_for_client",
@@ -111,7 +116,7 @@ if __name__ == "__main__":
                 if client_dict["active"] and "salt_project" in client_dict["gitlab"] and client_dict["configuration_management"]["type"] in ["salt", "salt-ssh"]:
 
                     # Skip clients with global jobs disabled
-                    if "jobs_disabled" in client_dict and client_dict["jobs_disabled"]:
+                    if not args.ignore_jobs_disabled and "jobs_disabled" in client_dict and client_dict["jobs_disabled"]:
                         continue
             
                     asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)

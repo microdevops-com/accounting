@@ -29,6 +29,7 @@ gitlab:
   # 8< ============================================================
 billing:
   code: EX
+  #monthly_invoice_disabled: True
 include:
   dirs:
     - example

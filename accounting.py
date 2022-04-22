@@ -4329,7 +4329,7 @@ if __name__ == "__main__":
                             raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
                         # Add only active clients and not excluded
-                        if client_dict["active"] and (
+                        if client_dict["active"] and not ("monthly_invoice_disabled" in client_dict["billing"] and client_dict["billing"]["monthly_invoice_disabled"]) and (
                                                             (
                                                                 args.exclude_clients is not None
                                                                 and
@@ -4360,7 +4360,10 @@ if __name__ == "__main__":
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
-                    clients_dict[client_dict["name"].lower()] = client_dict
+                        clients_dict[client_dict["name"].lower()] = client_dict
+
+                    if "monthly_invoice_disabled" in client_dict["billing"] and client_dict["billing"]["monthly_invoice_disabled"]:
+                        raise Exception("You are trying to make monthly invoce for a client with monthly_invoice_disabled = True")
 
                 # Iterate over clients to read assets for active clients
 

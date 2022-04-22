@@ -556,10 +556,16 @@ if __name__ == "__main__":
                                     sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
 
                     # Defaults
+
                     if "templates" in client_dict["configuration_management"] and "ufw_type" in client_dict["configuration_management"]["templates"]:
                         ufw_type = client_dict["configuration_management"]["templates"]["ufw_type"]
                     else:
                         ufw_type = acc_yaml_dict["defaults"]["ufw_type"]
+
+                    if "templates" in client_dict["configuration_management"] and "monitoring_disabled" in client_dict["configuration_management"]["templates"]:
+                        monitoring_enabled = not client_dict["configuration_management"]["templates"]["monitoring_disabled"]
+                    else:
+                        monitoring_enabled = True
 
                     # Salt-SSH
                     if client_dict["configuration_management"]["type"] == "salt-ssh":
@@ -571,6 +577,7 @@ if __name__ == "__main__":
                             cd .salt-project-template
                             TELEGRAM_TOKEN={TELEGRAM_TOKEN} \
                                     TELEGRAM_CHAT_ID={TELEGRAM_CHAT_ID} \
+                                    MONITORING_ENABLED={MONITORING_ENABLED} \
                                     ALERTA_URL={ALERTA_URL} \
                                     ALERTA_API_KEY={ALERTA_API_KEY} \
                                     HB_RECEIVER_HN={HB_RECEIVER_HN} \
@@ -599,6 +606,7 @@ if __name__ == "__main__":
                             ROOT_EMAIL=client_dict["configuration_management"]["templates"]["root_email"],
                             TELEGRAM_TOKEN=client_dict["configuration_management"]["templates"]["telegram_token"],
                             TELEGRAM_CHAT_ID=client_dict["configuration_management"]["templates"]["telegram_chat_id"],
+                            MONITORING_ENABLED=monitoring_enabled,
                             ALERTA_URL=client_dict["configuration_management"]["templates"]["alerta_url"],
                             ALERTA_API_KEY=client_dict["configuration_management"]["templates"]["alerta_api_key"],
                             HB_RECEIVER_HN=client_dict["configuration_management"]["templates"]["heartbeat_mesh"]["sender"]["receiver"],
@@ -647,6 +655,7 @@ if __name__ == "__main__":
                             cd .salt-project-template
                             TELEGRAM_TOKEN={TELEGRAM_TOKEN} \
                                     TELEGRAM_CHAT_ID={TELEGRAM_CHAT_ID} \
+                                    MONITORING_ENABLED={MONITORING_ENABLED} \
                                     ALERTA_URL={ALERTA_URL} \
                                     ALERTA_API_KEY={ALERTA_API_KEY} \
                                     HB_RECEIVER_HN={HB_RECEIVER_HN} \
@@ -697,6 +706,7 @@ if __name__ == "__main__":
                             ROOT_EMAIL=client_dict["configuration_management"]["templates"]["root_email"],
                             TELEGRAM_TOKEN=client_dict["configuration_management"]["templates"]["telegram_token"],
                             TELEGRAM_CHAT_ID=client_dict["configuration_management"]["templates"]["telegram_chat_id"],
+                            MONITORING_ENABLED=monitoring_enabled,
                             ALERTA_URL=client_dict["configuration_management"]["templates"]["alerta_url"],
                             ALERTA_API_KEY=client_dict["configuration_management"]["templates"]["alerta_api_key"],
                             HB_RECEIVER_HN=client_dict["configuration_management"]["templates"]["heartbeat_mesh"]["sender"]["receiver"],

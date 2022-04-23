@@ -509,15 +509,19 @@ if __name__ == "__main__":
                             if template_var_client_dict is None:
                                 raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, template_var_client_file))
 
-                            # Add if sub_clients match, add parent client to sub_client as well
-                            if (type(client_dict["configuration_management"]["sub_clients"]) == str and client_dict["configuration_management"]["sub_clients"] == "ALL") or template_var_client_dict["name"] in client_dict["configuration_management"]["sub_clients"] or template_var_client_dict["name"] == client_dict["name"]:
-                                template_var_clients[template_var_client_dict["name"]] = template_var_client_dict
+                            if template_var_client_dict["active"]:
 
-                                template_var_asset_dicts[template_var_client_dict["name"]], \
-                                    template_var_asset_tariffs[template_var_client_dict["name"]], \
-                                    template_var_asset_licenses[template_var_client_dict["name"]] = get_active_assets(template_var_client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                                # Add if sub_clients match, add parent client to sub_client as well
+                                if (type(client_dict["configuration_management"]["sub_clients"]) == str and client_dict["configuration_management"]["sub_clients"] == "ALL") \
+                                or template_var_client_dict["name"] in client_dict["configuration_management"]["sub_clients"] \
+                                or template_var_client_dict["name"] == client_dict["name"]:
+                                    template_var_clients[template_var_client_dict["name"]] = template_var_client_dict
 
-                                logger.info("Added client to template: {0}".format(template_var_client_file))
+                                    template_var_asset_dicts[template_var_client_dict["name"]], \
+                                        template_var_asset_tariffs[template_var_client_dict["name"]], \
+                                        template_var_asset_licenses[template_var_client_dict["name"]] = get_active_assets(template_var_client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+
+                                    logger.info("Added client to template: {0}".format(template_var_client_file))
 
                     # File Templates
                     if "templates" in client_dict["configuration_management"] and "files" in client_dict["configuration_management"]["templates"]:

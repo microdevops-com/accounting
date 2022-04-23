@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
                 # Check client active, inclusions, exclusions and other reqs
                 if (
-                        client_dict["active"] and "salt_project" in client_dict["gitlab"] and client_dict["configuration_management"]["type"] in ["salt", "salt-ssh"]:
+                        client_dict["active"] and "salt_project" in client_dict["gitlab"] and client_dict["configuration_management"]["type"] in ["salt", "salt-ssh"]
                         and
                         (
                             (

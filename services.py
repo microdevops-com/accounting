@@ -43,6 +43,17 @@ if __name__ == "__main__":
                           help="ignore jobs_disabled if set in yaml",
                           action="store_true")
 
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument("--exclude-clients",
+                          dest="exclude_clients",
+                          help="exclude clients defined by JSON_LIST from all-clients operations",
+                          nargs=1, metavar=("JSON_LIST"))
+
+    group.add_argument("--include-clients",
+                          dest="include_clients",
+                          help="include only clients defined by JSON_LIST for all-clients operations",
+                          nargs=1, metavar=("JSON_LIST"))
+
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--pipeline-salt-cmd-for-asset-for-client",
                           dest="pipeline_salt_cmd_for_asset_for_client",
@@ -56,7 +67,7 @@ if __name__ == "__main__":
 
     group.add_argument("--pipeline-salt-cmd-for-all-assets-for-all-clients",
                           dest="pipeline_salt_cmd_for_all_assets_for_all_clients",
-                          help="pipeline salt CMD for all assets for all clients",
+                          help="pipeline salt CMD for all assets for all clients excluding --exclude-clients or only for --include-clients",
                           nargs=1, metavar=("CMD"))
 
     if len(sys.argv) > 1:
@@ -87,6 +98,18 @@ if __name__ == "__main__":
         
         # Do tasks
 
+        if args.exclude_clients is not None:
+            json_str, = args.exclude_clients
+            exclude_clients_list = json.loads(json_str)
+        else:
+            exclude_clients_list = []
+
+        if args.include_clients is not None:
+            json_str, = args.include_clients
+            include_clients_list = json.loads(json_str)
+        else:
+            include_clients_list = []
+
         if args.pipeline_salt_cmd_for_asset_for_client or args.pipeline_salt_cmd_for_all_assets_for_client or args.pipeline_salt_cmd_for_all_assets_for_all_clients:
             
             # For *.yaml in client dir
@@ -112,8 +135,30 @@ if __name__ == "__main__":
                 if args.pipeline_salt_cmd_for_all_assets_for_all_clients:
                     cmd, = args.pipeline_salt_cmd_for_all_assets_for_all_clients
 
-                # Check client active and other reqs
-                if client_dict["active"] and "salt_project" in client_dict["gitlab"] and client_dict["configuration_management"]["type"] in ["salt", "salt-ssh"]:
+                # Check client active, inclusions, exclusions and other reqs
+                if (
+                        client_dict["active"] and "salt_project" in client_dict["gitlab"] and client_dict["configuration_management"]["type"] in ["salt", "salt-ssh"]:
+                        and
+                        (
+                            (
+                                args.exclude_clients is not None
+                                and
+                                client_dict["name"].lower() not in exclude_clients_list
+                            )
+                            or
+                            (
+                                args.include_clients is not None
+                                and
+                                client_dict["name"].lower() in include_clients_list
+                            )
+                            or
+                            (
+                                args.exclude_clients is None
+                                and
+                                args.include_clients is None
+                            )
+                        )
+                    ):
 
                     # Skip clients with global jobs disabled
                     if not args.ignore_jobs_disabled and "jobs_disabled" in client_dict and client_dict["jobs_disabled"]:

@@ -2914,7 +2914,7 @@ if __name__ == "__main__":
                             ,       timelogs.id                                                 AS timelog_id
                             ,       users.email                                                 AS timelog_user_email
                             ,       timelogs.time_spent                                         AS timelog_time_spent
-                            ,       timelogs.updated_at                                         AS timelog_updated
+                            ,       timelogs.spent_at                                           AS timelog_updated
                             ,       timelogs.note_id                                            AS timelog_note_id
                             ,       projects.name                                               AS issue_project_name
                             ,       projects.path                                               AS issue_project_path
@@ -3204,7 +3204,7 @@ if __name__ == "__main__":
                             ,       timelogs.id                                                 AS timelog_id
                             ,       users.email                                                 AS timelog_user_email
                             ,       timelogs.time_spent                                         AS timelog_time_spent
-                            ,       timelogs.updated_at                                         AS timelog_updated
+                            ,       timelogs.spent_at                                           AS timelog_updated
                             ,       timelogs.note_id                                            AS timelog_note_id
                             ,       projects.name                                               AS merge_request_project_name
                             ,       projects.path                                               AS merge_request_project_path
@@ -3818,7 +3818,7 @@ if __name__ == "__main__":
                                 ,       timelogs.id                                                 AS timelog_id
                                 ,       users.email                                                 AS timelog_user_email
                                 ,       timelogs.time_spent                                         AS timelog_time_spent
-                                ,       timelogs.updated_at                                         AS timelog_updated
+                                ,       timelogs.spent_at                                           AS timelog_updated
                                 ,       timelogs.note_id                                            AS timelog_note_id
                                 FROM
                                         timelogs
@@ -3951,7 +3951,7 @@ if __name__ == "__main__":
                                 ,       timelogs.id                                                 AS timelog_id
                                 ,       users.email                                                 AS timelog_user_email
                                 ,       timelogs.time_spent                                         AS timelog_time_spent
-                                ,       timelogs.updated_at                                         AS timelog_updated
+                                ,       timelogs.spent_at                                           AS timelog_updated
                                 ,       timelogs.note_id                                            AS note_id
                                 FROM
                                         timelogs

@@ -4360,7 +4360,7 @@ if __name__ == "__main__":
                     if client_dict is None:
                         raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
 
-                        clients_dict[client_dict["name"].lower()] = client_dict
+                    clients_dict[client_dict["name"].lower()] = client_dict
 
                     if "monthly_invoice_disabled" in client_dict["billing"] and client_dict["billing"]["monthly_invoice_disabled"]:
                         raise Exception("You are trying to make monthly invoce for a client with monthly_invoice_disabled = True")

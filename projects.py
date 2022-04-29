@@ -558,7 +558,11 @@ if __name__ == "__main__":
                                 # Get File from project and save it
                                 with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
                                     logger.info("Getting raw file from GitLab {file_path}".format(file_path=templated_file["sub_client_project_file"]["path"]))
-                                    sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
+                                    try:
+                                        sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
+                                    except:
+                                        logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=templated_file["sub_client_project_file"]["path"], project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
+                                        raise
 
                     # Defaults
 

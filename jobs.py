@@ -34,7 +34,13 @@ if __name__ == "__main__":
 
     # Set parser and parse args
     parser = argparse.ArgumentParser(description='{LOGO} functions.'.format(LOGO=LOGO))
+
     parser.add_argument("--debug", dest="debug", help="enable debug", action="store_true")
+    parser.add_argument("--ignore-jobs-disabled",
+                          dest="ignore_jobs_disabled",
+                          help="ignore jobs_disabled if set in yaml",
+                          action="store_true")
+
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--run-jobs", dest="run_jobs", help="run jobs for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "ASSET"))
     group.add_argument("--force-run-job", dest="force_run_job", help="force run (omit time conditions) specific job id JOB for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET", "JOB"))
@@ -116,7 +122,7 @@ if __name__ == "__main__":
                         continue
                     
                     # Skip clients with jobs disabled
-                    if "jobs_disabled" in client_dict and client_dict["jobs_disabled"]:
+                    if "jobs_disabled" in client_dict and client_dict["jobs_disabled"] and not args.ignore_jobs_disabled:
                         logger.info("Jos disabled for client {client}, skipping".format(client=client_dict["name"]))
                         continue
 
@@ -141,7 +147,7 @@ if __name__ == "__main__":
                                 continue
                             
                             # Skip assets with jobs disabled
-                            if "jobs_disabled" in asset and asset["jobs_disabled"]:
+                            if "jobs_disabled" in asset and asset["jobs_disabled"] and not args.ignore_jobs_disabled:
                                 logger.info("Jos disabled for asset {asset}, skipping".format(asset=asset["fqdn"]))
                                 continue
                             
@@ -509,20 +515,26 @@ if __name__ == "__main__":
                         continue
                     
                     # Skip clients with jobs disabled
-                    if "jobs_disabled" in client_dict and client_dict["jobs_disabled"]:
+                    if "jobs_disabled" in client_dict and client_dict["jobs_disabled"] and not args.ignore_jobs_disabled:
                         continue
 
                     # Get GitLab project for client
                     project = gl.projects.get(client_dict["gitlab"]["salt_project"]["path"])
                     logger.info("Salt project {project} for client {client} ssh_url_to_repo: {ssh_url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["salt_project"]["path"], client=client_dict["name"], path_with_namespace=project.path_with_namespace, ssh_url_to_repo=project.ssh_url_to_repo))
 
+                    # Decide run_tag_create_access_level
+                    if "run_tag_create_access_level" in acc_yaml_dict["gitlab"]["salt_project"]:
+                        run_tag_create_access_level = acc_yaml_dict["gitlab"]["salt_project"]["run_tag_create_access_level"]
+                    else:
+                        run_tag_create_access_level = 40
+
                     try:
                         # Prune
                         script = textwrap.dedent(
                             """
-                            .gitlab-server-job/prune_run_tags.sh {salt_project} {age} git
+                            .gitlab-server-job/prune_run_tags.sh {salt_project} {age} git {level}
                             """
-                        ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], age=prune_age)
+                        ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], age=prune_age, level=run_tag_create_access_level)
                         logger.info("Running bash script:")
                         logger.info(script)
                         subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")

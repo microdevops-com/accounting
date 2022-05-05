@@ -88,7 +88,7 @@ def activated_tariff(tariffs, event_date_time, logger):
     for tariff in tariffs:
         tariff_date_time = datetime.combine(tariff["activated"], time.min)
         # Event datetime must be later than tariff datetime
-        if event_date_time > tariff_date_time:
+        if event_date_time >= tariff_date_time:
             event_tariff = tariff
             break
     if event_tariff is not None:
@@ -97,7 +97,7 @@ def activated_tariff(tariffs, event_date_time, logger):
     else:
         raise Exception("Event date time {0} out of available tariffs date time".format(event_date_time))
 
-def get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
+def get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, at_datetime):
 
     assets = {}
     tariffs = {}
@@ -115,7 +115,7 @@ def get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
             licenses[asset["fqdn"]] = []
 
             # Iterate over tariffs
-            for asset_tariff in activated_tariff(asset["tariffs"], datetime.now(), logger)["tariffs"]:
+            for asset_tariff in activated_tariff(asset["tariffs"], at_datetime, logger)["tariffs"]:
 
                 # If tariff has file key - load it
                 if "file" in asset_tariff:
@@ -144,7 +144,7 @@ def get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
     return assets, tariffs, licenses
 
 # Get asset list
-def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, only_active=True):
+def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, at_datetime, only_active=True):
 
     # Prepare asset list from servers (deprecated) and assets
     asset_list_to_process = []
@@ -173,7 +173,7 @@ def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, only_active=Tr
 
         # Set activated tariff
         asset["activated_tariff"] = []
-        for asset_tariff in activated_tariff(asset["tariffs"], datetime.now(), logger)["tariffs"]:
+        for asset_tariff in activated_tariff(asset["tariffs"], at_datetime, logger)["tariffs"]:
 
             # If tariff has file key - load it
             if "file" in asset_tariff:

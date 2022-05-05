@@ -40,6 +40,7 @@ if __name__ == "__main__":
                           dest="ignore_jobs_disabled",
                           help="ignore jobs_disabled if set in yaml",
                           action="store_true")
+    parser.add_argument("--at-date", dest="at_date", help="use DATETIME instead of now for tariff", nargs=1, metavar=("DATETIME"))
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--run-jobs", dest="run_jobs", help="run jobs for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "ASSET"))
@@ -130,7 +131,7 @@ if __name__ == "__main__":
                     project = gl.projects.get(client_dict["gitlab"]["salt_project"]["path"])
                     logger.info("Salt project {project} for client {client} ssh_url_to_repo: {ssh_url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["salt_project"]["path"], client=client_dict["name"], path_with_namespace=project.path_with_namespace, ssh_url_to_repo=project.ssh_url_to_repo))
 
-                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
 
                     # For each asset
                     for asset in asset_list:

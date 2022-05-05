@@ -55,6 +55,7 @@ if __name__ == "__main__":
     parser.add_argument("--git-push", dest="git_push", help="push after commit", action="store_true")
     parser.add_argument("--dry-run-gitlab", dest="dry_run_gitlab", help="no new objects created in gitlab", action="store_true")
     parser.add_argument("--gitlab-runner-registration-token", dest="gitlab_runner_registration_token", help="set gitlab runner registration token for template if you do not have maintainer rights to get it with code", nargs=1, metavar=("TOKEN"))
+    parser.add_argument("--at-date", dest="at_date", help="use DATETIME instead of now for tariff", nargs=1, metavar=("DATETIME"))
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
     group.add_argument("--include-clients", dest="include_clients", help="include only clients defined by JSON_LIST for all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -519,7 +520,7 @@ if __name__ == "__main__":
 
                                     template_var_asset_dicts[template_var_client_dict["name"]], \
                                         template_var_asset_tariffs[template_var_client_dict["name"]], \
-                                        template_var_asset_licenses[template_var_client_dict["name"]] = get_active_assets(template_var_client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                                        template_var_asset_licenses[template_var_client_dict["name"]] = get_active_assets(template_var_client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
 
                                     logger.info("Added client to template: {0}".format(template_var_client_file))
 
@@ -742,7 +743,7 @@ if __name__ == "__main__":
                         # It is needed for both salt and salt-ssh types
                         client_asset_list = ""
 
-                        for asset in sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger), key = lambda x: (x["tariffs"][-1]["activated"], x["fqdn"])):
+                        for asset in sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now()), key = lambda x: (x["tariffs"][-1]["activated"], x["fqdn"])):
 
                             # Add only servers to roster
                             if asset["kind"] == "server":
@@ -803,7 +804,7 @@ if __name__ == "__main__":
                         
                         pillar_dirname = PROJECTS_SUBDIR + "/" + project.path_with_namespace + "/pillar/salt"
                         
-                        for asset in get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
+                        for asset in get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now()):
 
                             if asset["active"] and asset["kind"] == "server" and "minion" in asset:
                                 
@@ -876,7 +877,7 @@ if __name__ == "__main__":
                             pillar_master_dict["salt"]["master"]["pki"]["minions"][salt_master["fqdn"]] = pss(salt_master["pki"]["minion"]["pub"])
 
                             # Other active assets accepted Minions on Master
-                            for asset in get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger):
+                            for asset in get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now()):
                                 if asset["active"] and asset["kind"] == "server" and "minion" in asset:
                                     pillar_master_dict["salt"]["master"]["pki"]["minions"][asset["fqdn"]] = pss(asset["minion"]["pub"])
 
@@ -1050,7 +1051,7 @@ if __name__ == "__main__":
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
 
                     asset_list_text = ""
-                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger), key = lambda x: (x["tariffs"][-1]["activated"]))
+                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now()), key = lambda x: (x["tariffs"][-1]["activated"]))
 
                     # Iterate over assets
                     for asset in asset_list:

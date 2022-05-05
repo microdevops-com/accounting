@@ -213,6 +213,7 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run-print", dest="dry_run_print", help="no print commands executed", action="store_true")
     parser.add_argument("--dry-run-woocommerce", dest="dry_run_woocommerce", help="no woocommerce api commands executed", action="store_true")
     parser.add_argument("--timelogs-spent-before-date", dest="timelogs_spent_before_date", help="select unchecked timelogs for hourly invoices spent before date DATE", nargs=1, metavar=("DATE"))
+    parser.add_argument("--at-date", dest="at_date", help="use DATETIME instead of now for tariff", nargs=1, metavar=("DATETIME"))
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
     group.add_argument("--include-clients", dest="include_clients", help="include only clients defined by JSON_LIST for all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -396,7 +397,7 @@ if __name__ == "__main__":
                                                     )
                                                 ):
 
-                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
 
                     # If there are assets
                     if len(asset_list) > 0:
@@ -1230,7 +1231,7 @@ if __name__ == "__main__":
                         if "path" not in client_dict["gitlab"]["admin_project"]:
                             raise Exception("gitlab:admin_project:path key missing in: {0}/{1}".format(WORK_DIR, client_file))
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
 
                         # For each asset
                         for asset in asset_list:
@@ -1321,7 +1322,7 @@ if __name__ == "__main__":
                         project = gl.projects.get(project_from_list)
                         labels = project.labels.list(all=True)
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, False)
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now(), False)
 
                         # Iterate over assets in client
                         for asset in asset_list:
@@ -4133,7 +4134,7 @@ if __name__ == "__main__":
                                 # Check if other label name is asset
                                 else:
 
-                                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, False)
+                                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now(), False)
 
                                     # If there are assets
                                     if len(asset_list) > 0:
@@ -4384,7 +4385,7 @@ if __name__ == "__main__":
                         
                         client_asset_tariffs_dict[client] = {}
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
 
                         # If there are assets
                         if len(asset_list) > 0:
@@ -4714,7 +4715,7 @@ if __name__ == "__main__":
                                                                                                                                                                 )
                                                                                                                                                             ):
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
 
                         # If there are assets
                         if len(asset_list) > 0:
@@ -5563,7 +5564,7 @@ if __name__ == "__main__":
                 # Check if client is active
                 if client_dict["active"]:
 
-                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger), key = lambda x: (x["tariffs"][-1]["activated"]))
+                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now()), key = lambda x: (x["tariffs"][-1]["activated"]))
 
                     # Iterate over assets
                     for asset in asset_list:

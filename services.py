@@ -14,6 +14,7 @@ from io import BytesIO
 import threading
 import re
 import time
+from datetime import datetime
 
 # Constants and envs
 
@@ -42,6 +43,7 @@ if __name__ == "__main__":
                           dest="ignore_jobs_disabled",
                           help="ignore jobs_disabled if set in yaml",
                           action="store_true")
+    parser.add_argument("--at-date", dest="at_date", help="use DATETIME instead of now for tariff", nargs=1, metavar=("DATETIME"))
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients",
@@ -164,7 +166,7 @@ if __name__ == "__main__":
                     if not args.ignore_jobs_disabled and "jobs_disabled" in client_dict and client_dict["jobs_disabled"]:
                         continue
             
-                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
 
                     # Threaded function
                     def pipeline_salt_cmd(salt_project, asset, cmd):

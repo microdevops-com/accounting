@@ -170,8 +170,8 @@ if __name__ == "__main__":
                         except gitlab.exceptions.GitlabGetError as e:
                             # Create if not found
                             logger.info("Salt project {project} for client {client} not found, creating".format(project=client_dict["gitlab"]["salt_project"]["path"], client=client_dict["name"]))
-                            group_name = client_dict["gitlab"]["salt_project"]["path"].split("/")[0]
-                            project_name = client_dict["gitlab"]["salt_project"]["path"].split("/")[1]
+                            group_name = "/".join(client_dict["gitlab"]["salt_project"]["path"].split("/")[:-1])
+                            project_name = client_dict["gitlab"]["salt_project"]["path"].split("/")[-1]
                             for gr in gl.groups.list(search=group_name):
                                 if gr.full_path == group_name:
                                     group_id = gr.id
@@ -201,7 +201,7 @@ if __name__ == "__main__":
                             # Maintainer group
                             if "salt_project" in acc_yaml_dict["gitlab"] and "maintainers_group_id" in acc_yaml_dict["gitlab"]["salt_project"]:
                                 if not any(shared_group["group_id"] == acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"] for shared_group in project.shared_with_groups):
-                                    project.share(acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"], gitlab.MAINTAINER_ACCESS)
+                                    project.share(acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"], gitlab.const.MAINTAINER_ACCESS)
                             # Deploy keys
                             if "deploy_keys" in client_dict["gitlab"]["salt_project"]:
                                 for deploy_key in client_dict["gitlab"]["salt_project"]["deploy_keys"]:
@@ -304,8 +304,8 @@ if __name__ == "__main__":
                     except gitlab.exceptions.GitlabGetError as e:
                         # Create if not found
                         logger.info("Admin project {project} for client {client} not found, creating".format(project=client_dict["gitlab"]["admin_project"]["path"], client=client_dict["name"]))
-                        group_name = client_dict["gitlab"]["admin_project"]["path"].split("/")[0]
-                        project_name = client_dict["gitlab"]["admin_project"]["path"].split("/")[1]
+                        group_name = "/".join(client_dict["gitlab"]["admin_project"]["path"].split("/")[:-1])
+                        project_name = client_dict["gitlab"]["admin_project"]["path"].split("/")[-1]
                         for gr in gl.groups.list(search=group_name):
                             if gr.full_path == group_name:
                                 group_id = gr.id

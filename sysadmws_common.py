@@ -103,7 +103,7 @@ def get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, at_datetime
     tariffs = {}
     licenses = {}
 
-    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger)
+    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, at_datetime)
 
     # Iterate over assets in client
     for asset in asset_list:

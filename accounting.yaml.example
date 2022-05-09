@@ -210,6 +210,18 @@ jobs:
       - 1
     minutes:
       - 40
+  # 1:40
+  bash_misc:
+    type: salt_cmd
+    cmd: state.apply bash.misc queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 1
+    minutes:
+      - 40
   # 1:50
   users_windows:
     type: salt_cmd

@@ -140,8 +140,6 @@ jobs:
       - 0
     minutes:
       - 50
-    licenses:
-      - monitoring
   # 1:00
   ssh-auth-keys:
     type: salt_cmd
@@ -168,8 +166,6 @@ jobs:
       - 1
     minutes:
       - 10
-    licenses:
-      - monitoring
   # 1:20
   netdata:
     type: salt_cmd
@@ -196,8 +192,6 @@ jobs:
       - 1
     minutes:
       - 30
-    licenses:
-      - monitoring
   # 1:40
   users_unix:
     type: salt_cmd

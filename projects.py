@@ -499,6 +499,11 @@ if __name__ == "__main__":
                     template_var_asset_tariffs = {}
                     template_var_asset_licenses = {}
 
+                    # Add self assets
+                    template_var_asset_dicts["_self"], \
+                        template_var_asset_tariffs["_self"], \
+                        template_var_asset_licenses["_self"] = get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
+
                     # Check sub_clients before adding
                     if "sub_clients" in client_dict["configuration_management"]:
 
@@ -524,53 +529,12 @@ if __name__ == "__main__":
 
                                     logger.info("Added client to template: {0}".format(template_var_client_file))
 
-                    # File Templates
-                    if "templates" in client_dict["configuration_management"] and "files" in client_dict["configuration_management"]["templates"]:
-
-                        for templated_file in client_dict["configuration_management"]["templates"]["files"]:
-
-                            # Jinja templates
-                            if "jinja" in templated_file:
-
-                                logger.info("Rendering jinja template: {0}".format(templated_file["jinja"]))
-                                j2_env = Environment(loader=FileSystemLoader(PROJECTS_SUBDIR + "/" + project.path_with_namespace), trim_blocks=True)
-                                j2_env.add_extension('jinja2.ext.do')
-                                template = j2_env.get_template(templated_file["jinja"])
-                                rendered_template = template.render(
-                                    clients = template_var_clients,
-                                    asset_dicts = template_var_asset_dicts,
-                                    asset_tariffs = template_var_asset_tariffs,
-                                    asset_licenses = template_var_asset_licenses
-                                )
-
-                                logger.info("Rendered template: {0}".format(rendered_template))
-
-                                logger.info("Saving jinja template to file: {0}".format(templated_file["path"]))
-                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "w") as templated_file_handler:
-                                    templated_file_handler.write(rendered_template)
-
-                            # Copy files from other projects
-                            if "sub_client_project_file" in templated_file:
-
-                                # Get Gitlab project
-                                sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])
-                                logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
-
-                                # Get File from project and save it
-                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
-                                    logger.info("Getting raw file from GitLab {file_path}".format(file_path=templated_file["sub_client_project_file"]["path"]))
-                                    try:
-                                        sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
-                                    except:
-                                        logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=templated_file["sub_client_project_file"]["path"], project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
-                                        raise
-
                     # Defaults
 
                     if "templates" in client_dict["configuration_management"] and "ufw_type" in client_dict["configuration_management"]["templates"]:
                         ufw_type = client_dict["configuration_management"]["templates"]["ufw_type"]
                     else:
-                        ufw_type = acc_yaml_dict["defaults"]["ufw_type"]
+                        ufw_type = acc_yaml_dict["defaults"]["configuration_management"]["templates"]["ufw_type"]
 
                     if "templates" in client_dict["configuration_management"] and "monitoring_disabled" in client_dict["configuration_management"]["templates"]:
                         monitoring_enabled = not client_dict["configuration_management"]["templates"]["monitoring_disabled"]
@@ -734,6 +698,53 @@ if __name__ == "__main__":
                         logger.info(script)
                         subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                     
+                    # File Templates
+                    files_to_template = []
+
+                    if "templates" in client_dict["configuration_management"] and "files" in client_dict["configuration_management"]["templates"]:
+                        files_to_template.extend(client_dict["configuration_management"]["templates"]["files"])
+
+                    if "configuration_management" in acc_yaml_dict and "templates" in acc_yaml_dict["configuration_management"] and "files" in acc_yaml_dict["configuration_management"]["templates"]:
+                        files_to_template.extend(acc_yaml_dict["configuration_management"]["templates"]["files"])
+
+                    for templated_file in files_to_template:
+
+                        # Jinja templates
+                        if "jinja" in templated_file:
+
+                            logger.info("Rendering jinja template: {0}".format(templated_file["jinja"]))
+                            j2_env = Environment(loader=FileSystemLoader(PROJECTS_SUBDIR + "/" + project.path_with_namespace), trim_blocks=True, keep_trailing_newline=True)
+                            j2_env.add_extension('jinja2.ext.do')
+                            template = j2_env.get_template(templated_file["jinja"])
+                            rendered_template = template.render(
+                                clients = template_var_clients,
+                                asset_dicts = template_var_asset_dicts,
+                                asset_tariffs = template_var_asset_tariffs,
+                                asset_licenses = template_var_asset_licenses
+                            )
+
+                            logger.info("Rendered template: {0}".format(rendered_template))
+
+                            logger.info("Saving jinja template to file: {0}".format(templated_file["path"]))
+                            with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "w") as templated_file_handler:
+                                templated_file_handler.write(rendered_template)
+
+                        # Copy files from other projects
+                        if "sub_client_project_file" in templated_file:
+
+                            # Get Gitlab project
+                            sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])
+                            logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
+
+                            # Get File from project and save it
+                            with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
+                                logger.info("Getting raw file from GitLab {file_path}".format(file_path=templated_file["sub_client_project_file"]["path"]))
+                                try:
+                                    sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
+                                except:
+                                    logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=templated_file["sub_client_project_file"]["path"], project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
+                                    raise
+
                     # Prepare the roster file
                     if "skip_roster" in client_dict["configuration_management"] and client_dict["configuration_management"]["skip_roster"]:
                         logger.info("Skipping roster update")

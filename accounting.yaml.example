@@ -216,6 +216,10 @@ jobs:
       - 1
     minutes:
       - 40
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
   # 1:50
   users_windows:
     type: salt_cmd

@@ -456,9 +456,9 @@ if __name__ == "__main__":
                                                                 storage_usage
                                                                 (
                                                                         checked_at
-                                                                ,       client_server_fqdn
-                                                                ,       storage_server_fqdn
-                                                                ,       storage_server_path
+                                                                ,       client_asset_fqdn
+                                                                ,       storage_asset_fqdn
+                                                                ,       storage_asset_path
                                                                 ,       mb_used
                                                                 )
                                                         VALUES
@@ -4613,26 +4613,26 @@ if __name__ == "__main__":
                         count(avg_per_day)
                 ,       date_trunc('month', now() - interval '{month_shift}' month) AS usage_month /* month to compute, just for info */
                 ,       date_part('days', date_trunc('month', now() - interval '{month_shift}' month) + '1 MONTH'::INTERVAL - '1 DAY'::INTERVAL) AS days_in_month /* calc days in computed month, just for info, use the same later */
-                ,       client_server_fqdn
-                ,       storage_server_fqdn
-                ,       storage_server_path
+                ,       client_asset_fqdn
+                ,       storage_asset_fqdn
+                ,       storage_asset_path
                 ,       sum(avg_per_day) / date_part('days', date_trunc('month', now() - interval '{month_shift}' month) + '1 MONTH'::INTERVAL - '1 DAY'::INTERVAL)::INTEGER AS avg_per_month /* sum of averages for days of needed month / number of days in month */
                 FROM
                         (
                                 SELECT
                                         date(checked_at) AS date_checked_at
-                                ,       client_server_fqdn
-                                ,       storage_server_fqdn
-                                ,       storage_server_path
+                                ,       client_asset_fqdn
+                                ,       storage_asset_fqdn
+                                ,       storage_asset_path
                                 ,       count(date(checked_at))
                                 ,       avg(mb_used)::INTEGER AS avg_per_day /* mb for the same days are taken as average */
                                 FROM
                                         storage_usage
                                 GROUP BY
                                         date_checked_at
-                                ,       client_server_fqdn
-                                ,       storage_server_fqdn
-                                ,       storage_server_path
+                                ,       client_asset_fqdn
+                                ,       storage_asset_fqdn
+                                ,       storage_asset_path
                                 ORDER BY
                                         date_checked_at
                         )
@@ -4643,7 +4643,7 @@ if __name__ == "__main__":
                         =
                         date_trunc('month', date_checked_at)
                 GROUP BY
-                        client_server_fqdn, storage_server_fqdn, storage_server_path
+                        client_asset_fqdn, storage_asset_fqdn, storage_asset_path
                 ;
                 """.format(month_shift=month_shift_back)
                 logger.info("Query:")

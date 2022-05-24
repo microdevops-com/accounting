@@ -1,6 +1,9 @@
 stages:
 - build
 - push
+- execute_yaml_check
+- execute_db_structure
+- execute_asset_labels
 - execute_run_cmd
 
 variables:
@@ -17,26 +20,32 @@ build:
   stage: build
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+  rules:
+    - if: $RUN_CMD
+      when: never
+    - if: $CI_COMMIT_REF_NAME
   script:
     - docker build --pull -t $ACCOUNTING_IMAGE .
-  except:
-    variables:
-      - $RUN_CMD
 
 push:
   tags:
     - __dev_runner__
   stage: push
+  rules:
+    - if: $RUN_CMD
+      when: never
+    - if: $CI_COMMIT_REF_NAME
   script:
     - docker push $ACCOUNTING_IMAGE
-  except:
-    variables:
-      - $RUN_CMD
 
 execute_yaml_check:
   tags:
     - __dev_runner__
   stage: execute_yaml_check
+  rules:
+    - if: $RUN_CMD
+      when: never
+    - if: $CI_COMMIT_REF_NAME
   script:
     - docker pull $ACCOUNTING_IMAGE
     - |
@@ -45,29 +54,105 @@ execute_yaml_check:
         --mount type=bind,source=/etc/timezone,target=/etc/timezone \
         --mount type=bind,source=/etc/localtime,target=/etc/localtime \
         $ACCOUNTING_IMAGE /opt/sysadmws/accounting/accounting.py --yaml-check
-  except:
-    variables:
-      - $RUN_CMD
+
+execute_db_structure:
+  tags:
+    - __prod_runner__
+  stage: execute_db_structure
+  rules:
+    - if: $RUN_CMD
+      when: never
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  script:
+    - docker pull $ACCOUNTING_IMAGE
+    - |
+      docker run --rm \
+        --env GL_PG_DB_HOST \
+        --env GL_PG_DB_PORT \
+        --env GL_PG_DB_NAME \
+        --env GL_PG_DB_USER \
+        --env GL_PG_DB_PASS \
+        --env GL_ADMIN_PRIVATE_TOKEN \
+        --env GL_BOT_PRIVATE_TOKEN \
+        --env GL_USER_PRIVATE_TOKEN \
+        --env GL_URL \
+        --env PG_DB_HOST \
+        --env PG_DB_PORT \
+        --env PG_DB_NAME \
+        --env PG_DB_USER \
+        --env PG_DB_PASS \
+        --env SA_SECRETS_FILE \
+        --env SSH_DU_S_M_KEYFILE \
+        --env SSH_DU_S_M_USER \
+        --mount type=bind,source=/opt/sysadmws/accounting/log,target=/opt/sysadmws/accounting/log \
+        --mount type=bind,source=/etc/timezone,target=/etc/timezone \
+        --mount type=bind,source=/etc/localtime,target=/etc/localtime \
+        $ACCOUNTING_IMAGE /opt/sysadmws/accounting/accounting.py --debug --db-structure
+
+execute_asset_labels:
+  tags:
+    - __prod_runner__
+  stage: execute_asset_labels
+  rules:
+    - if: $RUN_CMD
+      when: never
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  script:
+    - docker pull $ACCOUNTING_IMAGE
+    - |
+      docker run --rm \
+        --env GL_PG_DB_HOST \
+        --env GL_PG_DB_PORT \
+        --env GL_PG_DB_NAME \
+        --env GL_PG_DB_USER \
+        --env GL_PG_DB_PASS \
+        --env GL_ADMIN_PRIVATE_TOKEN \
+        --env GL_BOT_PRIVATE_TOKEN \
+        --env GL_USER_PRIVATE_TOKEN \
+        --env GL_URL \
+        --env PG_DB_HOST \
+        --env PG_DB_PORT \
+        --env PG_DB_NAME \
+        --env PG_DB_USER \
+        --env PG_DB_PASS \
+        --env SA_SECRETS_FILE \
+        --env SSH_DU_S_M_KEYFILE \
+        --env SSH_DU_S_M_USER \
+        --mount type=bind,source=/opt/sysadmws/accounting/log,target=/opt/sysadmws/accounting/log \
+        --mount type=bind,source=/etc/timezone,target=/etc/timezone \
+        --mount type=bind,source=/etc/localtime,target=/etc/localtime \
+        $ACCOUNTING_IMAGE /opt/sysadmws/accounting/accounting.py --debug --asset-labels
 
 execute_run_cmd:
   tags:
     - __prod_runner__
   stage: execute_run_cmd
+  rules:
+    - if: $RUN_CMD && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   script:
     - docker pull $ACCOUNTING_IMAGE
     - |
       docker run --rm \
+        --env GL_PG_DB_HOST \
+        --env GL_PG_DB_PORT \
+        --env GL_PG_DB_NAME \
+        --env GL_PG_DB_USER \
+        --env GL_PG_DB_PASS \
         --env GL_ADMIN_PRIVATE_TOKEN \
+        --env GL_BOT_PRIVATE_TOKEN \
         --env GL_USER_PRIVATE_TOKEN \
         --env GL_URL \
+        --env PG_DB_HOST \
+        --env PG_DB_PORT \
+        --env PG_DB_NAME \
+        --env PG_DB_USER \
+        --env PG_DB_PASS \
+        --env SA_SECRETS_FILE \
+        --env SSH_DU_S_M_KEYFILE \
+        --env SSH_DU_S_M_USER \
         --mount type=bind,source=/opt/sysadmws/accounting/log,target=/opt/sysadmws/accounting/log \
         --mount type=bind,source=/etc/timezone,target=/etc/timezone \
         --mount type=bind,source=/etc/localtime,target=/etc/localtime \
         --mount type=bind,source=/opt/sysadmws/accounting/.jobs,target=/opt/sysadmws/accounting/.jobs \
         --mount type=bind,source=/opt/sysadmws/accounting/.locks,target=/opt/sysadmws/accounting/.locks \
         $ACCOUNTING_IMAGE $RUN_CMD
-  only:
-    refs:
-      - master
-    variables:
-      - $RUN_CMD

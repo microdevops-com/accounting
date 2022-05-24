@@ -257,14 +257,6 @@ if __name__ == "__main__":
     # Skip vars check where not needed
     if not (args.yaml_check or args.list_assets_for_client is not None or args.list_assets_for_all_clients):
 
-        GL_ADMIN_PRIVATE_TOKEN = os.environ.get("GL_ADMIN_PRIVATE_TOKEN")
-        if GL_ADMIN_PRIVATE_TOKEN is None:
-            raise Exception("Env var GL_ADMIN_PRIVATE_TOKEN missing")
-
-        GL_BOT_PRIVATE_TOKEN = os.environ.get("GL_BOT_PRIVATE_TOKEN")
-        if GL_BOT_PRIVATE_TOKEN is None:
-            raise Exception("Env var GL_BOT_PRIVATE_TOKEN missing")
-
         PG_DB_HOST = os.environ.get("PG_DB_HOST")
         if PG_DB_HOST is None:
             raise Exception("Env var PG_DB_HOST missing")
@@ -280,6 +272,16 @@ if __name__ == "__main__":
         PG_DB_PASS = os.environ.get("PG_DB_PASS")
         if PG_DB_PASS is None:
             raise Exception("Env var PG_DB_PASS missing")
+
+    if not (args.yaml_check or args.list_assets_for_client is not None or args.list_assets_for_all_clients or args.db_structure):
+
+        GL_ADMIN_PRIVATE_TOKEN = os.environ.get("GL_ADMIN_PRIVATE_TOKEN")
+        if GL_ADMIN_PRIVATE_TOKEN is None:
+            raise Exception("Env var GL_ADMIN_PRIVATE_TOKEN missing")
+
+        GL_BOT_PRIVATE_TOKEN = os.environ.get("GL_BOT_PRIVATE_TOKEN")
+        if GL_BOT_PRIVATE_TOKEN is None:
+            raise Exception("Env var GL_BOT_PRIVATE_TOKEN missing")
 
         GL_PG_DB_HOST = os.environ.get("GL_PG_DB_HOST")
         if GL_PG_DB_HOST is None:

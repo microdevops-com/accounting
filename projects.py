@@ -621,6 +621,10 @@ if __name__ == "__main__":
                                 salt_master_ssh_pub.append(salt_master["root_rsa"]["pub"].rstrip())
                             # For now salt minion cannot manage both ports per salt master, so take ports from the salt1
                             salt_master_ext_ports.append(salt_master["external_ports"])
+                        if "master_worker_threads" in client_dict["configuration_management"]["salt"]:
+                            salt_master_worker_threads = client_dict["configuration_management"]["salt"]["master_worker_threads"]
+                        else:
+                            salt_master_worker_threads = 4
 
                         # Install templates
                         script = textwrap.dedent(
@@ -644,6 +648,7 @@ if __name__ == "__main__":
                                     DEV_RUNNER={DEV_RUNNER} \
                                     SALT_MINION_VERSION={SALT_MINION_VERSION} \
                                     SALT_MASTER_VERSION={SALT_MASTER_VERSION} \
+                                    SALT_MASTER_THREADS={SALT_MASTER_THREADS} \
                                     SALT_VERSION={SALT_VERSION} \
                                     SALT_MASTER_1_NAME={SALT_MASTER_1_NAME} \
                                     SALT_MASTER_1_IP={SALT_MASTER_1_IP} \
@@ -676,6 +681,7 @@ if __name__ == "__main__":
                             SALT_MASTER_PORT_2=salt_master_ext_ports[0][1],
                             SALT_MINION_VERSION=client_dict["configuration_management"]["salt"]["version"],
                             SALT_MASTER_VERSION=client_dict["configuration_management"]["salt"]["version"],
+                            SALT_MASTER_THREADS=salt_master_worker_threads,
                             SALT_VERSION=client_dict["configuration_management"]["salt"]["version"],
                             ROOT_EMAIL=client_dict["configuration_management"]["templates"]["root_email"],
                             TELEGRAM_TOKEN=client_dict["configuration_management"]["templates"]["telegram_token"],
@@ -909,6 +915,8 @@ if __name__ == "__main__":
                             pillar_master_dict["salt"]["master"]["gitlab-runner"] = {}
                             pillar_master_dict["salt"]["master"]["gitlab-runner"]["gitlab_url"] = acc_yaml_dict["gitlab"]["url"]
                             pillar_master_dict["salt"]["master"]["gitlab-runner"]["gitlab_runner_name"] = salt_master["fqdn"]
+                            if "gitlab-runner_concurrent" in client_dict["configuration_management"]["salt"]:
+                                pillar_master_dict["salt"]["master"]["gitlab-runner"]["concurrent"] = client_dict["configuration_management"]["salt"]["gitlab-runner_concurrent"]
 
                             # Gitlab-runner registration token
                             # You have to have project maintainer rights to get token with code

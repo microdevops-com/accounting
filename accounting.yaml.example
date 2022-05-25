@@ -1,3 +1,9 @@
+accounting:
+  manager_id: 2 # user id to assign check issues
+  project: example/accounting
+  email: accounting@example.com
+gsuite:
+  drive_user: user@example.com # user to put created docs for
 gitlab:
   url: https://gitlab.example.com
   salt_project: # apply these settings to projects on setup
@@ -10,34 +16,35 @@ gitlab:
       dev: dev-runner1.example.com # needed for both salt and salt-ssh to build docker image
       prod: prod-runner1.example.com # needed for salt-ssh to execute salt-ssh and login to the servers
 os: # allowed os for servers
+  - none
   - precise
   - trusty
   - xenial
   - bionic
   - focal
+  - jammy
+  - buster
   - 2008ServerR2
   - 2019Server
   - centos7
   - centos8
   - unknown
 defaults:
-  ufw_type: ufw_simple
+  configuration_management:
+    templates:
+      ufw_type: ufw
 jobs:
-  # Check minions
+  # Every 4 hours
   test_ping:
     type: salt_cmd
     cmd: test.ping
-    timeout: 60
+    timeout: 300
     tz: Europe/Kiev
     each:
       hours: 4
     licenses:
       - monitoring
-    os:
-      exclude:
-        - 2008ServerR2
-        - 2019Server
-  # 0:10
+  # 9:00
   ufw:
     type: salt_cmd
     cmd: state.apply ufw queue=True
@@ -46,9 +53,9 @@ jobs:
     each:
       days: 1
     hours:
-      - 0
+      - 9
     minutes:
-      - 10
+      - 0
     licenses:
       - firewall
     os:
@@ -56,67 +63,111 @@ jobs:
         - 2008ServerR2
         - 2019Server
         - unknown
-  # 0:20
+  # 9:30
+  ufw_simple:
+    type: salt_cmd
+    cmd: state.apply ufw_simple.ufw_simple queue=True
+    timeout: 900
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 9
+    minutes:
+      - 30
+    licenses:
+      - firewall
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 10:00
   sysadmws-utils:
     type: salt_cmd
-    cmd: state.apply sysadmws-utils.sysadmws-utils queue=True
+    cmd: state.apply sysadmws-utils queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
       days: 1
     hours:
-      - 0
+      - 10
     minutes:
-      - 20
-  # 0:30
+      - 0
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 10:30
   bulk_log:
     type: salt_cmd
-    cmd: state.apply bulk_log.bulk_log queue=True
+    cmd: state.apply bulk_log queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
       days: 1
     hours:
-      - 0
+      - 10
     minutes:
       - 30
-  # 0:30
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 11:00
   disk_alert:
     type: salt_cmd
-    cmd: state.apply disk_alert.disk_alert queue=True
+    cmd: state.apply disk_alert queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
       days: 1
     hours:
-      - 0
+      - 11
     minutes:
-      - 30
-  # 0:30
+      - 0
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 11:30
   mysql_queries_log:
     type: salt_cmd
-    cmd: state.apply mysql_queries_log.mysql_queries_log queue=True
+    cmd: state.apply mysql_queries_log queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
       days: 1
     hours:
-      - 0
+      - 11
     minutes:
       - 30
-  # 0:30
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 12:00
   mysql_replica_checker:
     type: salt_cmd
-    cmd: state.apply mysql_replica_checker.mysql_replica_checker queue=True
+    cmd: state.apply mysql_replica_checker queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
       days: 1
     hours:
-      - 0
+      - 12
     minutes:
-      - 30
-  # 0:40
+      - 0
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 12:30
   cmd_check_alert:
     type: salt_cmd
     cmd: state.apply cmd_check_alert queue=True
@@ -125,22 +176,32 @@ jobs:
     each:
       days: 1
     hours:
-      - 0
+      - 12
     minutes:
-      - 40
-  # 0:50
+      - 30
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 13:00
   notify_devilry:
     type: salt_cmd
-    cmd: state.apply notify_devilry.notify_devilry queue=True
+    cmd: state.apply notify_devilry queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
       days: 1
     hours:
-      - 0
+      - 13
     minutes:
-      - 50
-  # 1:00
+      - 0
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 13:30
   ssh-auth-keys:
     type: salt_cmd
     cmd: |
@@ -150,10 +211,15 @@ jobs:
     each:
       days: 1
     hours:
-      - 1
+      - 13
     minutes:
-      - 0
-  # 1:10
+      - 30
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 14:00
   forward_root_email:
     type: salt_cmd
     cmd: |
@@ -163,24 +229,34 @@ jobs:
     each:
       days: 1
     hours:
-      - 1
+      - 14
     minutes:
-      - 10
-  # 1:20
+      - 0
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 14:30 weekly
   netdata:
     type: salt_cmd
-    cmd: state.apply netdata.netdata queue=True
+    cmd: state.apply netdata queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
       weeks: 1
     hours:
-      - 1
+      - 14
     minutes:
-      - 20
+      - 30
     licenses:
       - monitoring
-  # 1:30
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 15:00
   heartbeat_mesh_sender:
     type: salt_cmd
     cmd: state.apply heartbeat_mesh.sender queue=True
@@ -189,22 +265,10 @@ jobs:
     each:
       days: 1
     hours:
-      - 1
+      - 15
     minutes:
-      - 30
-  # 1:40
-  users_unix:
-    type: salt_cmd
-    cmd: state.apply users.unix queue=True
-    timeout: 300
-    tz: Europe/Kiev
-    each:
-      days: 1
-    hours:
-      - 1
-    minutes:
-      - 40
-  # 1:40
+      - 0
+  # 15:30
   bash_misc:
     type: salt_cmd
     cmd: state.apply bash.misc queue=True
@@ -213,14 +277,32 @@ jobs:
     each:
       days: 1
     hours:
-      - 1
+      - 15
     minutes:
-      - 40
+      - 30
     os:
       exclude:
         - 2008ServerR2
         - 2019Server
-  # 1:50
+        - unknown
+  # 16:00
+  users_unix:
+    type: salt_cmd
+    cmd: state.apply users.unix queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 16
+    minutes:
+      - 0
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
+  # 16:00
   users_windows:
     type: salt_cmd
     cmd: state.apply users.windows queue=True
@@ -229,9 +311,9 @@ jobs:
     each:
       days: 1
     hours:
-      - 1
+      - 16
     minutes:
-      - 50
+      - 0
     os:
       include:
         - 2008ServerR2

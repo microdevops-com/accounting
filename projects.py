@@ -197,6 +197,10 @@ if __name__ == "__main__":
                             project.only_allow_merge_if_pipeline_succeeds = acc_yaml_dict["gitlab"]["salt_project"]["only_allow_merge_if_pipeline_succeeds"]
                             project.only_allow_merge_if_all_discussions_are_resolved = True
                             project.resolve_outdated_diff_discussions = True
+                            # If "Auto-cancel redundant pipelines" enabled - it will cancel running jobs on new code commit
+                            project.auto_cancel_pending_pipelines = "disabled"
+                            # Disable "Skip outdated deployment jobs" as well
+                            project.ci_forward_deployment_enabled = False
                             project.build_timeout = 86400
                             # Maintainer group
                             if "salt_project" in acc_yaml_dict["gitlab"] and "maintainers_group_id" in acc_yaml_dict["gitlab"]["salt_project"]:

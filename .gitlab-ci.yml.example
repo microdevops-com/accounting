@@ -16,7 +16,7 @@ before_script:
 
 build:
   tags:
-    - __dev_runner__
+    - accounting
   stage: build
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -29,7 +29,7 @@ build:
 
 push:
   tags:
-    - __dev_runner__
+    - accounting
   stage: push
   rules:
     - if: $RUN_CMD
@@ -40,7 +40,7 @@ push:
 
 execute_yaml_check:
   tags:
-    - __dev_runner__
+    - accounting
   stage: execute_yaml_check
   rules:
     - if: $RUN_CMD
@@ -57,7 +57,7 @@ execute_yaml_check:
 
 execute_db_structure:
   tags:
-    - __prod_runner__
+    - accounting
   stage: execute_db_structure
   rules:
     - if: $RUN_CMD
@@ -91,7 +91,7 @@ execute_db_structure:
 
 execute_asset_labels:
   tags:
-    - __prod_runner__
+    - accounting
   stage: execute_asset_labels
   rules:
     - if: $RUN_CMD
@@ -125,7 +125,7 @@ execute_asset_labels:
 
 execute_run_cmd:
   tags:
-    - __prod_runner__
+    - accounting
   stage: execute_run_cmd
   rules:
     - if: $RUN_CMD && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH

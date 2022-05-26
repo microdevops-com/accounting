@@ -377,7 +377,7 @@ if __name__ == "__main__":
                     # Prepare local repo
 
                     if args.git_reset:
-                        git_fetch_text = "git fetch origin --no-tags"
+                        git_fetch_text = "git fetch origin"
                         git_reset_text = "git reset --hard origin/master"
                         git_clean_text = "git clean -ffdx"
                     else:
@@ -394,12 +394,12 @@ if __name__ == "__main__":
                             {reset}
                             {clean}
                         else
-                            git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
+                            git clone {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         fi
                         git submodule init
                         git submodule update -f --checkout
-                        git submodule foreach "git checkout master && git pull --no-tags"
+                        git submodule foreach "git checkout master && git pull"
                         ln -sf ../../.githooks/pre-push .git/hooks/pre-push
                         """
                     ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
@@ -463,7 +463,7 @@ if __name__ == "__main__":
                     # Prepare local repo
 
                     if args.git_reset:
-                        git_fetch_text = "git fetch origin --no-tags"
+                        git_fetch_text = "git fetch origin"
                         git_reset_text = "git reset --hard origin/master"
                         git_clean_text = "git clean -ffdx"
                     else:
@@ -480,12 +480,12 @@ if __name__ == "__main__":
                             {reset}
                             {clean}
                         else
-                            git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
+                            git clone {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         fi
                         git submodule init
                         git submodule update -f --checkout
-                        git submodule foreach "git checkout master && git pull --no-tags"
+                        git submodule foreach "git checkout master && git pull"
                         ln -sf ../../.githooks/pre-push .git/hooks/pre-push
                         """
                     ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
@@ -1040,7 +1040,7 @@ if __name__ == "__main__":
                     # Prepare local repo
 
                     if args.git_reset:
-                        git_fetch_text = "git fetch origin --no-tags"
+                        git_fetch_text = "git fetch origin"
                         git_reset_text = "git reset --hard origin/master"
                         git_clean_text = "git clean -ffdx"
                     else:
@@ -1057,12 +1057,12 @@ if __name__ == "__main__":
                             {reset}
                             {clean}
                         else
-                            git clone --no-tags {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
+                            git clone {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         fi
                         git submodule init
                         git submodule update -f --checkout
-                        git submodule foreach "git checkout master && git pull --no-tags"
+                        git submodule foreach "git checkout master && git pull"
                         """
                     ).format(ssh_url_to_repo=ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
                     logger.info("Running bash script:")

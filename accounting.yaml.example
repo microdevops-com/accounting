@@ -10,7 +10,6 @@ gitlab:
     author_email: admin@example.com
     author_name: Admin
     maintainers_group_id: 123
-    run_tag_create_access_level: 30
     only_allow_merge_if_pipeline_succeeds: True
     runners:
       dev: dev-runner1.example.com # needed for both salt and salt-ssh to build docker image

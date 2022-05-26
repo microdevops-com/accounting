@@ -206,11 +206,12 @@ if __name__ == "__main__":
                             if "deploy_keys" in client_dict["gitlab"]["salt_project"]:
                                 for deploy_key in client_dict["gitlab"]["salt_project"]["deploy_keys"]:
                                     key = project.keys.create({'title': deploy_key["title"], 'key': deploy_key["key"]})
+                            # This is deprecated but kept for history
                             # Protected tags
-                            if any(project_tag.name == 'run_*' for project_tag in project.protectedtags.list(all=True)):
-                                p_tag = project.protectedtags.get('run_*')
-                                p_tag.delete()
-                            project.protectedtags.create({'name': 'run_*', 'create_access_level': str(acc_yaml_dict["gitlab"]["salt_project"]["run_tag_create_access_level"])})
+                            #if any(project_tag.name == 'run_*' for project_tag in project.protectedtags.list(all=True)):
+                            #    p_tag = project.protectedtags.get('run_*')
+                            #    p_tag.delete()
+                            #project.protectedtags.create({'name': 'run_*', 'create_access_level': str(acc_yaml_dict["gitlab"]["salt_project"]["run_tag_create_access_level"])})
                             # Runner for salt
                             if client_dict["configuration_management"]["type"] == "salt":
                                 dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"]

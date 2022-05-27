@@ -102,3 +102,25 @@ CREATE INDEX IF NOT EXISTS pipeline_salt_cmd_history_target ON pipeline_salt_cmd
 CREATE INDEX IF NOT EXISTS pipeline_salt_cmd_history_pipeline_id ON pipeline_salt_cmd_history (pipeline_id);
 CREATE INDEX IF NOT EXISTS pipeline_salt_cmd_history_pipeline_status ON pipeline_salt_cmd_history (pipeline_status);
 CREATE INDEX IF NOT EXISTS pipeline_salt_cmd_history_project ON pipeline_salt_cmd_history (project);
+
+
+CREATE TABLE IF NOT EXISTS jobs_log (
+	id SERIAL PRIMARY KEY,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+	jobs_script_run_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	client TEXT NOT NULL,
+	asset_fqdn TEXT NOT NULL,
+	job_id TEXT NOT NULL,
+	job_level TEXT NOT NULL,
+	job_type TEXT NOT NULL,
+	job_cmd TEXT NOT NULL,
+	job_timeout TEXT NOT NULL,
+	job_tz TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS jobs_log_created_at ON jobs_log (created_at);
+CREATE INDEX IF NOT EXISTS jobs_log_jobs_script_run_at ON jobs_log (jobs_script_run_at);
+CREATE INDEX IF NOT EXISTS jobs_log_asset_fqdn ON jobs_log (asset_fqdn);
+CREATE INDEX IF NOT EXISTS jobs_log_client ON jobs_log (client);
+CREATE INDEX IF NOT EXISTS jobs_log_job_id ON jobs_log (job_id);
+CREATE INDEX IF NOT EXISTS jobs_log_asset_fqdn_client_job_id_combo ON jobs_log (asset_fqdn, client, job_id);

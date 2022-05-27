@@ -97,7 +97,6 @@ export GL_USER_PRIVATE_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxx
 Make local test dirs:
 ```
 mkdir $ACC_LOGDIR
-mkdir ${ACC_WORKDIR}/.jobs
 ```
 
 Setup client project in GitLab:
@@ -122,8 +121,6 @@ Locally run test.ping pipeline job via `jobs.py`:
 
 Make dirs on prod runner of project:
 ```
-mkdir -p /opt/sysadmws/accounting/.jobs
-mkdir -p /opt/sysadmws/accounting/.locks
 mkdir -p /opt/sysadmws/accounting/log
 ```
 

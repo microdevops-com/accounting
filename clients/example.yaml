@@ -80,7 +80,7 @@ configuration_management:
   salt:
     version: 3001
     pki:
-      master_sign: # Here and below use ./salt-key.py --gen-keys=tmp/some_xxx, EACH key pair is unique
+      master_sign:
         pem: |
           -----BEGIN RSA PRIVATE KEY-----
           ...

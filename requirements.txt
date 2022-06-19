@@ -14,5 +14,4 @@ retrying
 ruamel.yaml
 jinja2==2.11.*
 mergedeep
-salt==3001.8
 MarkupSafe==2.0.1

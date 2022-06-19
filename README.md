@@ -32,8 +32,6 @@ ln -s .accounting/projects.py
 ln -s .accounting/accounting.py
 ln -s .accounting/services.py
 ln -s .accounting/requirements.txt
-ln -s .accounting/requirements.txt
-ln -s .accounting/requirements.txt
 ln -s .accounting/sysadmws_common.py
 ln -s .accounting/accounting_db_structure.sql
 ln -s .accounting/.gitignore

@@ -516,7 +516,7 @@ if __name__ == "__main__":
                                             job_id=job["id"],
                                             job_level=job["level"],
                                             job_type=job["type"],
-                                            job_cmd=job["cmd"] if "cmd" in job else "",
+                                            job_cmd=job["cmd"].rstrip() if "cmd" in job else "",
                                             job_timeout=job["timeout"] if "timeout" in job else ""
                                         )
                                     )

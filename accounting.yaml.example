@@ -201,10 +201,10 @@ jobs:
         - 2019Server
         - unknown
   # 13:30
-  ssh-auth-keys:
+  ssh_keys:
     type: salt_cmd
     cmd: |
-      state.apply pkg.pkg pillar='{pkg_filter: ssh-auth-keys}' queue=True
+      state.apply ssh_keys queue=True
     timeout: 300
     tz: Europe/Kiev
     each:

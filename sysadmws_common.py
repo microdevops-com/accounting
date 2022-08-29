@@ -222,6 +222,10 @@ def load_client_yaml(WORK_DIR, f, CLIENTS_SUBDIR, YAML_GLOB, logger):
                         for skip_file in yaml_dict["include"]["skip_files"]:
                             if skip_file in include_file:
                                 should_open = False
+                    if "skip_dirs" in yaml_dict["include"]:
+                        for skip_dir in yaml_dict["include"]["skip_dirs"]:
+                            if skip_dir in include_file:
+                                should_open = False
                     if should_open:
                         try:
                             with open(include_file, 'r') as included_yaml_file:

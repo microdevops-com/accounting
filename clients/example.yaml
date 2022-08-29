@@ -32,7 +32,9 @@ billing:
   #monthly_invoice_disabled: True
 include:
   dirs:
-    - example
+    - example # included recursively
+  skip_dirs:
+    - example/inactive
   skip_files:
     - example/assets_inactive.yaml
   files:

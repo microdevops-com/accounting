@@ -154,7 +154,7 @@ def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, at_datetime, o
         asset_list_to_process.extend(client_dict["assets"])
 
     # Include salt masters in list
-    if client_dict["configuration_management"]["type"] == "salt":
+    if "configuration_management" in client_dict and client_dict["configuration_management"]["type"] == "salt":
         asset_list_to_process.extend(client_dict["configuration_management"]["salt"]["masters"])
 
     asset_list = []
@@ -212,7 +212,7 @@ def load_client_yaml(WORK_DIR, f, CLIENTS_SUBDIR, YAML_GLOB, logger):
             for dir_name in yaml_dict["include"]["dirs"]:
 
                 # Include dir_name/*.yaml
-                for include_file in sorted(glob.glob("{0}/{1}/{2}/{3}".format(WORK_DIR, CLIENTS_SUBDIR, dir_name, YAML_GLOB))):
+                for include_file in sorted(glob.glob("{0}/{1}/{2}/{3}/{4}".format(WORK_DIR, CLIENTS_SUBDIR, dir_name, "**/", YAML_GLOB), recursive = True)):
 
                     logger.info("Found include file: {0}".format(include_file))
 

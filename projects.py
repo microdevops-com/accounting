@@ -14,6 +14,7 @@ from ruamel.yaml.scalarstring import PreservedScalarString as pss
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from datetime import datetime
 from datetime import time
+import prettytable
 
 # Constants and envs
 
@@ -56,9 +57,17 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run-gitlab", dest="dry_run_gitlab", help="no new objects created in gitlab", action="store_true")
     parser.add_argument("--gitlab-runner-registration-token", dest="gitlab_runner_registration_token", help="set gitlab runner registration token for template if you do not have maintainer rights to get it with code", nargs=1, metavar=("TOKEN"))
     parser.add_argument("--at-date", dest="at_date", help="use DATETIME instead of now for tariff", nargs=1, metavar=("DATETIME"))
+    parser.add_argument("--issue", dest="issue", help="do list/comment operations for issues", action="store_true")
+    parser.add_argument("--mr", dest="mr", help="do list/comment operations for MRs", action="store_true")
+    parser.add_argument("--include-closed", dest="include_closed", help="include closed issues/MRs in lists", action="store_true")
+    parser.add_argument("--assignee", dest="assignee", help="include only issues/MRs with assignee USERNAME in lists", nargs=1, metavar=("USERNAME"))
+    parser.add_argument("--text", dest="text", help="add TEXT to the issue/MR on --comment", nargs=1, metavar=("TEXT"))
+    parser.add_argument("--spend", dest="spend", help="add /spend TIME to the issue/MR on --comment", nargs=1, metavar=("TIME"))
+    #
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
     group.add_argument("--include-clients", dest="include_clients", help="include only clients defined by JSON_LIST for all-clients operations", nargs=1, metavar=("JSON_LIST"))
+    #
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--setup-projects-for-client", dest="setup_projects_for_client", help="ensure -salt, -admin projects created in GitLab, their settings setup for client CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--setup-projects-for-all-clients", dest="setup_projects_for_all_clients", help="ensure -salt, -admin project created in GitLab, their settings setup for all clients excluding --exclude-clients or only for --include-clients", action="store_true")
@@ -68,12 +77,20 @@ if __name__ == "__main__":
     group.add_argument("--template-salt-project-for-all-clients", dest="template_salt_project_for_all_clients", help="apply templates for salt project for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
     group.add_argument("--update-admin-project-wiki-for-client", dest="update_admin_project_wiki_for_client", help="update admin project wiki (asset list, memo etc) for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
     group.add_argument("--update-admin-project-wiki-for-all-clients", dest="update_admin_project_wiki_for_all_clients", help="update admin project wiki (asset list, memo etc) for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
+    group.add_argument("--list", dest="list", help="list issues/MRs in CLIENT projects, ALL = all clients, either --issue or --mr required", nargs=1, metavar=("CLIENT"))
+    group.add_argument("--comment", dest="comment", help="add comment to PROJECT issue/MR with IID", nargs=2, metavar=("PROJECT", "IID"))
 
     if len(sys.argv) > 1:
         args = parser.parse_args()
     else:
         parser.print_help()
         sys.exit(1)
+
+    # Check additional required args
+    if (args.list is not None or args.comment is not None) and not (args.issue or args.mr):
+        parser.error("Either --issue or --mr is required")
+    if args.comment is not None and args.text is None:
+        parser.error("--text is required")
 
     # Set logger and console debug
     if args.debug:
@@ -84,6 +101,10 @@ if __name__ == "__main__":
     GL_ADMIN_PRIVATE_TOKEN = os.environ.get("GL_ADMIN_PRIVATE_TOKEN")
     if GL_ADMIN_PRIVATE_TOKEN is None:
         raise Exception("Env var GL_ADMIN_PRIVATE_TOKEN missing")
+
+    GL_USER_PRIVATE_TOKEN = os.environ.get("GL_USER_PRIVATE_TOKEN")
+    if GL_USER_PRIVATE_TOKEN is None:
+        raise Exception("Env var GL_USER_PRIVATE_TOKEN missing")
 
     # Catch exception to logger
 
@@ -1198,6 +1219,146 @@ if __name__ == "__main__":
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
+
+        if args.list is not None:
+            
+            client, = args.list
+
+            # Connect to GitLab
+            gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)
+            gl.auth()
+
+            # For *.yaml in client dir
+            for client_file in glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB)):
+
+                logger.info("Found client file: {0}".format(client_file))
+
+                # Load client YAML
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
+                if client_dict is None:
+                    raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
+                
+                # Check specific client
+                if client != "ALL":
+                    if client_dict["name"].lower() != client:
+                        continue
+
+                # Check client active, inclusions, exclusions
+                if (
+                        client_dict["active"]
+                        and
+                        (
+                            (
+                                args.exclude_clients is not None
+                                and
+                                client_dict["name"].lower() not in exclude_clients_list
+                            )
+                            or
+                            (
+                                args.include_clients is not None
+                                and
+                                client_dict["name"].lower() in include_clients_list
+                            )
+                            or
+                            (
+                                args.exclude_clients is None
+                                and
+                                args.include_clients is None
+                            )
+                        )
+                    ):
+            
+                    project_list = []
+
+                    if "salt_project" in client_dict["gitlab"]:
+                        project_list.append(client_dict["gitlab"]["salt_project"]["path"])
+                    
+                    if "admin_project" in client_dict["gitlab"]:
+                        if client_dict["gitlab"]["admin_project"]["path"] not in project_list:
+                            project_list.append(client_dict["gitlab"]["admin_project"]["path"])
+
+                    for project in project_list:
+                    
+                        logger.info("Checking project {project} for client {client}".format(project=project, client=client_dict["name"]))
+                        gitlab_project = gl.projects.get(project)
+
+                        print(project)
+                        table = prettytable.PrettyTable()
+                        table.field_names = ["iid", "title", "url"]
+                        table.align["iid"] = "r"
+                        table.align["title"] = "l"
+                        table.align["url"] = "l"
+
+                        if args.issue:
+                            if args.include_closed:
+                                if args.assignee is None:
+                                    imr_list = gitlab_project.issues.list(all=True, order_by="created_at", sort="asc")
+                                else:
+                                    imr_list = gitlab_project.issues.list(all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
+                            else:
+                                if args.assignee is None:
+                                    imr_list = gitlab_project.issues.list(state="opened", all=True, order_by="created_at", sort="asc")
+                                else:
+                                    imr_list = gitlab_project.issues.list(state="opened", all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
+
+                        if args.mr:
+                            if args.include_closed:
+                                if args.assignee is None:
+                                    imr_list = gitlab_project.mergerequests.list(all=True, order_by="created_at", sort="asc")
+                                else:
+                                    imr_list = gitlab_project.mergerequests.list(all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
+                            else:
+                                if args.assignee is None:
+                                    imr_list = gitlab_project.mergerequests.list(state="opened", all=True, order_by="created_at", sort="asc")
+                                else:
+                                    imr_list = gitlab_project.mergerequests.list(state="opened", all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
+
+                        for imr in imr_list:
+                            table.add_row([imr.iid, imr.title, imr.web_url])
+
+                        print(table)
+
+        if args.comment is not None:
+            
+            project, imr_iid = args.comment
+
+            # Connect to GitLab
+            gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_USER_PRIVATE_TOKEN)
+            gl.auth()
+
+            logger.info("Checking project {project}".format(project=project))
+            gitlab_project = gl.projects.get(project)
+
+            if args.issue:
+                imr = gitlab_project.issues.get(imr_iid)
+
+            if args.mr:
+                imr = gitlab_project.mergerequests.get(imr_iid)
+
+            print("title: ", end="")
+            print(imr.title)
+            print("url: ", end="")
+            print(imr.web_url)
+
+            if not args.dry_run_gitlab:
+
+                if args.spend is not None:
+                    body_text = textwrap.dedent(
+                        """
+                        {text}
+                        /spend {spend}
+                        """
+                    ).format(
+                        text=args.text[0],
+                        spend=args.spend[0]
+                    )
+                else:
+                    body_text = args.text[0]
+                note = imr.notes.create({"body": body_text})
+                print("comment username: ", end="")
+                print(note.author["username"])
+                print("comment body: ", end="")
+                print(note.body)
 
     # Reroute catched exception to log
     except Exception as e:

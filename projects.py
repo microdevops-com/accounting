@@ -61,6 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--mr", dest="mr", help="do list/comment operations for MRs", action="store_true")
     parser.add_argument("--include-closed", dest="include_closed", help="include closed issues/MRs in lists", action="store_true")
     parser.add_argument("--assignee", dest="assignee", help="include only issues/MRs with assignee USERNAME in lists", nargs=1, metavar=("USERNAME"))
+    parser.add_argument("--labels", dest="labels", help="include only issues/MRs with LABELS in lists", nargs=1, metavar=("LABELS"))
     parser.add_argument("--text", dest="text", help="add TEXT to the issue/MR on --comment", nargs=1, metavar=("TEXT"))
     parser.add_argument("--spend", dest="spend", help="add /spend TIME to the issue/MR on --comment", nargs=1, metavar=("TIME"))
     #
@@ -78,7 +79,7 @@ if __name__ == "__main__":
     group.add_argument("--update-admin-project-wiki-for-client", dest="update_admin_project_wiki_for_client", help="update admin project wiki (asset list, memo etc) for client CLIENT using current user git creds", nargs=1, metavar=("CLIENT"))
     group.add_argument("--update-admin-project-wiki-for-all-clients", dest="update_admin_project_wiki_for_all_clients", help="update admin project wiki (asset list, memo etc) for all clients excluding --exclude-clients or only for --include-clients using current user git creds", action="store_true")
     group.add_argument("--list", dest="list", help="list issues/MRs in CLIENT projects, ALL = all clients, either --issue or --mr required", nargs=1, metavar=("CLIENT"))
-    group.add_argument("--comment", dest="comment", help="add comment to PROJECT issue/MR with IID", nargs=2, metavar=("PROJECT", "IID"))
+    group.add_argument("--comment", dest="comment", help="add comment to PROJECT issue/MR with IID, title can be used instead of IID", nargs=2, metavar=("PROJECT", "IID"))
 
     if len(sys.argv) > 1:
         args = parser.parse_args()
@@ -1289,29 +1290,22 @@ if __name__ == "__main__":
                         table.align["title"] = "l"
                         table.align["url"] = "l"
 
+                        list_args = {}
+                        list_args["order_by"] = "created_at"
+                        list_args["sort"] = "asc"
+                        list_args["all"] = True
+                        if args.assignee is not None:
+                            list_args["assignee_username"] = args.assignee[0]
+                        if not args.include_closed:
+                            list_args["state"] = "opened"
+                        if args.labels is not None:
+                            list_args["labels"] = args.labels[0]
+
                         if args.issue:
-                            if args.include_closed:
-                                if args.assignee is None:
-                                    imr_list = gitlab_project.issues.list(all=True, order_by="created_at", sort="asc")
-                                else:
-                                    imr_list = gitlab_project.issues.list(all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
-                            else:
-                                if args.assignee is None:
-                                    imr_list = gitlab_project.issues.list(state="opened", all=True, order_by="created_at", sort="asc")
-                                else:
-                                    imr_list = gitlab_project.issues.list(state="opened", all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
+                            imr_list = gitlab_project.issues.list(**list_args)
 
                         if args.mr:
-                            if args.include_closed:
-                                if args.assignee is None:
-                                    imr_list = gitlab_project.mergerequests.list(all=True, order_by="created_at", sort="asc")
-                                else:
-                                    imr_list = gitlab_project.mergerequests.list(all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
-                            else:
-                                if args.assignee is None:
-                                    imr_list = gitlab_project.mergerequests.list(state="opened", all=True, order_by="created_at", sort="asc")
-                                else:
-                                    imr_list = gitlab_project.mergerequests.list(state="opened", all=True, order_by="created_at", sort="asc", assignee_username=args.assignee[0])
+                            imr_list = gitlab_project.mergerequests.list(**list_args)
 
                         for imr in imr_list:
                             table.add_row([imr.iid, imr.title, imr.web_url])
@@ -1329,16 +1323,28 @@ if __name__ == "__main__":
             logger.info("Checking project {project}".format(project=project))
             gitlab_project = gl.projects.get(project)
 
-            if args.issue:
-                imr = gitlab_project.issues.get(imr_iid)
-
-            if args.mr:
-                imr = gitlab_project.mergerequests.get(imr_iid)
+            # If we take imr by iid
+            if imr_iid.isnumeric():
+                if args.issue:
+                    imr = gitlab_project.issues.get(imr_iid)
+                if args.mr:
+                    imr = gitlab_project.mergerequests.get(imr_iid)
+            # Otherwise search by title
+            else:
+                if args.issue:
+                    imr_list = gitlab_project.issues.list(all=True, search=imr_iid)
+                if args.mr:
+                    imr_list = gitlab_project.mergerequests.list(all=True, search=imr_iid)
+                if len(imr_list) == 0:
+                    raise Exception("issue/MR by title not found")
+                imr = imr_list[0]
 
             print("title: ", end="")
             print(imr.title)
             print("url: ", end="")
             print(imr.web_url)
+            print("total time spent before comment: ", end="")
+            print(imr.time_stats()["human_total_time_spent"])
 
             if not args.dry_run_gitlab:
 
@@ -1357,8 +1363,28 @@ if __name__ == "__main__":
                 note = imr.notes.create({"body": body_text})
                 print("comment username: ", end="")
                 print(note.author["username"])
-                print("comment body: ", end="")
+                print("comment body:", end="")
                 print(note.body)
+                imr.save()
+
+                # Reread stats in new object
+                # If we take imr by iid
+                if imr_iid.isnumeric():
+                    if args.issue:
+                        new_imr = gitlab_project.issues.get(imr_iid)
+                    if args.mr:
+                        new_imr = gitlab_project.mergerequests.get(imr_iid)
+                # Otherwise search by title
+                else:
+                    if args.issue:
+                        new_imr_list = gitlab_project.issues.list(all=True, search=imr_iid)
+                    if args.mr:
+                        new_imr_list = gitlab_project.mergerequests.list(all=True, search=imr_iid)
+                    if len(imr_list) == 0:
+                        raise Exception("issue/MR by title not found")
+                    new_imr = new_imr_list[0]
+                print("total time spent after comment: ", end="")
+                print(new_imr.time_stats()["human_total_time_spent"])
 
     # Reroute catched exception to log
     except Exception as e:

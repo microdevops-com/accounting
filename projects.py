@@ -62,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("--include-closed", dest="include_closed", help="include closed issues/MRs in lists", action="store_true")
     parser.add_argument("--assignee", dest="assignee", help="include only issues/MRs with assignee USERNAME in lists", nargs=1, metavar=("USERNAME"))
     parser.add_argument("--labels", dest="labels", help="include only issues/MRs with LABELS in lists", nargs=1, metavar=("LABELS"))
+    parser.add_argument("--search", dest="search", help="include only issues/MRs with QUERY in lists", nargs=1, metavar=("QUERY"))
     parser.add_argument("--text", dest="text", help="add TEXT to the issue/MR on --comment", nargs=1, metavar=("TEXT"))
     parser.add_argument("--spend", dest="spend", help="add /spend TIME to the issue/MR on --comment", nargs=1, metavar=("TIME"))
     #
@@ -1300,6 +1301,9 @@ if __name__ == "__main__":
                             list_args["state"] = "opened"
                         if args.labels is not None:
                             list_args["labels"] = args.labels[0]
+                        if args.search is not None:
+                            list_args["search"] = args.search[0]
+                            list_args["in"] = "title"
 
                         if args.issue:
                             imr_list = gitlab_project.issues.list(**list_args)
@@ -1331,12 +1335,18 @@ if __name__ == "__main__":
                     imr = gitlab_project.mergerequests.get(imr_iid)
             # Otherwise search by title
             else:
+                list_args = {}
+                list_args["all"] = True
+                list_args["search"] = imr_iid
+                list_args["in"] = "title"
                 if args.issue:
-                    imr_list = gitlab_project.issues.list(all=True, search=imr_iid)
+                    imr_list = gitlab_project.issues.list(**list_args)
                 if args.mr:
-                    imr_list = gitlab_project.mergerequests.list(all=True, search=imr_iid)
+                    imr_list = gitlab_project.mergerequests.list(**list_args)
                 if len(imr_list) == 0:
                     raise Exception("issue/MR by title not found")
+                if len(imr_list) > 1:
+                    raise Exception("issue/MR by title gave more than 1 result")
                 imr = imr_list[0]
 
             print("title: ", end="")
@@ -1376,12 +1386,18 @@ if __name__ == "__main__":
                         new_imr = gitlab_project.mergerequests.get(imr_iid)
                 # Otherwise search by title
                 else:
+                    list_args = {}
+                    list_args["all"] = True
+                    list_args["search"] = imr_iid
+                    list_args["in"] = "title"
                     if args.issue:
-                        new_imr_list = gitlab_project.issues.list(all=True, search=imr_iid)
+                        new_imr_list = gitlab_project.issues.list(**list_args)
                     if args.mr:
-                        new_imr_list = gitlab_project.mergerequests.list(all=True, search=imr_iid)
+                        new_imr_list = gitlab_project.mergerequests.list(**list_args)
                     if len(imr_list) == 0:
                         raise Exception("issue/MR by title not found")
+                    if len(imr_list) > 1:
+                        raise Exception("issue/MR by title gave more than 1 result")
                     new_imr = new_imr_list[0]
                 print("total time spent after comment: ", end="")
                 print(new_imr.time_stats()["human_total_time_spent"])

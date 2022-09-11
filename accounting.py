@@ -3121,8 +3121,6 @@ if __name__ == "__main__":
             project = gl.projects.get(acc_yaml_dict["accounting"]["project"])
             if not args.dry_run_gitlab:
                 issue = project.issues.create({"title": "New Hourly Employee Unchecked Issue Timelogs Report for Payout - {}".format(hourly_employee), "description": issue_text})
-                # Add label
-                issue.labels = ["Employee", hourly_employee]
                 # Add assignee
                 issue.assignee_ids = [acc_yaml_dict["accounting"]["manager_id"]]
                 issue.save()
@@ -3408,8 +3406,6 @@ if __name__ == "__main__":
             project = gl.projects.get(acc_yaml_dict["accounting"]["project"])
             if not args.dry_run_gitlab:
                 issue = project.issues.create({"title": "New Hourly Employee Unchecked MR Timelogs Report for Payout - {}".format(hourly_employee), "description": issue_text})
-                # Add label
-                issue.labels = ["Employee", hourly_employee]
                 # Add assignee
                 issue.assignee_ids = [acc_yaml_dict["accounting"]["manager_id"]]
                 issue.save()

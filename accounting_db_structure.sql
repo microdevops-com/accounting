@@ -130,10 +130,12 @@ CREATE TABLE IF NOT EXISTS asset_count (
 	id SERIAL PRIMARY KEY,
 	counted_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
 	client TEXT NOT NULL,
+	kind TEXT NOT NULL,
 	asset_count INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS asset_count_counted_at ON asset_count (counted_at);
 CREATE INDEX IF NOT EXISTS asset_count_client ON asset_count (client);
-CREATE INDEX IF NOT EXISTS asset_count_counted_at_client_combo ON asset_count (counted_at, client);
+CREATE INDEX IF NOT EXISTS asset_count_kind ON asset_count (kind);
+CREATE INDEX IF NOT EXISTS asset_count_counted_at_client_kind_combo ON asset_count (counted_at, client, kind);
 

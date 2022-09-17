@@ -5610,8 +5610,8 @@ if __name__ == "__main__":
 
         if args.count_assets:
             
-            # Save total count for ALL pseudo client
-            total_asset_count = 0
+            # Save total count for ALL pseudo client per asset kind
+            total_asset_count = {}
                 
             # For *.yaml in client dir
             for client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
@@ -5627,24 +5627,44 @@ if __name__ == "__main__":
                 if client_dict["active"]:
 
                     asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
-                    
-                    # Count assets
-                    client_asset_count = len(asset_list)
 
+                    # Save count for client per asset kind
+                    asset_count = {}
+
+                    # Save total asset count to ALL pseudo kind
+                    asset_count["ALL"] = 0
+
+                    # Iterate over assets
+                    for asset in asset_list:
+                        if asset["kind"] not in asset_count:
+                            asset_count[asset["kind"]] = 0
+                        asset_count[asset["kind"]] += 1
+                        asset_count["ALL"] += 1
+                    
                     # Add to total
-                    total_asset_count += client_asset_count
+                    for kind in asset_count:
+                        if kind not in total_asset_count:
+                            total_asset_count[kind] = 0
+                        total_asset_count[kind] += asset_count[kind]
 
                     # Save to DB
                     if not args.dry_run_db:
                         cur = conn.cursor()
-                        cur.execute("INSERT INTO asset_count (client, asset_count) VALUES (%s, %s)", (client_dict["name"], client_asset_count))
+                        for kind in asset_count:
+                            cur.execute("INSERT INTO asset_count (client, kind, asset_count) VALUES (%s, %s, %s)", (client_dict["name"], kind, asset_count[kind]))
                         cur.close()
                         conn.commit()
+
+            # Calculate ALL pseudo kind
+            total_asset_count["ALL"] = 0
+            for kind in total_asset_count:
+                total_asset_count["ALL"] += total_asset_count[kind]
 
             # Save total to DB
             if not args.dry_run_db:
                 cur = conn.cursor()
-                cur.execute("INSERT INTO asset_count (client, asset_count) VALUES (%s, %s)", ("ALL", total_asset_count))
+                for kind in total_asset_count:
+                    cur.execute("INSERT INTO asset_count (client, kind, asset_count) VALUES (%s, %s, %s)", ("ALL", kind, total_asset_count[kind]))
                 cur.close()
                 conn.commit()
 

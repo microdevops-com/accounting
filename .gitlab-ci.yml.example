@@ -3,6 +3,7 @@ stages:
 - push
 - execute_yaml_check
 - execute_db_structure
+- execute_count_assets
 - execute_asset_labels
 - execute_run_cmd
 
@@ -88,6 +89,40 @@ execute_db_structure:
         --mount type=bind,source=/etc/timezone,target=/etc/timezone \
         --mount type=bind,source=/etc/localtime,target=/etc/localtime \
         $ACCOUNTING_IMAGE /opt/sysadmws/accounting/accounting.py --debug --db-structure
+
+execute_count_assets:
+  tags:
+    - accounting
+  stage: execute_count_assets
+  rules:
+    - if: $RUN_CMD
+      when: never
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  script:
+    - docker pull $ACCOUNTING_IMAGE
+    - |
+      docker run --rm \
+        --env GL_PG_DB_HOST \
+        --env GL_PG_DB_PORT \
+        --env GL_PG_DB_NAME \
+        --env GL_PG_DB_USER \
+        --env GL_PG_DB_PASS \
+        --env GL_ADMIN_PRIVATE_TOKEN \
+        --env GL_BOT_PRIVATE_TOKEN \
+        --env GL_USER_PRIVATE_TOKEN \
+        --env GL_URL \
+        --env PG_DB_HOST \
+        --env PG_DB_PORT \
+        --env PG_DB_NAME \
+        --env PG_DB_USER \
+        --env PG_DB_PASS \
+        --env SA_SECRETS_FILE \
+        --env SSH_DU_S_M_KEYFILE \
+        --env SSH_DU_S_M_USER \
+        --mount type=bind,source=/opt/sysadmws/accounting/log,target=/opt/sysadmws/accounting/log \
+        --mount type=bind,source=/etc/timezone,target=/etc/timezone \
+        --mount type=bind,source=/etc/localtime,target=/etc/localtime \
+        $ACCOUNTING_IMAGE /opt/sysadmws/accounting/accounting.py --count-assets
 
 execute_asset_labels:
   tags:

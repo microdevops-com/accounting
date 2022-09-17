@@ -139,3 +139,12 @@ CREATE INDEX IF NOT EXISTS asset_count_client ON asset_count (client);
 CREATE INDEX IF NOT EXISTS asset_count_kind ON asset_count (kind);
 CREATE INDEX IF NOT EXISTS asset_count_counted_at_client_kind_combo ON asset_count (counted_at, client, kind);
 
+
+CREATE TABLE IF NOT EXISTS timelogs_stats (
+	id SERIAL PRIMARY KEY,
+	counted_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+	hours_sum NUMERIC NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS timelogs_stats_counted_at ON timelogs_stats (counted_at);
+

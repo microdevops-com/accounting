@@ -242,6 +242,7 @@ if __name__ == "__main__":
     group.add_argument("--list-assets-for-client", dest="list_assets_for_client", help="list assets for CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--list-assets-for-all-clients", dest="list_assets_for_all_clients", help="list assets for all clients", action="store_true")
     group.add_argument("--count-assets", dest="count_assets", help="add a new record to the asset_count table", action="store_true")
+    group.add_argument("--count-timelog-stats", dest="count_timelog_stats", help="add a new record to the timelogs_stats table", action="store_true")
 
     if len(sys.argv) > 1:
         args = parser.parse_args()
@@ -5668,6 +5669,28 @@ if __name__ == "__main__":
                 cur.close()
                 conn.commit()
 
+        if args.count_timelog_stats:
+
+            # Connect to GitLab DB
+            gitlab_dsn = "host={} dbname={} user={} password={}".format(GL_PG_DB_HOST, GL_PG_DB_NAME, GL_PG_DB_USER, GL_PG_DB_PASS)
+            gitlab_conn = psycopg2.connect(gitlab_dsn)
+
+            # Get sum of time_spent from gitlab database
+            cur = gitlab_conn.cursor()
+            cur.execute("SELECT ROUND(SUM(time_spent)::DEC/60/60, 2) FROM timelogs")
+            gitlab_time_spent = cur.fetchone()[0]
+            cur.close()
+
+            # Insert sum of time_spent to DB
+            if not args.dry_run_db:
+                cur = conn.cursor()
+                cur.execute("INSERT INTO timelogs_stats (hours_sum) VALUES (%s)", (gitlab_time_spent,))
+                cur.close()
+                conn.commit()
+
+            # Close GitLab Db connection
+            gitlab_conn.close()
+            
         # Skip connection close where not needed
         if not (args.yaml_check or args.list_assets_for_client is not None or args.list_assets_for_all_clients):
             # Close connection

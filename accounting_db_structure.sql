@@ -124,3 +124,16 @@ CREATE INDEX IF NOT EXISTS jobs_log_asset_fqdn ON jobs_log (asset_fqdn);
 CREATE INDEX IF NOT EXISTS jobs_log_client ON jobs_log (client);
 CREATE INDEX IF NOT EXISTS jobs_log_job_id ON jobs_log (job_id);
 CREATE INDEX IF NOT EXISTS jobs_log_asset_fqdn_client_job_id_combo ON jobs_log (asset_fqdn, client, job_id);
+
+
+CREATE TABLE IF NOT EXISTS asset_count (
+	id SERIAL PRIMARY KEY,
+	counted_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+	client TEXT NOT NULL,
+	asset_count INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS asset_count_counted_at ON asset_count (counted_at);
+CREATE INDEX IF NOT EXISTS asset_count_client ON asset_count (client);
+CREATE INDEX IF NOT EXISTS asset_count_counted_at_client_combo ON asset_count (counted_at, client);
+

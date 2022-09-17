@@ -241,6 +241,7 @@ if __name__ == "__main__":
     group.add_argument("--make-storage-invoice-for-all-clients", dest="make_storage_invoice_for_all_clients", help="compute monthly storage usage for month -MONTH of all clients and make invoice for each", nargs=1, metavar=("MONTH"))
     group.add_argument("--list-assets-for-client", dest="list_assets_for_client", help="list assets for CLIENT", nargs=1, metavar=("CLIENT"))
     group.add_argument("--list-assets-for-all-clients", dest="list_assets_for_all_clients", help="list assets for all clients", action="store_true")
+    group.add_argument("--count-assets", dest="count_assets", help="add a new record to the asset_count table", action="store_true")
 
     if len(sys.argv) > 1:
         args = parser.parse_args()
@@ -5606,6 +5607,46 @@ if __name__ == "__main__":
                             ssh=ssh_text,
                             tariff=tar_text
                         ))
+
+        if args.count_assets:
+            
+            # Save total count for ALL pseudo client
+            total_asset_count = 0
+                
+            # For *.yaml in client dir
+            for client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
+                
+                logger.info("Found client file: {0}".format(client_file))
+
+                # Load client YAML
+                client_dict = load_client_yaml(WORK_DIR, client_file, CLIENTS_SUBDIR, YAML_GLOB, logger)
+                if client_dict is None:
+                    raise Exception("Config file error or missing: {0}/{1}".format(WORK_DIR, client_file))
+
+                # Check if client is active
+                if client_dict["active"]:
+
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
+                    
+                    # Count assets
+                    client_asset_count = len(asset_list)
+
+                    # Add to total
+                    total_asset_count += client_asset_count
+
+                    # Save to DB
+                    if not args.dry_run_db:
+                        cur = conn.cursor()
+                        cur.execute("INSERT INTO asset_count (client, asset_count) VALUES (%s, %s)", (client_dict["name"], client_asset_count))
+                        cur.close()
+                        conn.commit()
+
+            # Save total to DB
+            if not args.dry_run_db:
+                cur = conn.cursor()
+                cur.execute("INSERT INTO asset_count (client, asset_count) VALUES (%s, %s)", ("ALL", total_asset_count))
+                cur.close()
+                conn.commit()
 
         # Skip connection close where not needed
         if not (args.yaml_check or args.list_assets_for_client is not None or args.list_assets_for_all_clients):

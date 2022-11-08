@@ -166,6 +166,23 @@ jobs:
         - 2008ServerR2
         - 2019Server
         - unknown
+  # 12:10
+  mysql_increment_checker:
+    type: salt_cmd
+    cmd: state.apply mysql_increment_checker queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 12
+    minutes:
+      - 10
+    os:
+      exclude:
+        - 2008ServerR2
+        - 2019Server
+        - unknown
   # 12:30
   cmd_check_alert:
     type: salt_cmd

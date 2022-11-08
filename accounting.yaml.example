@@ -110,6 +110,8 @@ jobs:
       - 10
     minutes:
       - 30
+    licenses:
+      - monitoring
     os:
       exclude:
         - 2008ServerR2
@@ -127,6 +129,8 @@ jobs:
       - 11
     minutes:
       - 0
+    licenses:
+      - monitoring
     os:
       exclude:
         - 2008ServerR2
@@ -144,6 +148,8 @@ jobs:
       - 11
     minutes:
       - 30
+    licenses:
+      - monitoring
     os:
       exclude:
         - 2008ServerR2
@@ -161,6 +167,8 @@ jobs:
       - 12
     minutes:
       - 0
+    licenses:
+      - monitoring
     os:
       exclude:
         - 2008ServerR2
@@ -178,6 +186,8 @@ jobs:
       - 12
     minutes:
       - 10
+    licenses:
+      - monitoring
     os:
       exclude:
         - 2008ServerR2
@@ -195,6 +205,8 @@ jobs:
       - 12
     minutes:
       - 30
+    licenses:
+      - monitoring
     os:
       exclude:
         - 2008ServerR2

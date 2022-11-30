@@ -4397,6 +4397,11 @@ if __name__ == "__main__":
 
                                 if asset["active"]:
 
+                                    # Skip assets with disabled monthly invoicing
+                                    if "monthly_invoice_disabled" in asset and asset["monthly_invoice_disabled"]:
+                                        logger.info("Monthly invoice disabled for asset: {0}".format(asset["fqdn"]))
+                                        continue
+
                                     logger.info("Active asset: {0}".format(asset["fqdn"]))
 
                                     client_asset_tariffs_dict[client][asset["fqdn"]] = []

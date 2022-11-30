@@ -29,7 +29,7 @@ gitlab:
   # 8< ============================================================
 billing:
   code: EX
-  #monthly_invoice_disabled: True
+  #monthly_invoice_disabled: True # do not make monthly invoice for client at all
 include:
   dirs:
     - example # included recursively
@@ -182,6 +182,7 @@ assets:
     roster_opts: # optional
       set_path: \$PATH:/opt/local/bin
       ssh_options: StrictHostKeyChecking=no
+    #monthly_invoice_disabled: True # do not add this asset to the monthly invoice
     tariffs:
       - activated: 1970-01-01
         added: 1970-01-01

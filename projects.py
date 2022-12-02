@@ -416,6 +416,7 @@ if __name__ == "__main__":
 
                     script = textwrap.dedent(
                         """
+                        set -e
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
                             echo Already cloned
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
@@ -502,6 +503,7 @@ if __name__ == "__main__":
 
                     script = textwrap.dedent(
                         """
+                        set -e
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
                             echo Already cloned
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
@@ -1087,6 +1089,7 @@ if __name__ == "__main__":
 
                     script = textwrap.dedent(
                         """
+                        set -e
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
                             echo Already cloned
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}

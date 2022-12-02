@@ -65,6 +65,7 @@ if __name__ == "__main__":
     parser.add_argument("--search", dest="search", help="include only issues/MRs with QUERY in lists", nargs=1, metavar=("QUERY"))
     parser.add_argument("--text", dest="text", help="add TEXT to the issue/MR on --comment", nargs=1, metavar=("TEXT"))
     parser.add_argument("--spend", dest="spend", help="add /spend TIME to the issue/MR on --comment", nargs=1, metavar=("TIME"))
+    parser.add_argument("--git-https", dest="git_https", help="use https USER and PASSWORD on update of admin project wiki", nargs=2, metavar=("USER", "PASSWORD"))
     #
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -1061,9 +1062,17 @@ if __name__ == "__main__":
             
                     # Get GitLab project for client
                     project = gl.projects.get(client_dict["gitlab"]["admin_project"]["path"])
-                    ssh_url_to_repo = re.sub(r'\.git$', '.wiki.git', project.ssh_url_to_repo)
+
+                    # Respect --git-https for wiki project update
+                    if args.git_https:
+                        url_to_repo = re.sub(r'\.git$', '.wiki.git', project.http_url_to_repo)
+                        # Add username and password to URL
+                        url_to_repo = re.sub(r'https://', 'https://{username}:{password}@'.format(username=args.git_https[0], password=args.git_https[1]), url_to_repo)
+                    else:
+                        url_to_repo = re.sub(r'\.git$', '.wiki.git', project.ssh_url_to_repo)
+
                     path_with_namespace = project.path_with_namespace + ".wiki"
-                    logger.info("Admin project {project} wiki for client {client} ssh_url_to_repo: {ssh_url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["admin_project"]["path"], client=client_dict["name"], path_with_namespace=path_with_namespace, ssh_url_to_repo=ssh_url_to_repo))
+                    logger.info("Admin project {project} wiki for client {client} url_to_repo: {url_to_repo}, path_with_namespace: {path_with_namespace}".format(project=client_dict["gitlab"]["admin_project"]["path"], client=client_dict["name"], path_with_namespace=path_with_namespace, url_to_repo=url_to_repo))
 
                     # Prepare local repo
 
@@ -1085,14 +1094,14 @@ if __name__ == "__main__":
                             {reset}
                             {clean}
                         else
-                            git clone {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
+                            git clone {url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         fi
                         git submodule init
                         git submodule update -f --checkout
                         git submodule foreach "git checkout master && git pull"
                         """
-                    ).format(ssh_url_to_repo=ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
+                    ).format(url_to_repo=url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")

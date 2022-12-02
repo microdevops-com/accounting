@@ -66,6 +66,8 @@ if __name__ == "__main__":
     parser.add_argument("--text", dest="text", help="add TEXT to the issue/MR on --comment", nargs=1, metavar=("TEXT"))
     parser.add_argument("--spend", dest="spend", help="add /spend TIME to the issue/MR on --comment", nargs=1, metavar=("TIME"))
     parser.add_argument("--git-https", dest="git_https", help="use https USER and PASSWORD on update of admin project wiki", nargs=2, metavar=("USER", "PASSWORD"))
+    parser.add_argument("--git-config-email", dest="git_config_email", help="git config --global user.email on update of admin project wiki", nargs=1, metavar=("EMAIL"))
+    parser.add_argument("--git-config-name", dest="git_config_name", help="git config --global user.name on update of admin project wiki", nargs=1, metavar=("EMAIL"))
     #
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients", dest="exclude_clients", help="exclude clients defined by JSON_LIST from all-clients operations", nargs=1, metavar=("JSON_LIST"))
@@ -1087,9 +1089,23 @@ if __name__ == "__main__":
                         git_reset_text = ""
                         git_clean_text = ""
 
+                    if args.git_config_email is not None:
+                        git_config_email, = args.git_config_email
+                        git_config_email_text = "git config --global user.email '{git_config_email}'".format(git_config_email=git_config_email)
+                    else:
+                        git_config_email_text = ""
+
+                    if args.git_config_name is not None:
+                        git_config_name, = args.git_config_name
+                        git_config_name_text = "git config --global user.name '{git_config_name}'".format(git_config_name=git_config_name)
+                    else:
+                        git_config_name_text = ""
+
                     script = textwrap.dedent(
                         """
                         set -e
+                        {git_config_email}
+                        {git_config_name}
                         if [ -d {PROJECTS_SUBDIR}/{path_with_namespace}/.git ] && ( cd {PROJECTS_SUBDIR}/{path_with_namespace}/.git && git rev-parse --is-inside-git-dir | grep -q -e true ); then
                             echo Already cloned
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
@@ -1104,7 +1120,16 @@ if __name__ == "__main__":
                         git submodule update -f --checkout
                         git submodule foreach "git checkout master && git pull"
                         """
-                    ).format(url_to_repo=url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
+                    ).format(
+                        url_to_repo=url_to_repo,
+                        PROJECTS_SUBDIR=PROJECTS_SUBDIR,
+                        path_with_namespace=path_with_namespace,
+                        fetch=git_fetch_text,
+                        reset=git_reset_text,
+                        clean=git_clean_text,
+                        git_config_email=git_config_email_text,
+                        git_config_name=git_config_name_text
+                    )
                     logger.info("Running bash script:")
                     logger.info(script)
                     subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")

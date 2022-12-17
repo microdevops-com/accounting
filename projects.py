@@ -589,6 +589,9 @@ if __name__ == "__main__":
                                     ALERTA_API_KEY={ALERTA_API_KEY} \
                                     HB_RECEIVER_HN={HB_RECEIVER_HN} \
                                     HB_TOKEN={HB_TOKEN} \
+                                    SENTRY_DOMAIN={SENTRY_DOMAIN} \
+                                    SENTRY_AUTH_TOKEN={SENTRY_AUTH_TOKEN} \
+                                    SENTRY_DSN_PUBLIC={SENTRY_DSN_PUBLIC} \
                                     ROOT_EMAIL={ROOT_EMAIL} \
                                     CLIENT={CLIENT} \
                                     CLIENT_FULL={CLIENT_FULL} \
@@ -618,6 +621,9 @@ if __name__ == "__main__":
                             ALERTA_API_KEY=client_dict["configuration_management"]["templates"]["alerta_api_key"],
                             HB_RECEIVER_HN=client_dict["configuration_management"]["templates"]["heartbeat_mesh"]["sender"]["receiver"],
                             HB_TOKEN=client_dict["configuration_management"]["templates"]["heartbeat_mesh"]["sender"]["token"],
+                            SENTRY_DOMAIN=client_dict["configuration_management"]["templates"]["sentry_domain"],
+                            SENTRY_AUTH_TOKEN=client_dict["configuration_management"]["templates"]["sentry_org_user_token"],
+                            SENTRY_DSN_PUBLIC=client_dict["configuration_management"]["templates"]["sentry_dsn_public"],
                             CLIENT=client_dict["name"].lower(),
                             CLIENT_FULL=client_dict["name"],
                             VENDOR=client_dict["vendor"].lower(),
@@ -671,6 +677,9 @@ if __name__ == "__main__":
                                     ALERTA_API_KEY={ALERTA_API_KEY} \
                                     HB_RECEIVER_HN={HB_RECEIVER_HN} \
                                     HB_TOKEN={HB_TOKEN} \
+                                    SENTRY_DOMAIN={SENTRY_DOMAIN} \
+                                    SENTRY_AUTH_TOKEN={SENTRY_AUTH_TOKEN} \
+                                    SENTRY_DSN_PUBLIC={SENTRY_DSN_PUBLIC} \
                                     ROOT_EMAIL={ROOT_EMAIL} \
                                     CLIENT={CLIENT} \
                                     CLIENT_FULL={CLIENT_FULL} \
@@ -724,6 +733,9 @@ if __name__ == "__main__":
                             ALERTA_API_KEY=client_dict["configuration_management"]["templates"]["alerta_api_key"],
                             HB_RECEIVER_HN=client_dict["configuration_management"]["templates"]["heartbeat_mesh"]["sender"]["receiver"],
                             HB_TOKEN=client_dict["configuration_management"]["templates"]["heartbeat_mesh"]["sender"]["token"],
+                            SENTRY_DOMAIN=client_dict["configuration_management"]["templates"]["sentry_domain"],
+                            SENTRY_AUTH_TOKEN=client_dict["configuration_management"]["templates"]["sentry_org_user_token"],
+                            SENTRY_DSN_PUBLIC=client_dict["configuration_management"]["templates"]["sentry_dsn_public"],
                             CLIENT=client_dict["name"].lower(),
                             CLIENT_FULL=client_dict["name"],
                             VENDOR=client_dict["vendor"].lower(),

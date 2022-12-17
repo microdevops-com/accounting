@@ -32,6 +32,15 @@ defaults:
   configuration_management:
     templates:
       ufw_type: ufw
+configuration_management:
+  templates:
+    files:
+      - path: pillar/notify_devilry/example.sls
+        jinja: pillar/notify_devilry/example.jinja.sls
+      - path: pillar/heartbeat_mesh/example/sender.sls
+        jinja: pillar/heartbeat_mesh/example/sender.jinja.sls
+      - path: pillar/catch_server_mail/example/sentry.sls
+        jinja: pillar/catch_server_mail/example/sentry.jinja.sls
 jobs:
   # Every 4 hours
   test_ping:

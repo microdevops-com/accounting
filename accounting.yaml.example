@@ -23,7 +23,9 @@ os: # allowed os for servers
   - focal
   - jammy
   - buster
+  - bullseye
   - 2008ServerR2
+  - 2016Server
   - 2019Server
   - centos7
   - centos8
@@ -41,6 +43,17 @@ configuration_management:
         jinja: pillar/heartbeat_mesh/example/sender.jinja.sls
       - path: pillar/catch_server_mail/example/sentry.sls
         jinja: pillar/catch_server_mail/example/sentry.jinja.sls
+  roster_os: # os, which to add to roster file
+    - precise
+    - trusty
+    - xenial
+    - bionic
+    - focal
+    - jammy
+    - buster
+    - bullseye
+    - centos7
+    - centos8
 jobs:
   # Every 4 hours
   test_ping:

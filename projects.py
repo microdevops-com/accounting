@@ -807,8 +807,8 @@ if __name__ == "__main__":
 
                         for asset in sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now()), key = lambda x: (x["tariffs"][-1]["activated"], x["fqdn"])):
 
-                            # Add only servers to roster
-                            if asset["kind"] == "server":
+                            # Add only servers to roster and only if server os is in configuration_management:roster_os list
+                            if asset["kind"] == "server" and asset["os"] in acc_yaml_dict["configuration_management"]["roster_os"]:
                                 client_asset_list += textwrap.dedent(
                                     """
                                     echo "{fqdn}:" >> etc/salt/roster

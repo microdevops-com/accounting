@@ -106,9 +106,9 @@ jobs:
         - 2019Server
         - unknown
   # 10:00
-  sysadmws-utils:
+  microdevops-utils:
     type: salt_cmd
-    cmd: state.apply sysadmws-utils queue=True
+    cmd: state.apply microdevops-utils queue=True
     timeout: 300
     tz: Europe/Kiev
     each:

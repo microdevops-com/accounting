@@ -82,6 +82,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 9:30
@@ -101,6 +102,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 10:00
@@ -118,6 +120,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 10:30
@@ -137,6 +140,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 11:00
@@ -156,6 +160,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 11:30
@@ -175,6 +180,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 12:00
@@ -194,6 +200,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 12:10
@@ -213,6 +220,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 12:30
@@ -232,6 +240,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 13:00
@@ -249,6 +258,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 13:30
@@ -267,13 +277,14 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 14:00
-  forward_root_email:
+  catch_server_mail:
     type: salt_cmd
     cmd: |
-      state.apply pkg.pkg pillar='{pkg_filter: forward_root_email}' queue=True
+      state.apply catch_server_mail queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
@@ -285,6 +296,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 14:30 weekly
@@ -304,6 +316,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 15:00
@@ -333,6 +346,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 16:00
@@ -350,6 +364,7 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown
   # 16:00
@@ -367,6 +382,7 @@ jobs:
     os:
       include:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
   # 2:00
   put_check_files:
@@ -395,5 +411,6 @@ jobs:
     os:
       exclude:
         - 2008ServerR2
+        - 2016Server
         - 2019Server
         - unknown

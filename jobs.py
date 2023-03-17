@@ -451,11 +451,18 @@ if __name__ == "__main__":
                                     # Run job
 
                                     if job["type"] == "salt_cmd":
-                                        script = textwrap.dedent(
-                                            """
-                                            .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}"
-                                            """
-                                        ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"], job_cmd=job["cmd"])
+                                        if "severity_override" in job:
+                                            script = textwrap.dedent(
+                                                """
+                                                .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}" {severity_override}
+                                                """
+                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"], job_cmd=job["cmd"], severity_override=job["severity_override"])
+                                        else:
+                                            script = textwrap.dedent(
+                                                """
+                                                .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}"
+                                                """
+                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"], job_cmd=job["cmd"])
                                         logger.info("Running bash script:")
                                         logger.info(script)
                                         if not args.dry_run_pipeline:

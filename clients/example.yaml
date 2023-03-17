@@ -197,6 +197,7 @@ assets:
     jobs: # optional per server jobs
       some_job:
         type: salt_cmd
+        #severity_override: critical # optional, major by default, override with custom value if job fails
         cmd: state.apply some_state
         timeout: 36000
         tz: Europe/Kiev

@@ -1,9 +1,13 @@
+#jobs_disabled: True # Optional, disable jobs for client, jobs_disabled: False in server will not override gloal disable per client
 vendor: Example
 name: Example
 active: True
+start_date: 1970-01-01 # Just for the history
+gsuite:
+  folder: __GOOGLE_FILE_ID_FOR_FOLDER__
 gitlab:
   admin_project:
-    path: example/devops/example-admin
+    path: example/devops/example-salt # or dedicated project if needed
   # 8< ============================================================
   # salt-ssh
   salt_project:
@@ -30,6 +34,56 @@ gitlab:
 billing:
   code: EX
   #monthly_invoice_disabled: True # do not make monthly invoice for client at all
+  contract:
+    recipient: IP Basil Pupkin
+    details: |
+      IPN 1234567890
+      IBAN UA903052992990004149123456789
+    name: Contract 12345
+    person: Basil Pupkin
+    sign: Basil Pupkin
+  papers:
+    #envelope_address_no_recipient: # If recipient name should not be added to the address
+    envelope_address: |
+      12345, Ukraine, Kyiv
+    email:
+      to: basil@pupkin.com
+      #pack_to_archive: False # Do not pack docs to archive
+    invoice:
+      email: True
+      print: False
+    act:
+      email: False
+      print: False
+    #month_shift: N # Additionally shift Monthly to N months further
+    #monthly_act_last_date_of_month: True # Monthly act on last date of month instead of first day of next month
+  merchant: Example
+  template: Ukr
+  #woocommerce:
+  #  draft_order: True
+  #  customer_id: 123
+  hourly_only: True
+#jobs: # Optional, you can override global jobs from accounting.yaml (use the same key name for override) or add new ones
+#  some_job:
+#    disabled: True # optional - override and disable specific job
+#    type: salt_cmd
+#    cmd: state.apply some.job queue=True
+#    timeout: 900
+#    tz: Europe/Kiev
+#    each:
+#      days: 1
+#    hours:
+#      - 1
+#    minutes:
+#      - 30
+#    licenses:
+#      - backup
+#      - monitoring
+#      - firewall
+#    os:
+#      exclude:
+#        - 2008ServerR2
+#        - unknown
 include:
   dirs:
     - example # included recursively
@@ -55,12 +109,12 @@ configuration_management:
     ufw_type: ufw # optional, override default ufw_type set by accounting.yaml
     root_email: mon@example.com
     telegram_token: 1111111111:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-    telegram_chat_id: -111111111
+    telegram_chat_id: -111111111 # exceptions chat id
     alerta_url: https://alerta.example.com/api/alert
     alerta_api_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 40 | head -n 1
     alerta_api_key_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx # apt-get install uuid-runtime; uuidgen
     alerta_api_customer_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx # apt-get install uuid-runtime; uuidgen
-    alerta_telegram_chat_id: -111111111
+    alerta_telegram_chat_id: -111111112 # this is Alerts chat id of a client
     sentry_domain: sentry.example.com
     sentry_dsn_public: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1 # cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 32 | head -n 1
     sentry_dsn_secret: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1 # cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 32 | head -n 1
@@ -70,8 +124,8 @@ configuration_management:
     heartbeat_mesh:
       sender:
         receiver: alerta1.example.com
-        token: xxx
-    runner_source_ip: 1.1.1.1
+        token: xxxxxxxxxxxxxxxxxxxxx # cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 25 | head -n 1
+    runner_source_ip: 1.1.1.1 # if salt-ssh, source ip of runner for ufw template
     files:
       - path: pillar/heartbeat_mesh/example/receiver.sls
         jinja: pillar/heartbeat_mesh/example/receiver.jinja.sls
@@ -81,10 +135,10 @@ configuration_management:
           path: pillar/rsnapshot_backup/otherclient1/backup.sls
   # 8< ============================================================
   salt-ssh:
-    version: 3001
+    version: 3004
   # 8< ============================================================
   salt:
-    version: 3001
+    version: 3004
     pki:
       master_sign:
         pem: |
@@ -110,6 +164,12 @@ configuration_management:
         external_ports:
           - 4505
           - 4506
+        ssh: # optional - override ssh connection from rosters etc
+          host: a.b.c.d
+          port: 22
+          jump: # optional - use ssh jump host
+            host: some.other.example.com
+            port: 22 # optional
         root_ed25519: # Use the same key as for salt_project above
           priv: |
             -----BEGIN OPENSSH PRIVATE KEY-----
@@ -150,6 +210,12 @@ configuration_management:
         external_ports:
           - 4505
           - 4506
+        ssh: # optional - override ssh connection from rosters etc
+          host: a.b.c.d
+          port: 22
+          jump: # optional - use ssh jump host
+            host: some.other.example.com
+            port: 22 # optional
         root_ed25519:
           priv: |
             -----BEGIN OPENSSH PRIVATE KEY-----
@@ -178,10 +244,21 @@ configuration_management:
               -----END PUBLIC KEY-----
   # 8< ============================================================
 assets:
-  - fqdn: server1.example.com
-    location: Hetzner
+  - fqdn: Serverless Service
     active: True
-    os: focal
+    kind: service # optional, server by default, only servers are included in roster and have jobs right now
+    location: Void
+    os: none
+    description: "service: Serverless, plan: Free"
+    tariffs:
+      - activated: 1970-01-01
+        added: 1970-01-01
+        tariffs:
+          - file: free-1.yaml
+  - fqdn: server1.example.com
+    active: True
+    location: Hetzner
+    os: jammy
     description: Some Text
     environment: infra
     roster_opts: # optional
@@ -193,6 +270,12 @@ assets:
         added: 1970-01-01
         tariffs:
           - file: free-1.yaml
+    ssh: # optional - override ssh connection from rosters etc
+      host: a.b.c.d
+      port: 22
+      jump: # optional - use ssh jump host
+        host: some.other.example.com
+        port: 22 # optional
     #jobs_disabled: True # optional, disable jobs for this server
     jobs: # optional per server jobs
       some_job:
@@ -205,6 +288,12 @@ assets:
           days: 1
         hours:
           - 1
+    #storage: # Storage billing example
+    #  - backup2.example.com:
+    #      - /var/backups/example/server1.example.com
+    #ex_storage: # Move previous storage definitions to this for billing purposes
+    #  - backup1.example.com:
+    #      - /var/backups/example/server1.example.com
   # 8< ============================================================
   # salt
     minion: # for the servers you can generate minion keys in vim using command `:.!../gen_minion_pem_pub.sh`

@@ -114,7 +114,7 @@ configuration_management:
     alerta_api_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 40 | head -n 1
     alerta_api_key_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx # apt-get install uuid-runtime; uuidgen
     alerta_api_customer_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx # apt-get install uuid-runtime; uuidgen
-    alerta_telegram_chat_id: -111111112 # this is Alerts chat id of a client
+    alerta_telegram_chat_id: -111111112 # this is Alerts chat id of a client, to find it use, for example, @RawDataBot
     sentry_domain: sentry.example.com
     sentry_dsn_public: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1 # cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 32 | head -n 1
     sentry_dsn_secret: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1 # cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 32 | head -n 1

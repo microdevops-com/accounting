@@ -255,6 +255,7 @@ assets:
         added: 1970-01-01
         tariffs:
           - file: free-1.yaml
+            #migrated_from: previous tariff # optional, to skip month portion logic
   - fqdn: server1.example.com
     active: True
     location: Hetzner

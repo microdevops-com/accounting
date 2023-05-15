@@ -97,6 +97,25 @@ def activated_tariff(tariffs, event_date_time, logger):
     else:
         raise Exception("Event date time {0} out of available tariffs date time".format(event_date_time))
 
+# Helps to find tariff older than activated tariff, needed for month portion logic
+def tariff_older_than_activated_tariff(tariffs, event_date_time, logger):
+    older_tariff = None
+    i = 0
+    for tariff in tariffs:
+        tariff_date_time = datetime.combine(tariff["activated"], time.min)
+        # Event datetime must be later than tariff datetime
+        if event_date_time >= tariff_date_time:
+            # If we found tariff which is activated for event date - search if next item in list exists - it will be the older tariff
+            if i+1 < len(tariffs):
+                older_tariff = tariffs[i+1]
+            break
+        i += 1
+    if older_tariff is not None:
+        logger.info("Found tariff older than activated tariff {0} for event date time {1}".format(older_tariff, event_date_time))
+    else:
+        logger.info("No tariff older than activated tariff for event date time {0}".format(event_date_time))
+    return older_tariff
+
 def get_active_assets(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, at_datetime):
 
     assets = {}

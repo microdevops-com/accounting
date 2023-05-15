@@ -4421,9 +4421,17 @@ if __name__ == "__main__":
                                             tariff_dict["activated_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
                                             tariff_dict["added_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
                                         
+                                            # Check tariff_older_than_activated_tariff
+                                            if tariff_older_than_activated_tariff(asset["tariffs"], needed_month_for_tariff, logger) is not None:
+                                                tariff_dict["older_tariff_exists"] = True
+                                            else:
+                                                tariff_dict["older_tariff_exists"] = False
+
                                             # Add migrated key
-                                            if "migrated_from" in asset_tariff:
+                                            if "migrated_from" in activated_tariff(asset["tariffs"], needed_month_for_tariff, logger):
                                                 tariff_dict["migrated"] = True
+                                            else:
+                                                tariff_dict["migrated"] = False
                                             
                                             # Add monthly_employee_share key as dict
                                             if "monthly_employee_share" in asset_tariff:
@@ -4441,15 +4449,23 @@ if __name__ == "__main__":
                                             asset_tariff["activated_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["activated"].strftime("%Y-%m-%d"))
                                             asset_tariff["added_date"] = str(activated_tariff(asset["tariffs"], needed_month_for_tariff, logger)["added"].strftime("%Y-%m-%d"))
                                             
+                                            # Check tariff_older_than_activated_tariff
+                                            if tariff_older_than_activated_tariff(asset["tariffs"], needed_month_for_tariff, logger) is not None:
+                                                asset_tariff["older_tariff_exists"] = True
+                                            else:
+                                                asset_tariff["older_tariff_exists"] = False
+
                                             # Add migrated key
-                                            if "migrated_from" in asset_tariff:
-                                                tariff_dict["migrated"] = True
+                                            if "migrated_from" in activated_tariff(asset["tariffs"], needed_month_for_tariff, logger):
+                                                asset_tariff["migrated"] = True
+                                            else:
+                                                asset_tariff["migrated"] = False
                                             
                                             # Add monthly_employee_share key as dict
                                             if "monthly_employee_share" in asset_tariff:
-                                                tariff_dict["monthly_employee_share"] = {}
+                                                asset_tariff["monthly_employee_share"] = {}
                                                 for empl_email, empl_share in asset_tariff["monthly_employee_share"].items():
-                                                    tariff_dict["monthly_employee_share"][empl_email] = empl_share
+                                                    asset_tariff["monthly_employee_share"][empl_email] = empl_share
                                 
                                             # Add tariff to the tariff list for the asset
                                             client_asset_tariffs_dict[client][asset["fqdn"]].append(asset_tariff)
@@ -4514,6 +4530,9 @@ if __name__ == "__main__":
                             
                             # Calc period portion
 
+                            # When debugging period portion remember:
+                            # DELETE ALL test -N invoces from Invoices file, they affect last_client_billing_date
+
                             # Get crucial dates
                             activated_date_date = datetime.strptime(tariff["activated_date"], "%Y-%m-%d")
                             added_date_date = datetime.strptime(tariff["added_date"], "%Y-%m-%d")
@@ -4529,8 +4548,14 @@ if __name__ == "__main__":
                             first_day_of_activated_date_month = activated_date_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                             last_day_of_activated_date_month = first_day_of_activated_date_month + relativedelta(months=1, days=-1)
 
+                            # Just add 1 portion for assets with older tariff exists, they were certainly billed before
+                            if "older_tariff_exists" in tariff and tariff["older_tariff_exists"]:
+
+                                # Just add one whole month
+                                period_portion = 1
+
                             # Just add 1 portion for migrated assets, they were certainly billed before
-                            if "migrated" in tariff:
+                            elif "migrated" in tariff and tariff["migrated"]:
 
                                 # Just add one whole month
                                 period_portion = 1

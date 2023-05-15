@@ -255,7 +255,6 @@ assets:
         added: 1970-01-01
         tariffs:
           - file: free-1.yaml
-            #migrated_from: previous tariff # optional, to skip month portion logic
   - fqdn: server1.example.com
     active: True
     location: Hetzner
@@ -269,6 +268,7 @@ assets:
     tariffs:
       - activated: 1970-01-01
         added: 1970-01-01
+        #migrated_from: oldserver1.example.com # optional, to skip month portion logic for new servers
         tariffs:
           - file: free-1.yaml
     ssh: # optional - override ssh connection from rosters etc

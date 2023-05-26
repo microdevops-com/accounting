@@ -30,6 +30,8 @@ gitlab:
     deploy_keys:
       - title: root@saltX.example.com # use `./gen_ssh_priv_pub.sh saltX.example.com`
         key: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com
+    gitlab-runner:
+      registration_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxx # gitlab runner registration token
   # 8< ============================================================
 billing:
   code: EX

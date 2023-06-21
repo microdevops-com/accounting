@@ -37,8 +37,8 @@ defaults:
 configuration_management:
   templates:
     files:
-      - path: pillar/notify_devilry/example.sls
-        jinja: pillar/notify_devilry/example.jinja.sls
+      - path: pillar/notify_devilry/__VENDOR__.sls # __VENDOR__ will be replaced with vendor name lowercased
+        jinja: pillar/notify_devilry/__VENDOR__.jinja.sls
       - path: pillar/heartbeat_mesh/example/sender.sls
         jinja: pillar/heartbeat_mesh/example/sender.jinja.sls
       - path: pillar/catch_server_mail/example/sentry.sls

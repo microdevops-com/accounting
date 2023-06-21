@@ -756,7 +756,12 @@ if __name__ == "__main__":
                         files_to_template.extend(client_dict["configuration_management"]["templates"]["files"])
 
                     if "configuration_management" in acc_yaml_dict and "templates" in acc_yaml_dict["configuration_management"] and "files" in acc_yaml_dict["configuration_management"]["templates"]:
-                        files_to_template.extend(acc_yaml_dict["configuration_management"]["templates"]["files"])
+                        # Extend files_to_template with files but substitute __VENDOR__ to vendor in path and jinja keys
+                        for file in acc_yaml_dict["configuration_management"]["templates"]["files"]:
+                            if "jinja" in file:
+                                file["jinja"] = file["jinja"].replace("__VENDOR__", client_dict["vendor"].lower())
+                                file["path"] = file["path"].replace("__VENDOR__", client_dict["vendor"].lower())
+                            files_to_template.append(file)
 
                     for templated_file in files_to_template:
 

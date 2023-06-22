@@ -577,6 +577,14 @@ if __name__ == "__main__":
                     # Salt-SSH
                     if client_dict["configuration_management"]["type"] == "salt-ssh":
 
+                        # For backward compat, if client_dict["configuration_management"]["templates"]["runner_source_ip"] is not list, make both ips the same
+                        if type(client_dict["configuration_management"]["templates"]["runner_source_ip"]) == list:
+                            SALTSSH_RUNNER_SOURCE_IP_1 = client_dict["configuration_management"]["templates"]["runner_source_ip"][0]
+                            SALTSSH_RUNNER_SOURCE_IP_2 = client_dict["configuration_management"]["templates"]["runner_source_ip"][1]
+                        else:
+                            SALTSSH_RUNNER_SOURCE_IP_1 = client_dict["configuration_management"]["templates"]["runner_source_ip"]
+                            SALTSSH_RUNNER_SOURCE_IP_2 = client_dict["configuration_management"]["templates"]["runner_source_ip"]
+
                         # Install templates
                         script = textwrap.dedent(
                             """
@@ -602,7 +610,8 @@ if __name__ == "__main__":
                                     DEV_RUNNER={DEV_RUNNER} \
                                     PROD_RUNNER={PROD_RUNNER} \
                                     SALTSSH_ROOT_ED25519_PUB="{SALTSSH_ROOT_ED25519_PUB}" \
-                                    SALTSSH_RUNNER_SOURCE_IP={SALTSSH_RUNNER_SOURCE_IP} \
+                                    SALTSSH_RUNNER_SOURCE_IP_1={SALTSSH_RUNNER_SOURCE_IP_1} \
+                                    SALTSSH_RUNNER_SOURCE_IP_2={SALTSSH_RUNNER_SOURCE_IP_2} \
                                     SALT_VERSION={SALT_VERSION} \
                                     UFW={UFW} \
                                     ./install.sh ../{PROJECTS_SUBDIR}/{path_with_namespace} salt-ssh
@@ -633,7 +642,8 @@ if __name__ == "__main__":
                             DEV_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
                             PROD_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["prod"] if "runners" in client_dict["gitlab"]["salt_project"] and "prod" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["prod"],
                             SALTSSH_ROOT_ED25519_PUB=client_dict["gitlab"]["salt_project"]["variables"]["SALTSSH_ROOT_ED25519_PUB"],
-                            SALTSSH_RUNNER_SOURCE_IP=client_dict["configuration_management"]["templates"]["runner_source_ip"],
+                            SALTSSH_RUNNER_SOURCE_IP_1=SALTSSH_RUNNER_SOURCE_IP_1,
+                            SALTSSH_RUNNER_SOURCE_IP_2=SALTSSH_RUNNER_SOURCE_IP_2,
                             SALT_VERSION=client_dict["configuration_management"]["salt-ssh"]["version"],
                             UFW=ufw_type
                         )

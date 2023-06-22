@@ -128,6 +128,9 @@ configuration_management:
         receiver: alerta1.example.com
         token: xxxxxxxxxxxxxxxxxxxxx # cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 25 | head -n 1
     runner_source_ip: 1.1.1.1 # if salt-ssh, source ip of runner for ufw template
+    #runner_source_ip: # if you have 2 salt-ssh runners
+    #  - 1.1.1.1
+    #  - 2.2.2.2
     files:
       - path: pillar/heartbeat_mesh/example/receiver.sls
         jinja: pillar/heartbeat_mesh/example/receiver.jinja.sls

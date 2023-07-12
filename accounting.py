@@ -5299,6 +5299,10 @@ if __name__ == "__main__":
                     invoice_act_date = invoice_details[client][-1]["timelog_updated"]
                     # Today + 2 weeks
                     in_two_weeks = datetime.today() + timedelta(days=14)
+                    if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
+                        invoice_date = invoice_act_date
+                    else:
+                        invoice_date = str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
 
                 # Monthly
@@ -5316,6 +5320,7 @@ if __name__ == "__main__":
                         invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     # Today + 4 weeks
                     in_four_weeks = datetime.today() + timedelta(days=28)
+                    invoice_date = str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     invoice_last_day = str(in_four_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                 
                 # Storage
@@ -5333,6 +5338,10 @@ if __name__ == "__main__":
                         invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     # Today + 2 weeks
                     in_two_weeks = datetime.today() + timedelta(days=14)
+                    if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
+                        invoice_date = invoice_act_date
+                    else:
+                        invoice_date = str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
 
                 # Copy templates
@@ -5380,7 +5389,7 @@ if __name__ == "__main__":
                     "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
                     "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
                     "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
-                    "__INVOICE_DATE__":         str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])),
+                    "__INVOICE_DATE__":         invoice_date,
                     "__ACT_DATE__":             invoice_act_date,
                     "__INV_L_DATE__":           invoice_last_day,
                     "__TOTAL__":                formatted_client_total,

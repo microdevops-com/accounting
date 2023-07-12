@@ -59,6 +59,7 @@ billing:
       print: False
     #month_shift: N # Additionally shift Monthly to N months further
     #monthly_act_last_date_of_month: True # Monthly act on last date of month instead of first day of next month
+    #hourly_and_storage_invoice_date_as_act: True # Hourly and Storage invoice dates as an act date
   merchant: Example
   template: Ukr
   #woocommerce:

@@ -32,7 +32,7 @@ gitlab:
         key: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com
     gitlab-runner:
       registration_token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxx # gitlab runner registration token
-    variables: # if hybrid salt-ssh in salt mode used this should be filled as well
+    variables: # for per job switching to salt-ssh, if used
       # use `./gen_ssh_priv_pub.sh example.com` to generate key pair
       SALTSSH_ROOT_ED25519_PRIV: |
         -----BEGIN OPENSSH PRIVATE KEY-----

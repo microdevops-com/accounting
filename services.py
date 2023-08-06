@@ -44,6 +44,10 @@ if __name__ == "__main__":
                           help="ignore jobs_disabled if set in yaml",
                           action="store_true")
     parser.add_argument("--at-date", dest="at_date", help="use DATETIME instead of now for tariff", nargs=1, metavar=("DATETIME"))
+    parser.add_argument("--salt-ssh",
+                          dest="salt_ssh",
+                          help="use salt-ssh in salt, applicable to projects with minions",
+                          action="store_true")
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--exclude-clients",
@@ -170,9 +174,15 @@ if __name__ == "__main__":
 
                     # Threaded function
                     def pipeline_salt_cmd(salt_project, asset, cmd):
+
+                        if args.salt_ssh:
+                            salt_ssh_in_salt_part = "SALT_SSH_IN_SALT=true"
+                        else:
+                            salt_ssh_in_salt_part = ""
+
                         script = textwrap.dedent(
                             """
-                            .gitlab-server-job/pipeline_salt_cmd.sh wait {salt_project} 300 {asset} "{cmd}"
+                            .gitlab-server-job/pipeline_salt_cmd.sh wait {salt_project} 300 {asset} "{cmd}" {salt_ssh_in_salt_part}
                             """
                         ).format(salt_project=salt_project, asset=asset, cmd=cmd)
                         logger.info("Running bash script in thread:")

@@ -295,6 +295,7 @@ assets:
       some_job:
         type: salt_cmd
         #severity_override: critical # optional, major by default, override with custom value if job fails
+        #salt-ssh: True # Use per job salt-ssh in salt, applicable to projects with minions
         cmd: state.apply some_state
         timeout: 36000
         tz: Europe/Kiev

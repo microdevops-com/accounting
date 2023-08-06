@@ -451,18 +451,30 @@ if __name__ == "__main__":
                                     # Run job
 
                                     if job["type"] == "salt_cmd":
+
                                         if "severity_override" in job:
-                                            script = textwrap.dedent(
-                                                """
-                                                .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}" {severity_override}
-                                                """
-                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"], job_cmd=job["cmd"], severity_override=job["severity_override"])
+                                            severity_override_part = "SEVERITY_OVERRIDE={severity_override}".format(severity_override=job["severity_override"])
                                         else:
-                                            script = textwrap.dedent(
-                                                """
-                                                .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}"
-                                                """
-                                            ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"], job_cmd=job["cmd"])
+                                            severity_override_part = ""
+
+                                        if "salt-ssh" in job and job["salt-ssh"]:
+                                            salt_ssh_in_salt_part = "SALT_SSH_IN_SALT=true"
+                                        else:
+                                            salt_ssh_in_salt_part = ""
+
+                                        script = textwrap.dedent(
+                                            """
+                                            .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}" {severity_override_part} {salt_ssh_in_salt_part}
+                                            """
+                                        ).format(
+                                            salt_project=client_dict["gitlab"]["salt_project"]["path"],
+                                            timeout=job["timeout"],
+                                            asset=asset["fqdn"],
+                                            job_cmd=job["cmd"],
+                                            severity_override_part=severity_override_part,
+                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part
+                                        )
+
                                         logger.info("Running bash script:")
                                         logger.info(script)
                                         if not args.dry_run_pipeline:
@@ -489,15 +501,27 @@ if __name__ == "__main__":
 
                                         # Decide ssh jump
                                         if "ssh" in asset and "jump" in asset["ssh"]:
-                                            ssh_jump = "{host}:{port}".format(host=asset["ssh"]["jump"]["host"], port=asset["ssh"]["jump"]["port"] if "port" in asset["ssh"]["jump"] else "22")
+                                            ssh_jump = "SSH_JUMP={host}:{port}".format(host=asset["ssh"]["jump"]["host"], port=asset["ssh"]["jump"]["port"] if "port" in asset["ssh"]["jump"] else "22")
                                         else:
                                             ssh_jump = ""
 
+                                        if "salt-ssh" in job and job["salt-ssh"]:
+                                            salt_ssh_in_salt_part = "SALT_SSH_IN_SALT=true"
+                                        else:
+                                            salt_ssh_in_salt_part = ""
+
                                         script = textwrap.dedent(
                                             """
-                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {asset} SSH {ssh_host} {ssh_port} {ssh_jump}
+                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {asset} SSH SSH_HOST={ssh_host} SSH_PORT={ssh_port} {ssh_jump} {salt_ssh_in_salt_part}
                                             """
-                                        ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], asset=asset["fqdn"], ssh_host=ssh_host, ssh_port=ssh_port, ssh_jump=ssh_jump)
+                                        ).format(
+                                            salt_project=client_dict["gitlab"]["salt_project"]["path"],
+                                            asset=asset["fqdn"],
+                                            ssh_host=ssh_host,
+                                            ssh_port=ssh_port,
+                                            ssh_jump=ssh_jump,
+                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part
+                                        )
                                         logger.info("Running bash script:")
                                         logger.info(script)
                                         if not args.dry_run_pipeline:
@@ -505,9 +529,14 @@ if __name__ == "__main__":
                                     elif job["type"] == "rsnapshot_backup_salt":
                                         script = textwrap.dedent(
                                             """
-                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT
+                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT {salt_ssh_in_salt_part}
                                             """
-                                        ).format(salt_project=client_dict["gitlab"]["salt_project"]["path"], timeout=job["timeout"], asset=asset["fqdn"])
+                                        ).format(
+                                            salt_project=client_dict["gitlab"]["salt_project"]["path"],
+                                            timeout=job["timeout"],
+                                            asset=asset["fqdn"],
+                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part
+                                        )
                                         logger.info("Running bash script:")
                                         logger.info(script)
                                         if not args.dry_run_pipeline:

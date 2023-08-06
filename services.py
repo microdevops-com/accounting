@@ -184,7 +184,12 @@ if __name__ == "__main__":
                             """
                             .gitlab-server-job/pipeline_salt_cmd.sh wait {salt_project} 300 {asset} "{cmd}" {salt_ssh_in_salt_part}
                             """
-                        ).format(salt_project=salt_project, asset=asset, cmd=cmd)
+                        ).format(
+                            salt_project=salt_project,
+                            asset=asset,
+                            cmd=cmd,
+                            salt_ssh_in_salt_part=salt_ssh_in_salt_part
+                        )
                         logger.info("Running bash script in thread:")
                         logger.info(script)
                         run_result = subprocess.run(script, shell=True, universal_newlines=True, executable="/bin/bash", stdout=subprocess.PIPE, stderr=subprocess.PIPE)

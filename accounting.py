@@ -5286,10 +5286,22 @@ if __name__ == "__main__":
                 else:
                     formatted_client_total = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_total)
                 
-                client_total_written = num2words(client_total,
-                    to='currency',
-                    lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["language"],
-                    currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
+                # If client_dict["billing"]["template"]]["languages"] is set then we use two languages in invoice
+                # Else use one language
+                if "languages" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]:
+                    client_total_written_1 = num2words(client_total,
+                        to='currency',
+                        lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["languages"][0],
+                        currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
+                    client_total_written_2 = num2words(client_total,
+                        to='currency',
+                        lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["languages"][1],
+                        currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
+                else:
+                    client_total_written = num2words(client_total,
+                        to='currency',
+                        lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["language"],
+                        currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
 
                 # Calc dates
 
@@ -5381,21 +5393,41 @@ if __name__ == "__main__":
 
                 # Templates
                 
-                client_doc_data = {
-                    "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
-                    "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
-                    "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
-                    "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
-                    "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
-                    "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
-                    "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
-                    "__INVOICE_DATE__":         invoice_date,
-                    "__ACT_DATE__":             invoice_act_date,
-                    "__INV_L_DATE__":           invoice_last_day,
-                    "__TOTAL__":                formatted_client_total,
-                    "__TOTAL_WRITTEN__":        client_total_written,
-                    "__ORDER_NUM__":            woocommerce_order_id
-                }
+                # If client_dict["billing"]["template"]]["languages"] is set then we use two languages in invoice
+                # Else use one language
+                if "languages" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]:
+                    client_doc_data = {
+                        "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
+                        "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
+                        "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
+                        "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
+                        "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
+                        "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
+                        "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
+                        "__INVOICE_DATE__":         invoice_date,
+                        "__ACT_DATE__":             invoice_act_date,
+                        "__INV_L_DATE__":           invoice_last_day,
+                        "__TOTAL__":                formatted_client_total,
+                        "__TOTAL_WRITTEN_1__":      client_total_written_1,
+                        "__TOTAL_WRITTEN_2__":      client_total_written_2,
+                        "__ORDER_NUM__":            woocommerce_order_id
+                    }
+                else:
+                    client_doc_data = {
+                        "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
+                        "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
+                        "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
+                        "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
+                        "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
+                        "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
+                        "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
+                        "__INVOICE_DATE__":         invoice_date,
+                        "__ACT_DATE__":             invoice_act_date,
+                        "__INV_L_DATE__":           invoice_last_day,
+                        "__TOTAL__":                formatted_client_total,
+                        "__TOTAL_WRITTEN__":        client_total_written,
+                        "__ORDER_NUM__":            woocommerce_order_id
+                    }
                 
                 # Employee Share sheet
 

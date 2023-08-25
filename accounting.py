@@ -336,6 +336,14 @@ if __name__ == "__main__":
         
         # Do tasks
 
+        # If --at-date is set use it instead of today and now
+        if args.at_date is not None:
+            used_today = datetime.strptime(args.at_date[0], "%Y-%m-%d")
+            used_now = datetime.strptime(args.at_date[0], "%Y-%m-%d")
+        else:
+            used_today = datetime.today()
+            used_now = datetime.now()
+
         if args.exclude_clients is not None:
             json_str, = args.exclude_clients
             exclude_clients_list = json.loads(json_str)
@@ -401,7 +409,7 @@ if __name__ == "__main__":
                                                     )
                                                 ):
 
-                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now)
 
                     # If there are assets
                     if len(asset_list) > 0:
@@ -1235,7 +1243,7 @@ if __name__ == "__main__":
                         if "path" not in client_dict["gitlab"]["admin_project"]:
                             raise Exception("gitlab:admin_project:path key missing in: {0}/{1}".format(WORK_DIR, client_file))
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now)
 
                         # For each asset
                         for asset in asset_list:
@@ -1326,7 +1334,7 @@ if __name__ == "__main__":
                         project = gl.projects.get(project_from_list)
                         labels = project.labels.list(all=True)
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now(), False)
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now, False)
 
                         # Iterate over assets in client
                         for asset in asset_list:
@@ -1342,7 +1350,7 @@ if __name__ == "__main__":
 
                             # Take the first (upper and current) tariff and check it
                             asset_tariff_list = []
-                            for asset_tariff in activated_tariff(asset["tariffs"], datetime.now(), logger)["tariffs"]:
+                            for asset_tariff in activated_tariff(asset["tariffs"], used_now, logger)["tariffs"]:
 
                                 # If tariff has file key - load it
                                 if "file" in asset_tariff:
@@ -4134,7 +4142,7 @@ if __name__ == "__main__":
                                 # Check if other label name is asset
                                 else:
 
-                                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now(), False)
+                                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now, False)
 
                                     # If there are assets
                                     if len(asset_list) > 0:
@@ -4378,14 +4386,14 @@ if __name__ == "__main__":
                     else:
                         month_delta = int(month_in_arg)
 
-                    needed_month_for_tariff = datetime.today() + relativedelta(months=month_delta)
+                    needed_month_for_tariff = used_today + relativedelta(months=month_delta)
 
                     # Check if client is active
                     if client_dict["active"]:
                         
                         client_asset_tariffs_dict[client] = {}
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now)
 
                         # If there are assets
                         if len(asset_list) > 0:
@@ -4519,7 +4527,7 @@ if __name__ == "__main__":
                     else:
                         month_delta = int(month_in_arg)
 
-                    needed_month_per_client[client] = datetime.today() + relativedelta(months=month_delta)
+                    needed_month_per_client[client] = used_today + relativedelta(months=month_delta)
                     monthly_period = str(needed_month_per_client[client].strftime("%Y-%m"))
 
                     # Iterate over client assets
@@ -4631,7 +4639,7 @@ if __name__ == "__main__":
                     month_shift_back, = args.make_storage_invoice_for_all_clients
                     needed_client = None
 
-                needed_month_for_tariff = datetime.today() - relativedelta(months=int(month_shift_back))
+                needed_month_for_tariff = used_today - relativedelta(months=int(month_shift_back))
 
                 # New cursor
                 cur = conn.cursor()
@@ -4745,7 +4753,7 @@ if __name__ == "__main__":
                                                                                                                                                                 )
                                                                                                                                                             ):
 
-                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
+                        asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now)
 
                         # If there are assets
                         if len(asset_list) > 0:
@@ -4966,7 +4974,7 @@ if __name__ == "__main__":
                     raise Exception("Caught exception on gsuite execution")
 
                 # Doc number
-                client_doc_num = invoice_prefix + client_dict["billing"]["code"] + "-" + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["code"] + "-" + str(datetime.today().strftime("%Y-%m-%d"))
+                client_doc_num = invoice_prefix + client_dict["billing"]["code"] + "-" + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["code"] + "-" + str(used_today.strftime("%Y-%m-%d"))
                 latest_subnum = "01"
 
                 # Get latest invoice for client for today and increase latest_subnum if found
@@ -5310,11 +5318,11 @@ if __name__ == "__main__":
                     # Date of last timelog
                     invoice_act_date = invoice_details[client][-1]["timelog_updated"]
                     # Today + 2 weeks
-                    in_two_weeks = datetime.today() + timedelta(days=14)
+                    in_two_weeks = used_today + timedelta(days=14)
                     if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
                         invoice_date = invoice_act_date
                     else:
-                        invoice_date = str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
+                        invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
 
                 # Monthly
@@ -5331,8 +5339,8 @@ if __name__ == "__main__":
                         first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                         invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     # Today + 4 weeks
-                    in_four_weeks = datetime.today() + timedelta(days=28)
-                    invoice_date = str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
+                    in_four_weeks = used_today + timedelta(days=28)
+                    invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     invoice_last_day = str(in_four_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                 
                 # Storage
@@ -5349,11 +5357,11 @@ if __name__ == "__main__":
                         first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                         invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     # Today + 2 weeks
-                    in_two_weeks = datetime.today() + timedelta(days=14)
+                    in_two_weeks = used_today + timedelta(days=14)
                     if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
                         invoice_date = invoice_act_date
                     else:
-                        invoice_date = str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
+                        invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
                     invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
 
                 # Copy templates
@@ -5364,7 +5372,7 @@ if __name__ == "__main__":
                         client_doc_invoice = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["source"],
                             client_dict["gsuite"]["folder"],
                             acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " " + str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
+                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " " + str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
                         logger.info("New invoice id: {0}".format(client_doc_invoice))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
@@ -5375,7 +5383,7 @@ if __name__ == "__main__":
                         client_doc_details = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["source"],
                             client_dict["gsuite"]["folder"],
                             acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][1] + " " + str(datetime.today().strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
+                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][1] + " " + str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
                         logger.info("New details id: {0}".format(client_doc_details))
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
@@ -5475,7 +5483,7 @@ if __name__ == "__main__":
 
                 # Set needed values row
                 invoices_order_dict = acc_yaml_dict["invoices"]["invoices"]["columns"]["order"]
-                invoices_rows_invoices_row[invoices_order_dict['date_created'] - 1] =           str(datetime.today().strftime("%Y-%m-%d"))
+                invoices_rows_invoices_row[invoices_order_dict['date_created'] - 1] =           str(used_today.strftime("%Y-%m-%d"))
                 invoices_rows_invoices_row[invoices_order_dict['type'] - 1] =                   invoice_type
                 invoices_rows_invoices_row[invoices_order_dict['period'] - 1] =                 client_doc_invoice_period
                 invoices_rows_invoices_row[invoices_order_dict['client'] - 1] =                 client_dict["name"]
@@ -5635,7 +5643,7 @@ if __name__ == "__main__":
                 # Check if client is active
                 if client_dict["active"]:
 
-                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now()), key = lambda x: (x["tariffs"][-1]["activated"]))
+                    asset_list = sorted(get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now), key = lambda x: (x["tariffs"][-1]["activated"]))
 
                     # Iterate over assets
                     for asset in asset_list:
@@ -5698,7 +5706,7 @@ if __name__ == "__main__":
                 # Check if client is active
                 if client_dict["active"]:
 
-                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, datetime.strptime(args.at_date[0], "%Y-%m-%d") if args.at_date is not None else datetime.now())
+                    asset_list = get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, used_now)
 
                     # Save count for client per asset kind
                     asset_count = {}

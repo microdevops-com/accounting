@@ -190,7 +190,7 @@ def get_asset_list(client_dict, WORK_DIR, TARIFFS_SUBDIR, logger, at_datetime, o
         if "kind" not in asset:
             asset["kind"] = "server"
 
-        logger.info("Checking activated tariff for asset {0}".format(asset["fqdn"]), logger)
+        logger.info("Checking activated tariff for asset {0}".format(asset["fqdn"]))
 
         # Set activated tariff
         asset["activated_tariff"] = []

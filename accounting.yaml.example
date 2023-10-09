@@ -384,6 +384,18 @@ jobs:
         - 2008ServerR2
         - 2016Server
         - 2019Server
+  # 16:30
+  hosts:
+    type: salt_cmd
+    cmd: state.apply hosts queue=True
+    timeout: 300
+    tz: Europe/Kiev
+    each:
+      days: 1
+    hours:
+      - 16
+    minutes:
+      - 30
   # 2:00
   put_check_files:
     type: salt_cmd

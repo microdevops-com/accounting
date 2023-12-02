@@ -46,7 +46,7 @@ if __name__ == "__main__":
     group.add_argument("--run-job", dest="run_job", help="run specific job id JOB for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET", "JOB"))
     group.add_argument("--run-jobs", dest="run_jobs", help="run jobs for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "ASSET"))
     group.add_argument("--force-run-job", dest="force_run_job", help="force run (omit time conditions) specific job id JOB for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET", "JOB"))
-    group.add_argument("--force-run-jobs", dest="force_run_jobs", help="force run all jobs (omit time conditions) for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET"))
+    group.add_argument("--force-run-jobs", dest="force_run_jobs", help="force run all jobs (omit time conditions) for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "ASSET"))
     # This is deprecated but kept for history
     group.add_argument("--prune-run-tags", dest="prune_run_tags", help="prune all run_* tags older than AGE via GitLab API for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "AGE"))
 

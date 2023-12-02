@@ -46,6 +46,7 @@ if __name__ == "__main__":
     group.add_argument("--run-job", dest="run_job", help="run specific job id JOB for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET", "JOB"))
     group.add_argument("--run-jobs", dest="run_jobs", help="run jobs for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "ASSET"))
     group.add_argument("--force-run-job", dest="force_run_job", help="force run (omit time conditions) specific job id JOB for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET", "JOB"))
+    group.add_argument("--force-run-jobs", dest="force_run_jobs", help="force run all jobs (omit time conditions) for asset ASSET (use ALL for all assets) via GitLab pipelines for CLIENT (use ALL for all clients)", nargs=3, metavar=("CLIENT", "ASSET"))
     # This is deprecated but kept for history
     group.add_argument("--prune-run-tags", dest="prune_run_tags", help="prune all run_* tags older than AGE via GitLab API for CLIENT (use ALL for all clients)", nargs=2, metavar=("CLIENT", "AGE"))
 
@@ -83,7 +84,7 @@ if __name__ == "__main__":
         
         # Do tasks
 
-        if args.run_jobs or args.run_job or args.force_run_job:
+        if args.run_jobs or args.run_job or args.force_run_job or args.force_run_jobs:
 
             # Check db vars
             PG_DB_HOST = os.environ.get("PG_DB_HOST")
@@ -139,6 +140,8 @@ if __name__ == "__main__":
                         run_client, run_asset, run_job = args.run_job
                     if args.force_run_job:
                         run_client, run_asset, run_job = args.force_run_job
+                    if args.force_run_jobs:
+                        run_client, run_asset = args.force_run_jobs
 
                     if run_client != "ALL" and client_dict["name"].lower() != run_client:
                         continue
@@ -329,13 +332,18 @@ if __name__ == "__main__":
                                         job_last_run = datetime.strptime("1970-01-01 00:00:00 +0000", "%Y-%m-%d %H:%M:%S %z")
                                     logger.info("Job {asset}/{job} last run: {time}".format(asset=asset["fqdn"], job=job["id"], time=datetime.strftime(job_last_run, "%Y-%m-%d %H:%M:%S %z %Z")))
                                     
-                                    # Check force run
+                                    # Check force run one job
 
                                     if args.force_run_job:
 
                                         if job["id"] != run_job:
                                             logger.info("Job {asset}/{job} skipped because job id didn't match force run parameter".format(asset=asset["fqdn"], job=job["id"]))
                                             continue
+                                        logger.info("Job {asset}/{job} force run - time conditions omitted".format(asset=asset["fqdn"], job=job["id"]))
+
+                                    # Check force run all jobs
+                                    elif args.force_run_jobs:
+
                                         logger.info("Job {asset}/{job} force run - time conditions omitted".format(asset=asset["fqdn"], job=job["id"]))
 
                                     else:

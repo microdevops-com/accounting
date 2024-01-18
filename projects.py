@@ -830,6 +830,8 @@ if __name__ == "__main__":
                                     echo "  host: {host}" >> etc/salt/roster
                                     echo "  port: {port}" >> etc/salt/roster
                                     echo "  priv: __ROSTER_PRIV__" >> etc/salt/roster
+                                    echo "  minion_opts:" >> etc/salt/roster
+                                    echo "    __GRAINS__" >> etc/salt/roster
                                     """
                                 ).format(fqdn=asset["fqdn"],
                                     host=asset["ssh"]["host"] if ("ssh" in asset and "host" in asset["ssh"]) else asset["fqdn"],

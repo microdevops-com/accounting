@@ -768,10 +768,12 @@ if __name__ == "__main__":
                     if "configuration_management" in acc_yaml_dict and "templates" in acc_yaml_dict["configuration_management"] and "files" in acc_yaml_dict["configuration_management"]["templates"]:
                         # Extend files_to_template with files but substitute __VENDOR__ to vendor in path and jinja keys
                         for file in acc_yaml_dict["configuration_management"]["templates"]["files"]:
-                            if "jinja" in file:
-                                file["jinja"] = file["jinja"].replace("__VENDOR__", client_dict["vendor"].lower())
-                                file["path"] = file["path"].replace("__VENDOR__", client_dict["vendor"].lower())
-                            files_to_template.append(file)
+                            # Copy file to avoid modifying original
+                            modfile = file.copy()
+                            if "jinja" in modfile:
+                                modfile["jinja"] = modfile["jinja"].replace("__VENDOR__", client_dict["vendor"].lower())
+                                modfile["path"] = modfile["path"].replace("__VENDOR__", client_dict["vendor"].lower())
+                            files_to_template.append(modfile)
 
                     for templated_file in files_to_template:
 

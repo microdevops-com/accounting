@@ -5250,7 +5250,7 @@ if __name__ == "__main__":
                             raise Exception("Error in currency found")
 
                         # Compare order total with invoice total
-                        if float(woocommerce_order_total) != float(client_total):
+                        if round(float(woocommerce_order_total), 2) != round(float(client_total), 2):
                             logger.error("Woo order {order} total {order_total} didn't match invoice total {invoice_total}".format(
                                 order=woocommerce_order_id,
                                 order_total=woocommerce_order_total,

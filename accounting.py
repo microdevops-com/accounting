@@ -5222,6 +5222,7 @@ if __name__ == "__main__":
                         # Get response needed keys
                         woocommerce_order_id = response.json()["number"]
                         woocommerce_order_currency = response.json()["currency"]
+                        woocommerce_order_total = response.json()["total"]
 
                         # Prepare the data for note update request
                         data = {
@@ -5248,7 +5249,14 @@ if __name__ == "__main__":
                             ))
                             raise Exception("Error in currency found")
 
-                        # TODO: We could also check total from order and invoice later
+                        # Compare order total with invoice total
+                        if woocommerce_order_total != client_total:
+                            logger.error("Woo order {order} total {order_total} didn't match invoice total {invoice_total}".format(
+                                order=woocommerce_order_id,
+                                order_total=woocommerce_order_total,
+                                invoice_total=client_total
+                            ))
+                            raise Exception("Error in total found")
 
                     except Exception as e:
                         raise Exception("Caught exception on woo api query")

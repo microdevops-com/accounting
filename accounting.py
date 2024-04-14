@@ -4279,6 +4279,7 @@ if __name__ == "__main__":
 
                             # Prepare row to save in hourly_details
                             # We need to calculate employee share right here becase of different rates per hour, so time share doesn't give correct value
+                            # We do round(..., 4) as round of sum is not always equal to sum of rounds, so we need higher precision
                             hourly_details_new_item = {
                                 'project_name': row_project_name,
                                 'project_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_project_name,
@@ -4295,8 +4296,8 @@ if __name__ == "__main__":
                                 'tariff_rate': row_tariff_rate,
                                 'tariff_plan': row_tariff_plan,
                                 'woocommerce_product_id': row_wc_pid,
-                                'timelog_cost': round(row_time_spent_hours * row_tariff_rate, 2),
-                                'timelog_cost_employee_share': round((row_time_spent_hours * row_tariff_rate) * (acc_yaml_dict["employees"][row_user_email]["hourly_share"] / 100), 2)
+                                'timelog_cost': round(row_time_spent_hours * row_tariff_rate, 4),
+                                'timelog_cost_employee_share': round((row_time_spent_hours * row_tariff_rate) * (acc_yaml_dict["employees"][row_user_email]["hourly_share"] / 100), 4)
                             }
 
                             # Init client timelogs list
@@ -4855,6 +4856,7 @@ if __name__ == "__main__":
                                                 # Check if asset has storage usage records and add rows to details if any
                                                 if (asset["fqdn"], storage_asset, storage_path) in asset_storage_usage_monthly:
 
+                                                    # We do round(..., 4) as round of sum is not always equal to sum of rounds, so we need higher precision
                                                     storage_details_new_item = {
                                                         'client_asset_fqdn':        asset["fqdn"],
                                                         'storage_asset_fqdn':       storage_asset,
@@ -4866,7 +4868,7 @@ if __name__ == "__main__":
                                                         'tariff_rate':              row_tariff_rate,
                                                         'tariff_plan':              row_tariff_plan,
                                                         'woocommerce_product_id':   row_wc_pid,
-                                                        'storage_cost':             round(round(asset_storage_usage_monthly[(asset["fqdn"], storage_asset, storage_path)]["avg_per_month"] / 1000, 2) * row_tariff_rate, 2)
+                                                        'storage_cost':             round(round(asset_storage_usage_monthly[(asset["fqdn"], storage_asset, storage_path)]["avg_per_month"] / 1000, 2) * row_tariff_rate, 4)
                                                     }
 
                                                     # Init client storage list

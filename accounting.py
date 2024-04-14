@@ -5204,6 +5204,7 @@ if __name__ == "__main__":
                             "customer_id": client_dict["billing"]["woocommerce"]["customer_id"],
                             "billing": woo_customer["billing"],
                             "shipping": woo_customer["shipping"],
+                            "currency": acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"],
                             "line_items": order_items
                         }
                         logger.info("Woo order data to insert:")

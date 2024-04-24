@@ -24,6 +24,7 @@ os: # allowed os for servers
   - jammy
   - buster
   - bullseye
+  - bookworm
   - 2008ServerR2
   - 2016Server
   - 2019Server
@@ -52,6 +53,7 @@ configuration_management:
     - jammy
     - buster
     - bullseye
+    - bookworm
     - centos7
     - centos8
 jobs:

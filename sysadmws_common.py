@@ -277,7 +277,8 @@ def load_client_yaml(WORK_DIR, f, CLIENTS_SUBDIR, YAML_GLOB, logger):
                         new_assets = []
 
                     # Merge dicts, assets will be replaced by included from file
-                    merge(yaml_dict, included_yaml_dict)
+                    if included_yaml_dict is not None:
+                        merge(yaml_dict, included_yaml_dict)
 
                     # Set assets or servers from old and new
                     yaml_dict["servers"] = old_servers + new_servers
@@ -316,7 +317,8 @@ def load_client_yaml(WORK_DIR, f, CLIENTS_SUBDIR, YAML_GLOB, logger):
                         new_assets = []
 
                     # Merge dicts, assets will be replaced by included from file
-                    merge(yaml_dict, included_yaml_dict)
+                    if included_yaml_dict is not None:
+                        merge(yaml_dict, included_yaml_dict)
 
                     # Set assets or servers from old and new
                     yaml_dict["servers"] = old_servers + new_servers

@@ -267,11 +267,11 @@ def load_client_yaml(WORK_DIR, f, CLIENTS_SUBDIR, YAML_GLOB, logger):
                         old_assets = []
 
                     # Save new assets or servers (deprecated) list before merging dicts
-                    if "servers" in included_yaml_dict:
+                    if included_yaml_dict is not None and "servers" in included_yaml_dict:
                         new_servers = included_yaml_dict["servers"]
                     else:
                         new_servers = []
-                    if "assets" in included_yaml_dict:
+                    if included_yaml_dict is not None and "assets" in included_yaml_dict:
                         new_assets = included_yaml_dict["assets"]
                     else:
                         new_assets = []
@@ -306,11 +306,11 @@ def load_client_yaml(WORK_DIR, f, CLIENTS_SUBDIR, YAML_GLOB, logger):
                         old_assets = []
 
                     # Save new assets or servers (deprecated) list before merging dicts
-                    if "servers" in included_yaml_dict:
+                    if included_yaml_dict is not None and "servers" in included_yaml_dict:
                         new_servers = included_yaml_dict["servers"]
                     else:
                         new_servers = []
-                    if "assets" in included_yaml_dict:
+                    if included_yaml_dict is not None and "assets" in included_yaml_dict:
                         new_assets = included_yaml_dict["assets"]
                     else:
                         new_assets = []

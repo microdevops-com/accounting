@@ -69,6 +69,10 @@ billing:
     #hourly_and_storage_invoice_date_as_act: True # Hourly and Storage invoice dates as an act date
   merchant: Example
   template: Ukr
+  #per_employee: # Optional, individual invoices for employee time tracked
+  #  devops@example.com:
+  #    merchant: Example2
+  #    template: Ukr
   #woocommerce:
   #  draft_order: True
   #  customer_id: 123

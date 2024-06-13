@@ -4277,35 +4277,124 @@ if __name__ == "__main__":
                             # Calc row_time_spent_hours
                             row_time_spent_hours = round((row_time_spent/60)/60, 2)
 
+                            # Populate helper dict with per_employee sorted and with indexes
+                            if "per_employee" in client_dict["billing"]:
+                                helper_per_employee = {}
+                                employee_index = 1
+                                for employee_email in sorted(client_dict["billing"]["per_employee"]):
+                                    helper_per_employee[employee_email] = client_dict["billing"]["per_employee"][employee_email]
+                                    helper_per_employee[employee_email]["index"] = employee_index
+                                    employee_index += 1
+
+                            # Decide which invoice index to use
+                            # Always use 0 if no per_employee or no per_employee for this employee
+                            if "per_employee" in client_dict["billing"] and row_user_email in client_dict["billing"]["per_employee"]:
+                                row_invoice_index_per_employee = helper_per_employee[row_user_email]["index"]
+                            row_invoice_index_main = 0
+
+                            # Decide which merchant and template to use
+                            if "per_employee" in client_dict["billing"] and row_user_email in client_dict["billing"]["per_employee"]:
+                                row_merchant_per_employee = client_dict["billing"]["per_employee"][row_user_email]["merchant"]
+                                row_template_per_employee = client_dict["billing"]["per_employee"][row_user_email]["template"]
+                            row_merchant_main = client_dict["billing"]["merchant"]
+                            row_template_main = client_dict["billing"]["template"]
+
+                            # Init hourly_details per client
+                            if not client_name in hourly_details:
+
+                                # For multiple invoices per client compatibility hourly details list is packed inside one item list
+                                hourly_details[client_name] = []
+                                hourly_details[client_name].append([])
+
+                                # Also add per employee invoices if "per_employee" in client_dict["billing"], we will use index from helper_per_employee to add to the right list
+                                if "per_employee" in client_dict["billing"]:
+                                    for employee_email in sorted(client_dict["billing"]["per_employee"]):
+                                        hourly_details[client_name].append([])
+
                             # Prepare row to save in hourly_details
                             # We need to calculate employee share right here becase of different rates per hour, so time share doesn't give correct value
                             # We do round(..., 4) as round of sum is not always equal to sum of rounds, so we need higher precision
-                            hourly_details_new_item = {
-                                'project_name': row_project_name,
-                                'project_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_project_name,
-                                'imr_title': row_imr_title,
-                                'imr_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_imr_link,
-                                'imr_author': row_imr_author,
-                                'imr_created': row_imr_created.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]),
-                                'imr_closed': row_imr_closed.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]) if not row_imr_closed is None else "",
-                                'imr_labels': ", ".join(sorted(row_imr_labels.split(", "))) if not row_imr_labels is None else "",
-                                'timelog_employee_email': row_user_email,
-                                'timelog_updated': row_timelog_updated.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]),
-                                'timelog_spent_hours': row_time_spent_hours,
-                                'tariff_currency': row_tariff_currency,
-                                'tariff_rate': row_tariff_rate,
-                                'tariff_plan': row_tariff_plan,
-                                'woocommerce_product_id': row_wc_pid,
-                                'timelog_cost': round(row_time_spent_hours * row_tariff_rate, 4),
-                                'timelog_cost_employee_share': round((row_time_spent_hours * row_tariff_rate) * (acc_yaml_dict["employees"][row_user_email]["hourly_share"] / 100), 4)
-                            }
 
-                            # Init client timelogs list
-                            if not client_name in hourly_details:
-                                hourly_details[client_name] = []
+                            # If row_user_email is in per_employee - we need to add row to both main (index = 0) and per_employee (index = row_invoice_index) invoices
+                            if "per_employee" in client_dict["billing"] and row_user_email in client_dict["billing"]["per_employee"]:
 
-                            # Save hourly details for a client
-                            hourly_details[client_name].append(hourly_details_new_item)
+                                # Calc shares
+                                main_invoice_share = round(1 - (acc_yaml_dict["employees"][row_user_email]["hourly_share"] / 100), 4)
+                                employee_invoice_share = round(acc_yaml_dict["employees"][row_user_email]["hourly_share"] / 100, 4)
+
+                                # Main invoice employee share will be 0 and we substract his share from timelog_spent_hours
+                                hourly_details_new_item = {
+                                    'project_name': row_project_name,
+                                    'project_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_project_name,
+                                    'imr_title': row_imr_title,
+                                    'imr_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_imr_link,
+                                    'imr_author': row_imr_author,
+                                    'imr_created': row_imr_created.strftime(acc_yaml_dict["merchants"][row_merchant_main]["templates"][row_template_main]["date_format"]),
+                                    'imr_closed': row_imr_closed.strftime(acc_yaml_dict["merchants"][row_merchant_main]["templates"][row_template_main]["date_format"]) if not row_imr_closed is None else "",
+                                    'imr_labels': ", ".join(sorted(row_imr_labels.split(", "))) if not row_imr_labels is None else "",
+                                    'timelog_employee_email': row_user_email,
+                                    'timelog_updated': row_timelog_updated.strftime(acc_yaml_dict["merchants"][row_merchant_main]["templates"][row_template_main]["date_format"]),
+                                    'timelog_spent_hours': round(row_time_spent_hours * main_invoice_share, 4),
+                                    'tariff_currency': row_tariff_currency,
+                                    'tariff_rate': row_tariff_rate,
+                                    'tariff_plan': row_tariff_plan,
+                                    'woocommerce_product_id': row_wc_pid,
+                                    'timelog_cost': round(row_time_spent_hours * main_invoice_share * row_tariff_rate, 4),
+                                    'timelog_cost_employee_share': round(0, 4)
+                                }
+
+                                # Save hourly details for a client
+                                hourly_details[client_name][row_invoice_index_main].append(hourly_details_new_item)
+
+                                # Employee invoice employee share will be same as his invoice share (100%) and we put his share into timelog_spent_hours
+                                hourly_details_new_item = {
+                                    'project_name': row_project_name,
+                                    'project_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_project_name,
+                                    'imr_title': row_imr_title,
+                                    'imr_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_imr_link,
+                                    'imr_author': row_imr_author,
+                                    'imr_created': row_imr_created.strftime(acc_yaml_dict["merchants"][row_merchant_per_employee]["templates"][row_template_per_employee]["date_format"]),
+                                    'imr_closed': row_imr_closed.strftime(acc_yaml_dict["merchants"][row_merchant_per_employee]["templates"][row_template_per_employee]["date_format"]) if not row_imr_closed is None else "",
+                                    'imr_labels': ", ".join(sorted(row_imr_labels.split(", "))) if not row_imr_labels is None else "",
+                                    'timelog_employee_email': row_user_email,
+                                    'timelog_updated': row_timelog_updated.strftime(acc_yaml_dict["merchants"][row_merchant_per_employee]["templates"][row_template_per_employee]["date_format"]),
+                                    'timelog_spent_hours': round(row_time_spent_hours * employee_invoice_share, 4),
+                                    'tariff_currency': row_tariff_currency,
+                                    'tariff_rate': row_tariff_rate,
+                                    'tariff_plan': row_tariff_plan,
+                                    'woocommerce_product_id': row_wc_pid,
+                                    'timelog_cost': round(row_time_spent_hours * employee_invoice_share * row_tariff_rate, 4),
+                                    'timelog_cost_employee_share': round(row_time_spent_hours * employee_invoice_share * row_tariff_rate, 4)
+                                }
+
+                                # Save hourly details for a client
+                                hourly_details[client_name][row_invoice_index_per_employee].append(hourly_details_new_item)
+
+                            # Else we need only to add it to the main invoice
+                            else:
+
+                                hourly_details_new_item = {
+                                    'project_name': row_project_name,
+                                    'project_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_project_name,
+                                    'imr_title': row_imr_title,
+                                    'imr_link': acc_yaml_dict["gitlab"]["url"] + "/" + row_imr_link,
+                                    'imr_author': row_imr_author,
+                                    'imr_created': row_imr_created.strftime(acc_yaml_dict["merchants"][row_merchant_main]["templates"][row_template_main]["date_format"]),
+                                    'imr_closed': row_imr_closed.strftime(acc_yaml_dict["merchants"][row_merchant_main]["templates"][row_template_main]["date_format"]) if not row_imr_closed is None else "",
+                                    'imr_labels': ", ".join(sorted(row_imr_labels.split(", "))) if not row_imr_labels is None else "",
+                                    'timelog_employee_email': row_user_email,
+                                    'timelog_updated': row_timelog_updated.strftime(acc_yaml_dict["merchants"][row_merchant_main]["templates"][row_template_main]["date_format"]),
+                                    'timelog_spent_hours': row_time_spent_hours,
+                                    'tariff_currency': row_tariff_currency,
+                                    'tariff_rate': row_tariff_rate,
+                                    'tariff_plan': row_tariff_plan,
+                                    'woocommerce_product_id': row_wc_pid,
+                                    'timelog_cost': round(row_time_spent_hours * row_tariff_rate, 4),
+                                    'timelog_cost_employee_share': round((row_time_spent_hours * row_tariff_rate) * (acc_yaml_dict["employees"][row_user_email]["hourly_share"] / 100), 4)
+                                }
+
+                                # Save hourly details for a client
+                                hourly_details[client_name][row_invoice_index_main].append(hourly_details_new_item)
 
                         # Save raw data to log
                         logger.info(row)
@@ -4514,7 +4603,9 @@ if __name__ == "__main__":
                 needed_month_per_client = {}
                 for client in clients_dict:
 
+                    # For multiple invoices per client compatibility monthly details list is packed inside one item list
                     monthly_details[client] = []
+                    monthly_details[client].append([])
 
                     # Check invoice shift from client yaml if exist, if not = 0
                     
@@ -4623,12 +4714,12 @@ if __name__ == "__main__":
                             }
 
                             # Save monthly details for a client
-                            monthly_details[client].append(monthly_details_new_item)
+                            monthly_details[client][0].append(monthly_details_new_item)
 
                     # Sort details:
                     # - Activation date
                     # - Asset FQDN within one date
-                    monthly_details[client] = sorted(monthly_details[client], key = lambda x: (x["activated_date"], x["asset_fqdn"]))
+                    monthly_details[client][0] = sorted(monthly_details[client][0], key = lambda x: (x["activated_date"], x["asset_fqdn"]))
 
             # Storage
 
@@ -4874,16 +4965,18 @@ if __name__ == "__main__":
                                                     # Init client storage list
                                                     if not client_dict["name"].lower() in storage_details:
                                                         storage_details[client_dict["name"].lower()] = []
+                                                        # For multiple invoices per client compatibility storage details list is packed inside one item list
+                                                        storage_details[client_dict["name"].lower()].append([])
 
                                                     # Save storage details for a client
-                                                    storage_details[client_dict["name"].lower()].append(storage_details_new_item)
+                                                    storage_details[client_dict["name"].lower()][0].append(storage_details_new_item)
 
                         # Sort details and log:
                         if client_dict["name"].lower() in storage_details:
                             
-                            storage_details[client_dict["name"].lower()] = sorted(storage_details[client_dict["name"].lower()], key = lambda x: (x["client_asset_fqdn"], x["storage_asset_fqdn"], x["storage_asset_path"]))
+                            storage_details[client_dict["name"].lower()][0] = sorted(storage_details[client_dict["name"].lower()][0], key = lambda x: (x["client_asset_fqdn"], x["storage_asset_fqdn"], x["storage_asset_path"]))
                             logger.info("Storage details for client {client}".format(client=client_dict["name"].lower()))
-                            logger.info(storage_details[client_dict["name"].lower()])
+                            logger.info(storage_details[client_dict["name"].lower()][0])
 
             # Make documents
 
@@ -4897,730 +4990,749 @@ if __name__ == "__main__":
 
             for client in invoice_details:
 
-                # Skip client if invoice_details is empty (e.g. no assets, only hourly)
-                if not invoice_details[client]:
-                    continue
-                
-                # Save client raw invoice details to log for debug
-                logger.info("Client {0} invoice raw details:".format(client))
-                logger.info(json.dumps(invoice_details[client], indent=2))
+                # Each client may have multiple invoices, so we need to iterate over them
+                specific_invoice_num = 0
+                for specific_invoice_details in invoice_details[client]:
+
+                    specific_invoice_num += 1
+
+                    # Skip client if invoice_details is empty (e.g. no assets, only hourly)
+                    if not specific_invoice_details:
+                        continue
+                    
+                    # Save client raw invoice details to log for debug
+                    logger.info("Client {0} invoice number {1} raw details:".format(client, specific_invoice_num))
+                    logger.info(json.dumps(specific_invoice_details, indent=2))
+                            
+                    # Load client YAML
+                    client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
+                    if client_dict is None:
+                        raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
+
+                    # Check if papers needed or not
+                    if client_dict["billing"]["papers"]["invoice"]["print"] or client_dict["billing"]["papers"]["act"]["print"]:
+                        papers_needed = "Needed"
+                    else:
+                        papers_needed = "Not Needed"
+
+                    # Set invoice type and vars for it
+
+                    if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
+                        invoice_type = "Hourly"
+                        invoice_prefix = "H-"
                         
-                # Load client YAML
-                client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client.lower(), YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
-                if client_dict is None:
-                    raise Exception("Config file error or missing: {0}/{1}/{2}.{3}".format(WORK_DIR, CLIENTS_SUBDIR, client, YAML_EXT))
-
-                # Check if papers needed or not
-                if client_dict["billing"]["papers"]["invoice"]["print"] or client_dict["billing"]["papers"]["act"]["print"]:
-                    papers_needed = "Needed"
-                else:
-                    papers_needed = "Not Needed"
-
-                # Set invoice type and vars for it
-
-                if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
-                    invoice_type = "Hourly"
-                    invoice_prefix = "H-"
-                    
-                    # Details are ordered by date, so period is: date of of first detail - date of last detail
-                    client_doc_invoice_period = invoice_details[client][0]["timelog_updated"] + ' - ' + invoice_details[client][-1]["timelog_updated"]
-
-                if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
-                    invoice_type = "Monthly"
-                    invoice_prefix = "M-"
-
-                    # Take period from first detail
-                    client_doc_invoice_period = invoice_details[client][0]["period"]
-                    
-                if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients is not None:
-                    invoice_type = "Storage"
-                    invoice_prefix = "S-"
-
-                    # Take usage_month from first detail
-                    client_doc_invoice_period = invoice_details[client][0]["usage_month"]
-
-                    # Save needed_month for later in docs
-                    needed_month = invoice_details[client][0]["usage_month"]
-
-                # Sanity checks
-                # Check currency
-                for detail in invoice_details[client]:
-                    if detail["tariff_currency"] != acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]:
-                        if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
-                            logger.error("Issue or MR {imr} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
-                                imr=detail["imr_link"],
-                                currency=detail["tariff_currency"],
-                                merchant=client_dict["billing"]["merchant"],
-                                template=client_dict["billing"]["template"]
-                            ))
-                        if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
-                            logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
-                                asset=detail["asset_fqdn"],
-                                currency=detail["tariff_currency"],
-                                merchant=client_dict["billing"]["merchant"],
-                                template=client_dict["billing"]["template"]
-                            ))
-                        if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients is not None:
-                            logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
-                                asset=detail["client_asset_fqdn"],
-                                currency=detail["tariff_currency"],
-                                merchant=client_dict["billing"]["merchant"],
-                                template=client_dict["billing"]["template"]
-                            ))
-                        raise Exception("Error in currency found")
-        
-                # Get and save once document list in client folder
-                try:
-                    client_folder_files = drive_ls(SA_SECRETS_FILE, client_dict["gsuite"]["folder"], acc_yaml_dict["gsuite"]["drive_user"])
-                except Exception as e:
-                    raise Exception("Caught exception on gsuite execution")
-
-                # Doc number
-                client_doc_num = invoice_prefix + client_dict["billing"]["code"] + "-" + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["code"] + "-" + str(used_today.strftime("%Y-%m-%d"))
-                latest_subnum = "01"
-
-                # Get latest invoice for client for today and increase latest_subnum if found
-                for item in client_folder_files:
-                    fn_prefix = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][0]
-                    if item["name"].startswith(fn_prefix):
-                        part_1 = item["name"].replace(fn_prefix + " ", "")
-                        if part_1.startswith(client_doc_num):
-                            part_2 = part_1.replace(client_doc_num + "-", "")
-                            part_3 = part_2.split(" " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " ")
-                            if int(part_3[0]) >= int(latest_subnum):
-                                latest_subnum = str(int(part_3[0]) + 1).zfill(2)
-
-                logger.info("Doc number: {0}".format(client_doc_num + "-" + latest_subnum))
-
-                # Prepare the data
-
-                details_row_n = 0
-                client_total = float(0)
-                client_doc_details_list = []
-                client_per_tariff_plan_total_sum = {}
-                client_per_tariff_plan_total_qty = {}
-                client_per_tariff_plan_tariff_rate = {}
-                client_per_tariff_plan_woocommerce_product_id = {}
-                client_per_employee_share = {}
-
-                # Calc invoice data depending on invoice type
-
-                # Hourly
-
-                if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
-                    
-                    for detail in invoice_details[client]:
-
-                        # Details row number
-                        details_row_n += 1
-
-                        # Total cost
-                        client_total += detail["timelog_cost"]
-
-                        # Precalc per tariff dict
-                        if detail["tariff_plan"] not in client_per_tariff_plan_total_sum:
-                            client_per_tariff_plan_total_sum[detail["tariff_plan"]] = float(0)
-                        client_per_tariff_plan_total_sum[detail["tariff_plan"]] += detail["timelog_cost"]
-                        if detail["tariff_plan"] not in client_per_tariff_plan_total_qty:
-                            client_per_tariff_plan_total_qty[detail["tariff_plan"]] = float(0)
-                        client_per_tariff_plan_total_qty[detail["tariff_plan"]] += detail["timelog_spent_hours"]
-                        client_per_tariff_plan_tariff_rate[detail["tariff_plan"]] = detail["tariff_rate"]
-                        client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
-                        
-                        # Precalc per employee
-                        if detail["timelog_employee_email"] not in client_per_employee_share:
-                            client_per_employee_share[detail["timelog_employee_email"]] = float(0)
-                        client_per_employee_share[detail["timelog_employee_email"]] += detail["timelog_cost_employee_share"]
-
-                        # Format detail rows with template settings
-                        if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
-                            formatted_timelog_spent_hours = '{:,.2f}'.format(detail["timelog_spent_hours"]).replace(",", " ").replace(".", ",")
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
-                            formatted_timelog_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"]).replace(",", " ").replace(".", ",")
+                        # Specific invoices > 0 means per_employee schema was used
+                        # We need to subsitute merchant and template with specific ones taken from the first detail
+                        if specific_invoice_num > 1:
+                            invoice_merchant = client_dict["billing"]["per_employee"][specific_invoice_details[0]["timelog_employee_email"]]["merchant"]
+                            invoice_template = client_dict["billing"]["per_employee"][specific_invoice_details[0]["timelog_employee_email"]]["template"]
                         else:
-                            formatted_timelog_spent_hours = '{:,.2f}'.format(detail["timelog_spent_hours"])
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
-                            formatted_timelog_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"])
+                            invoice_merchant = client_dict["billing"]["merchant"]
+                            invoice_template = client_dict["billing"]["template"]
+
+                        # Details are ordered by date, so period is: date of of first detail - date of last detail
+                        client_doc_invoice_period = specific_invoice_details[0]["timelog_updated"] + ' - ' + specific_invoice_details[-1]["timelog_updated"]
+
+                    if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
+                        invoice_type = "Monthly"
+                        invoice_prefix = "M-"
+                        invoice_merchant = client_dict["billing"]["merchant"]
+                        invoice_template = client_dict["billing"]["template"]
+
+                        # Take period from first detail
+                        client_doc_invoice_period = specific_invoice_details[0]["period"]
                         
-                        # Populate details rows
-                        client_doc_details_list_item = [
-                            str(details_row_n),
-                            detail["imr_link"],
-                            detail["imr_title"],
-                            detail["imr_labels"] + "\n" + detail["tariff_plan"],
-                            detail["timelog_updated"],
-                            formatted_timelog_spent_hours,
-                            formatted_tariff_rate,
-                            formatted_timelog_cost
-                        ]
-                        client_doc_details_list.append(client_doc_details_list_item)
+                    if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients is not None:
+                        invoice_type = "Storage"
+                        invoice_prefix = "S-"
+                        invoice_merchant = client_dict["billing"]["merchant"]
+                        invoice_template = client_dict["billing"]["template"]
 
-                # Monthly
+                        # Take usage_month from first detail
+                        client_doc_invoice_period = specific_invoice_details[0]["usage_month"]
 
-                if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
+                        # Save needed_month for later in docs
+                        needed_month = specific_invoice_details[0]["usage_month"]
 
-                    for detail in invoice_details[client]:
-
-                        # Details row number
-                        details_row_n += 1
-
-                        # Total cost
-                        client_total += detail["price_in_period"]
-
-                        # Precalc per tariff dict
-                        if detail["tariff_plan"] not in client_per_tariff_plan_total_sum:
-                            client_per_tariff_plan_total_sum[detail["tariff_plan"]] = float(0)
-                        client_per_tariff_plan_total_sum[detail["tariff_plan"]] += detail["price_in_period"]
-                        if detail["tariff_plan"] not in client_per_tariff_plan_total_qty:
-                            client_per_tariff_plan_total_qty[detail["tariff_plan"]] = float(0)
-                        client_per_tariff_plan_total_qty[detail["tariff_plan"]] += detail["period_portion"]
-                        client_per_tariff_plan_tariff_rate[detail["tariff_plan"]] = detail["tariff_rate"]
-                        client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
-                        
-                        # Precalc per employee
-                        if "price_in_period_employee_share" in detail:
-                            for empl_email, empl_share in detail["price_in_period_employee_share"].items():
-                                if empl_email not in client_per_employee_share:
-                                    client_per_employee_share[empl_email] = float(0)
-                                client_per_employee_share[empl_email] += empl_share
-
-                        # Format detail rows with template settings
-                        if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
-                            formatted_period_portion = '{:,.2f}'.format(detail["period_portion"]).replace(",", " ").replace(".", ",")
-                            formatted_monthly_tariff_price = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
-                            formatted_price_within_period = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"]).replace(",", " ").replace(".", ",")
-
-                        else:
-                            formatted_period_portion = '{:,.2f}'.format(detail["period_portion"])
-                            formatted_monthly_tariff_price = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
-                            formatted_price_within_period = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"])
-
-                        # Populate details rows
-                        client_doc_details_list_item = [
-                            str(details_row_n),
-                            detail["asset_fqdn"],
-                            detail["activated_date"],
-                            detail["service"],
-                            detail["plan"],
-                            str(detail["revision"]),
-                            formatted_monthly_tariff_price,
-                            client_doc_invoice_period,
-                            formatted_period_portion,
-                            formatted_price_within_period
-                        ]
-                        client_doc_details_list.append(client_doc_details_list_item)
-
-                # Storage
-
-                if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients:
-                    
-                    for detail in invoice_details[client]:
-
-                        # Details row number
-                        details_row_n += 1
-
-                        # Total cost
-                        client_total += detail["storage_cost"]
-
-                        # Precalc per tariff dict
-                        if detail["tariff_plan"] not in client_per_tariff_plan_total_sum:
-                            client_per_tariff_plan_total_sum[detail["tariff_plan"]] = float(0)
-                        client_per_tariff_plan_total_sum[detail["tariff_plan"]] += detail["storage_cost"]
-                        if detail["tariff_plan"] not in client_per_tariff_plan_total_qty:
-                            client_per_tariff_plan_total_qty[detail["tariff_plan"]] = float(0)
-                        client_per_tariff_plan_total_qty[detail["tariff_plan"]] += detail["avg_per_month"]
-                        client_per_tariff_plan_tariff_rate[detail["tariff_plan"]] = detail["tariff_rate"]
-                        client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
-                        
-                        # Format detail rows with template settings
-                        if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
-                            formatted_avg_per_month = '{:,.2f}'.format(detail["avg_per_month"]).replace(",", " ").replace(".", ",")
-                            formatted_usage_days = '{:,.2f}'.format(detail["usage_days"]).replace(",", " ").replace(".", ",")
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
-                            formatted_storage_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"]).replace(",", " ").replace(".", ",")
-                        else:
-                            formatted_avg_per_month = '{:,.2f}'.format(detail["avg_per_month"])
-                            formatted_usage_days = '{:,.2f}'.format(detail["usage_days"])
-                            formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
-                            formatted_storage_cost = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"])
-                        
-                        # Populate details rows
-                        client_doc_details_list_item = [
-                            str(details_row_n),
-                            detail["client_asset_fqdn"],
-                            detail["storage_asset_fqdn"],
-                            detail["storage_asset_path"],
-                            formatted_usage_days,
-                            formatted_avg_per_month,
-                            formatted_tariff_rate,
-                            formatted_storage_cost
-                        ]
-                        client_doc_details_list.append(client_doc_details_list_item)
-
-
-                # Make WooCommerce order draft if woocommerce key in merchant and woocommerce: True in client
-
-                if "woocommerce" in client_dict["billing"] and client_dict["billing"]["woocommerce"]["draft_order"] and not args.dry_run_woocommerce:
-
-                    # Prepare order items, API doesn't accept decimal until:
-                    # /var/www/microdevopscom/wordpress/wp-content/plugins/woocommerce/includes/rest-api/Controllers/Version2/class-wc-rest-orders-v2-controller.php
-                    # under "Quantity ordered" integer changed to float.
-                    order_items = []
-                    for tariff_plan in sorted(client_per_tariff_plan_tariff_rate):
-                        order_items.append(
-                            {
-                                "product_id": client_per_tariff_plan_woocommerce_product_id[tariff_plan],
-                                "quantity": client_per_tariff_plan_total_qty[tariff_plan],
-                                "meta_data": [
-                                    {
-                                        "key": "Period",
-                                        "value": client_doc_invoice_period
-                                    },
-                                    {
-                                        "key": "Quantity",
-                                        "value": client_per_tariff_plan_total_qty[tariff_plan]
-                                    }
-                                ]
-                            }
-                        )
-
-                    try:
-                        
-                        # Create api object
-                        wcapi = woocommerce.API(
-                            url=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["url"],
-                            consumer_key=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["key"],
-                            consumer_secret=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["secret"],
-                            version=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["version"]
-                        )
-
-                        # Get customer billing and shipping
-                        woo_customer = wcapi.get("customers/{id}".format(id=client_dict["billing"]["woocommerce"]["customer_id"])).json()
-                        if woo_customer["billing"]["email"] == "":
-                            woo_customer["billing"]["email"] = woo_customer["email"]
-
-                        # Prepare the data
-                        data = {
-                            "set_paid": False,
-                            "status": "pending",
-                            "customer_id": client_dict["billing"]["woocommerce"]["customer_id"],
-                            "billing": woo_customer["billing"],
-                            "shipping": woo_customer["shipping"],
-                            "currency": acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"],
-                            "line_items": order_items
-                        }
-                        logger.info("Woo order data to insert:")
-                        logger.info(json.dumps(data, indent=2))
-
-                        # Request
-                        response = wcapi.post("orders", data)
-                        logger.info("Woo api response:")
-                        logger.info(response.json())
-
-                        # Check status code
-                        if response.status_code != 201:
-                            raise Exception("Got non 201 status code from woo api: {status_code}".format(status_code=response.status_code))
-
-                        # Get response needed keys
-                        woocommerce_order_id = response.json()["number"]
-                        woocommerce_order_currency = response.json()["currency"]
-                        woocommerce_order_total = response.json()["total"]
-
-                        # Prepare the data for note update request
-                        data = {
-                            "note": "client: {client}\ncustomer_id: {customer_id}".format(customer_id=client_dict["billing"]["woocommerce"]["customer_id"], client=client_dict["name"])
-                        }
-
-                        # Request
-                        response = wcapi.post("orders/{order_id}/notes".format(order_id=woocommerce_order_id), data)
-                        logger.info("Woo api response:")
-                        logger.info(response.json())
-                        
-                        # Check status code
-                        if response.status_code != 201:
-                            raise Exception("Got non 201 status code from woo api: {status_code}".format(status_code=response.status_code))
-
-                        # Check order currency with mechant currency
-                        if woocommerce_order_currency != acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]:
-                            logger.error("Woo order {order} currency {order_currency} didn't match merchant {merchant} template {template} currency {merchant_currency}".format(
-                                order=woocommerce_order_id,
-                                order_currency=woocommerce_order_currency,
-                                merchant=client_dict["billing"]["merchant"],
-                                template=client_dict["billing"]["template"],
-                                merchant_currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]
-                            ))
+                    # Sanity checks
+                    # Check currency
+                    for detail in specific_invoice_details:
+                        if detail["tariff_currency"] != acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"]:
+                            if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
+                                logger.error("Issue or MR {imr} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
+                                    imr=detail["imr_link"],
+                                    currency=detail["tariff_currency"],
+                                    merchant=invoice_merchant,
+                                    template=invoice_template
+                                ))
+                            if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
+                                logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
+                                    asset=detail["asset_fqdn"],
+                                    currency=detail["tariff_currency"],
+                                    merchant=invoice_merchant,
+                                    template=invoice_template
+                                ))
+                            if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients is not None:
+                                logger.error("Asset {asset} has non valid currency {currency} for the merchant {merchant} and template {template}".format(
+                                    asset=detail["client_asset_fqdn"],
+                                    currency=detail["tariff_currency"],
+                                    merchant=invoice_merchant,
+                                    template=invoice_template
+                                ))
                             raise Exception("Error in currency found")
-
-                        # Compare order total with invoice total
-                        if round(float(woocommerce_order_total), 2) != round(float(client_total), 2):
-                            logger.error("Woo order {order} total {order_total} didn't match invoice total {invoice_total}".format(
-                                order=woocommerce_order_id,
-                                order_total=woocommerce_order_total,
-                                invoice_total=client_total
-                            ))
-                            raise Exception("Error in total found")
-
-                    except Exception as e:
-                        raise Exception("Caught exception on woo api query")
-
-                # Else just set empty woocommerce_order_id for templates
-                else:
-                    woocommerce_order_id = ""
-
-                # Populate invoice rows
-
-                invoice_row_n = 0
-                client_doc_invoice_list = []
-                # Keys in client_per_tariff_plan_total_sum and formatted_client_per_tariff_plan_total_qty are the same, only one iteration needed
-                # Sort by tariff plan
-                for tariff_plan in sorted(client_per_tariff_plan_tariff_rate):
-                    
-                    # Invoice row number
-                    invoice_row_n += 1
-
-                    # Format client_per_tariff_plan_total_sum after calcs
-                    if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
-                        formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan]).replace(",", " ").replace(".", ",")
-                        formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan]).replace(",", " ").replace(".", ",")
-                        formatted_client_per_tariff_plan_total_qty = '{:,.2f}'.format(client_per_tariff_plan_total_qty[tariff_plan]).replace(",", " ").replace(".", ",")
-                    else:
-                        formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan])
-                        formatted_tariff_rate = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan])
-                        formatted_client_per_tariff_plan_total_qty = '{:,.2f}'.format(client_per_tariff_plan_total_qty[tariff_plan])
-
-                    # Rows
-                    client_doc_invoice_list_item = [
-                        str(invoice_row_n),
-                        acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["row_name"].format(plan=tariff_plan),
-                        client_doc_invoice_period,
-                        formatted_client_per_tariff_plan_total_qty,
-                        formatted_tariff_rate,
-                        formatted_client_per_tariff_plan_total_sum
-                    ]
-                    client_doc_invoice_list.append(client_doc_invoice_list_item)
-                
-                # Format totals after calcs
-                if acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["decimal"] == "," and acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["thousands"] == " ":
-                    formatted_client_total = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_total).replace(",", " ").replace(".", ",")
-                else:
-                    formatted_client_total = acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency_symbol"] + '{:,.2f}'.format(client_total)
-                
-                # If client_dict["billing"]["template"]]["languages"] is set then we use two languages in invoice
-                # Else use one language
-                if "languages" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]:
-                    client_total_written_1 = num2words(client_total,
-                        to='currency',
-                        lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["languages"][0],
-                        currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
-                    client_total_written_2 = num2words(client_total,
-                        to='currency',
-                        lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["languages"][1],
-                        currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
-                else:
-                    client_total_written = num2words(client_total,
-                        to='currency',
-                        lang=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["language"],
-                        currency=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"])
-
-                # Calc dates
-
-                # Hourly
-                if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
-                    # Date of last timelog
-                    invoice_act_date = invoice_details[client][-1]["timelog_updated"]
-                    # Today + 2 weeks
-                    in_two_weeks = used_today + timedelta(days=14)
-                    if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
-                        invoice_date = invoice_act_date
-                    else:
-                        invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                    invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-
-                # Monthly
-                if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
-                    if "monthly_act_last_date_of_month" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["monthly_act_last_date_of_month"]:
-                        # Last day of month by period
-                        next_month = needed_month_per_client[client] + relativedelta(months=1)
-                        first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                        last_day_of_needed_month = first_day_of_next_month - relativedelta(days=1)
-                        invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                    else:
-                        # First day of next month by period
-                        next_month = needed_month_per_client[client] + relativedelta(months=1)
-                        first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                        invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                    # Today + 4 weeks
-                    in_four_weeks = used_today + timedelta(days=28)
-                    invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                    invoice_last_day = str(in_four_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                
-                # Storage
-                if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients:
-                    if "monthly_act_last_date_of_month" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["monthly_act_last_date_of_month"]:
-                        # Last day of month by period
-                        next_month = datetime.strptime(needed_month, "%Y-%m") + relativedelta(months=1)
-                        first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                        last_day_of_needed_month = first_day_of_next_month - relativedelta(days=1)
-                        invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                    else:
-                        # First day of next month by period
-                        next_month = datetime.strptime(needed_month, "%Y-%m") + relativedelta(months=1)
-                        first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                        invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                    # Today + 2 weeks
-                    in_two_weeks = used_today + timedelta(days=14)
-                    if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
-                        invoice_date = invoice_act_date
-                    else:
-                        invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-                    invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"]))
-
-                # Copy templates
-
-                # Invoice
-                if not args.dry_run_gsuite:
+            
+                    # Get and save once document list in client folder
                     try:
-                        client_doc_invoice = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["source"],
-                            client_dict["gsuite"]["folder"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["filename"][1] + " " + str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
-                        logger.info("New invoice id: {0}".format(client_doc_invoice))
+                        client_folder_files = drive_ls(SA_SECRETS_FILE, client_dict["gsuite"]["folder"], acc_yaml_dict["gsuite"]["drive_user"])
                     except Exception as e:
                         raise Exception("Caught exception on gsuite execution")
 
-                # Details
-                if not args.dry_run_gsuite:
-                    try:
-                        client_doc_details = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["source"],
-                            client_dict["gsuite"]["folder"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["filename"][1] + " " + str(used_today.strftime(acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
-                        logger.info("New details id: {0}".format(client_doc_details))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    # Doc number
+                    client_doc_num = invoice_prefix + client_dict["billing"]["code"] + "-" + acc_yaml_dict["merchants"][invoice_merchant]["code"] + "-" + str(used_today.strftime("%Y-%m-%d"))
+                    latest_subnum = "01"
 
-                # Act
-                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
-                    try:
-                        client_doc_act = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["source"],
-                            client_dict["gsuite"]["folder"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
-                                " " + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["filename"][1] + " " + invoice_act_date, acc_yaml_dict["gsuite"]["drive_user"])
-                        logger.info("New act id: {0}".format(client_doc_act))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    # Get latest invoice for client for today and increase latest_subnum if found
+                    for item in client_folder_files:
+                        fn_prefix = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["filename"][0]
+                        if item["name"].startswith(fn_prefix):
+                            part_1 = item["name"].replace(fn_prefix + " ", "")
+                            if part_1.startswith(client_doc_num):
+                                part_2 = part_1.replace(client_doc_num + "-", "")
+                                part_3 = part_2.split(" " + acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["filename"][1] + " ")
+                                if int(part_3[0]) >= int(latest_subnum):
+                                    latest_subnum = str(int(part_3[0]) + 1).zfill(2)
 
-                # Templates
-                
-                # If client_dict["billing"]["template"]]["languages"] is set then we use two languages in invoice
-                # Else use one language
-                if "languages" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]:
-                    client_doc_data = {
-                        "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
-                        "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
-                        "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
-                        "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
-                        "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
-                        "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
-                        "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
-                        "__INVOICE_DATE__":         invoice_date,
-                        "__ACT_DATE__":             invoice_act_date,
-                        "__INV_L_DATE__":           invoice_last_day,
-                        "__TOTAL__":                formatted_client_total,
-                        "__TOTAL_WRITTEN_1__":      client_total_written_1,
-                        "__TOTAL_WRITTEN_2__":      client_total_written_2,
-                        "__ORDER_NUM__":            woocommerce_order_id
-                    }
-                else:
-                    client_doc_data = {
-                        "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
-                        "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
-                        "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
-                        "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
-                        "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
-                        "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
-                        "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
-                        "__INVOICE_DATE__":         invoice_date,
-                        "__ACT_DATE__":             invoice_act_date,
-                        "__INV_L_DATE__":           invoice_last_day,
-                        "__TOTAL__":                formatted_client_total,
-                        "__TOTAL_WRITTEN__":        client_total_written,
-                        "__ORDER_NUM__":            woocommerce_order_id
-                    }
-                
-                # Employee Share sheet
+                    logger.info("Doc number: {0}".format(client_doc_num + "-" + latest_subnum))
 
-                invoices_rows_emplloyee = []
+                    # Prepare the data
 
-                # Employee Share sheet for Hourly or Monthly
-                if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients \
-                or args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients:
-                    for employee in client_per_employee_share:
+                    details_row_n = 0
+                    client_total = float(0)
+                    client_doc_details_list = []
+                    client_per_tariff_plan_total_sum = {}
+                    client_per_tariff_plan_total_qty = {}
+                    client_per_tariff_plan_tariff_rate = {}
+                    client_per_tariff_plan_woocommerce_product_id = {}
+                    client_per_employee_share = {}
 
-                        # Make row of empty values of range size
-                        invoices_rows_emplloyee_row = []
-                        for c in range(calculate_range_size(acc_yaml_dict["invoices"]["employee_share"]["range"])):
-                            invoices_rows_emplloyee_row.append("")
+                    # Calc invoice data depending on invoice type
 
-                        # Set needed values row
-                        employee_order_dict = acc_yaml_dict["invoices"]["employee_share"]["columns"]["order"]
-                        invoices_rows_emplloyee_row[employee_order_dict["employee"] - 1] =             employee
-                        invoices_rows_emplloyee_row[employee_order_dict["invoice_number"] - 1] =       client_doc_num + "-" + latest_subnum
-                        # In case of negative timelogs usage, total time could become zero -> division by zero -> employee share of zero = zero
-                        if client_total != 0:
-                            invoices_rows_emplloyee_row[employee_order_dict["share"] - 1] =                round(((client_per_employee_share[employee] / client_total) * 100), 2)
+                    # Hourly
+
+                    if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
+                        
+                        for detail in specific_invoice_details:
+
+                            # Details row number
+                            details_row_n += 1
+
+                            # Total cost
+                            client_total += detail["timelog_cost"]
+
+                            # Precalc per tariff dict
+                            if detail["tariff_plan"] not in client_per_tariff_plan_total_sum:
+                                client_per_tariff_plan_total_sum[detail["tariff_plan"]] = float(0)
+                            client_per_tariff_plan_total_sum[detail["tariff_plan"]] += detail["timelog_cost"]
+                            if detail["tariff_plan"] not in client_per_tariff_plan_total_qty:
+                                client_per_tariff_plan_total_qty[detail["tariff_plan"]] = float(0)
+                            client_per_tariff_plan_total_qty[detail["tariff_plan"]] += detail["timelog_spent_hours"]
+                            client_per_tariff_plan_tariff_rate[detail["tariff_plan"]] = detail["tariff_rate"]
+                            client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
+                            
+                            # Precalc per employee
+                            if detail["timelog_employee_email"] not in client_per_employee_share:
+                                client_per_employee_share[detail["timelog_employee_email"]] = float(0)
+                            client_per_employee_share[detail["timelog_employee_email"]] += detail["timelog_cost_employee_share"]
+
+                            # Format detail rows with template settings
+                            if acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["decimal"] == "," and acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["thousands"] == " ":
+                                formatted_timelog_spent_hours = '{:,.2f}'.format(detail["timelog_spent_hours"]).replace(",", " ").replace(".", ",")
+                                formatted_tariff_rate = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
+                                formatted_timelog_cost = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"]).replace(",", " ").replace(".", ",")
+                            else:
+                                formatted_timelog_spent_hours = '{:,.2f}'.format(detail["timelog_spent_hours"])
+                                formatted_tariff_rate = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
+                                formatted_timelog_cost = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["timelog_cost"])
+                            
+                            # Populate details rows
+                            client_doc_details_list_item = [
+                                str(details_row_n),
+                                detail["imr_link"],
+                                detail["imr_title"],
+                                detail["imr_labels"] + "\n" + detail["tariff_plan"],
+                                detail["timelog_updated"],
+                                formatted_timelog_spent_hours,
+                                formatted_tariff_rate,
+                                formatted_timelog_cost
+                            ]
+                            client_doc_details_list.append(client_doc_details_list_item)
+
+                    # Monthly
+
+                    if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
+
+                        for detail in specific_invoice_details:
+
+                            # Details row number
+                            details_row_n += 1
+
+                            # Total cost
+                            client_total += detail["price_in_period"]
+
+                            # Precalc per tariff dict
+                            if detail["tariff_plan"] not in client_per_tariff_plan_total_sum:
+                                client_per_tariff_plan_total_sum[detail["tariff_plan"]] = float(0)
+                            client_per_tariff_plan_total_sum[detail["tariff_plan"]] += detail["price_in_period"]
+                            if detail["tariff_plan"] not in client_per_tariff_plan_total_qty:
+                                client_per_tariff_plan_total_qty[detail["tariff_plan"]] = float(0)
+                            client_per_tariff_plan_total_qty[detail["tariff_plan"]] += detail["period_portion"]
+                            client_per_tariff_plan_tariff_rate[detail["tariff_plan"]] = detail["tariff_rate"]
+                            client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
+                            
+                            # Precalc per employee
+                            if "price_in_period_employee_share" in detail:
+                                for empl_email, empl_share in detail["price_in_period_employee_share"].items():
+                                    if empl_email not in client_per_employee_share:
+                                        client_per_employee_share[empl_email] = float(0)
+                                    client_per_employee_share[empl_email] += empl_share
+
+                            # Format detail rows with template settings
+                            if acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["decimal"] == "," and acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["thousands"] == " ":
+                                formatted_period_portion = '{:,.2f}'.format(detail["period_portion"]).replace(",", " ").replace(".", ",")
+                                formatted_monthly_tariff_price = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
+                                formatted_price_within_period = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"]).replace(",", " ").replace(".", ",")
+
+                            else:
+                                formatted_period_portion = '{:,.2f}'.format(detail["period_portion"])
+                                formatted_monthly_tariff_price = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
+                                formatted_price_within_period = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["price_in_period"])
+
+                            # Populate details rows
+                            client_doc_details_list_item = [
+                                str(details_row_n),
+                                detail["asset_fqdn"],
+                                detail["activated_date"],
+                                detail["service"],
+                                detail["plan"],
+                                str(detail["revision"]),
+                                formatted_monthly_tariff_price,
+                                client_doc_invoice_period,
+                                formatted_period_portion,
+                                formatted_price_within_period
+                            ]
+                            client_doc_details_list.append(client_doc_details_list_item)
+
+                    # Storage
+
+                    if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients:
+                        
+                        for detail in specific_invoice_details:
+
+                            # Details row number
+                            details_row_n += 1
+
+                            # Total cost
+                            client_total += detail["storage_cost"]
+
+                            # Precalc per tariff dict
+                            if detail["tariff_plan"] not in client_per_tariff_plan_total_sum:
+                                client_per_tariff_plan_total_sum[detail["tariff_plan"]] = float(0)
+                            client_per_tariff_plan_total_sum[detail["tariff_plan"]] += detail["storage_cost"]
+                            if detail["tariff_plan"] not in client_per_tariff_plan_total_qty:
+                                client_per_tariff_plan_total_qty[detail["tariff_plan"]] = float(0)
+                            client_per_tariff_plan_total_qty[detail["tariff_plan"]] += detail["avg_per_month"]
+                            client_per_tariff_plan_tariff_rate[detail["tariff_plan"]] = detail["tariff_rate"]
+                            client_per_tariff_plan_woocommerce_product_id[detail["tariff_plan"]] = detail["woocommerce_product_id"]
+                            
+                            # Format detail rows with template settings
+                            if acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["decimal"] == "," and acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["thousands"] == " ":
+                                formatted_avg_per_month = '{:,.2f}'.format(detail["avg_per_month"]).replace(",", " ").replace(".", ",")
+                                formatted_usage_days = '{:,.2f}'.format(detail["usage_days"]).replace(",", " ").replace(".", ",")
+                                formatted_tariff_rate = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"]).replace(",", " ").replace(".", ",")
+                                formatted_storage_cost = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"]).replace(",", " ").replace(".", ",")
+                            else:
+                                formatted_avg_per_month = '{:,.2f}'.format(detail["avg_per_month"])
+                                formatted_usage_days = '{:,.2f}'.format(detail["usage_days"])
+                                formatted_tariff_rate = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["tariff_rate"])
+                                formatted_storage_cost = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(detail["storage_cost"])
+                            
+                            # Populate details rows
+                            client_doc_details_list_item = [
+                                str(details_row_n),
+                                detail["client_asset_fqdn"],
+                                detail["storage_asset_fqdn"],
+                                detail["storage_asset_path"],
+                                formatted_usage_days,
+                                formatted_avg_per_month,
+                                formatted_tariff_rate,
+                                formatted_storage_cost
+                            ]
+                            client_doc_details_list.append(client_doc_details_list_item)
+
+
+                    # Make WooCommerce order draft if woocommerce key in merchant and woocommerce: True in client
+
+                    if "woocommerce" in client_dict["billing"] and client_dict["billing"]["woocommerce"]["draft_order"] and not args.dry_run_woocommerce:
+
+                        # Prepare order items, API doesn't accept decimal until:
+                        # /var/www/microdevopscom/wordpress/wp-content/plugins/woocommerce/includes/rest-api/Controllers/Version2/class-wc-rest-orders-v2-controller.php
+                        # under "Quantity ordered" integer changed to float.
+                        order_items = []
+                        for tariff_plan in sorted(client_per_tariff_plan_tariff_rate):
+                            order_items.append(
+                                {
+                                    "product_id": client_per_tariff_plan_woocommerce_product_id[tariff_plan],
+                                    "quantity": client_per_tariff_plan_total_qty[tariff_plan],
+                                    "meta_data": [
+                                        {
+                                            "key": "Period",
+                                            "value": client_doc_invoice_period
+                                        },
+                                        {
+                                            "key": "Quantity",
+                                            "value": client_per_tariff_plan_total_qty[tariff_plan]
+                                        }
+                                    ]
+                                }
+                            )
+
+                        try:
+                            
+                            # Create api object
+                            wcapi = woocommerce.API(
+                                url=acc_yaml_dict["merchants"][invoice_merchant]["woocommerce"]["url"],
+                                consumer_key=acc_yaml_dict["merchants"][invoice_merchant]["woocommerce"]["key"],
+                                consumer_secret=acc_yaml_dict["merchants"][invoice_merchant]["woocommerce"]["secret"],
+                                version=acc_yaml_dict["merchants"][invoice_merchant]["woocommerce"]["version"]
+                            )
+
+                            # Get customer billing and shipping
+                            woo_customer = wcapi.get("customers/{id}".format(id=client_dict["billing"]["woocommerce"]["customer_id"])).json()
+                            if woo_customer["billing"]["email"] == "":
+                                woo_customer["billing"]["email"] = woo_customer["email"]
+
+                            # Prepare the data
+                            data = {
+                                "set_paid": False,
+                                "status": "pending",
+                                "customer_id": client_dict["billing"]["woocommerce"]["customer_id"],
+                                "billing": woo_customer["billing"],
+                                "shipping": woo_customer["shipping"],
+                                "currency": acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"],
+                                "line_items": order_items
+                            }
+                            logger.info("Woo order data to insert:")
+                            logger.info(json.dumps(data, indent=2))
+
+                            # Request
+                            response = wcapi.post("orders", data)
+                            logger.info("Woo api response:")
+                            logger.info(response.json())
+
+                            # Check status code
+                            if response.status_code != 201:
+                                raise Exception("Got non 201 status code from woo api: {status_code}".format(status_code=response.status_code))
+
+                            # Get response needed keys
+                            woocommerce_order_id = response.json()["number"]
+                            woocommerce_order_currency = response.json()["currency"]
+                            woocommerce_order_total = response.json()["total"]
+
+                            # Prepare the data for note update request
+                            data = {
+                                "note": "client: {client}\ncustomer_id: {customer_id}".format(customer_id=client_dict["billing"]["woocommerce"]["customer_id"], client=client_dict["name"])
+                            }
+
+                            # Request
+                            response = wcapi.post("orders/{order_id}/notes".format(order_id=woocommerce_order_id), data)
+                            logger.info("Woo api response:")
+                            logger.info(response.json())
+                            
+                            # Check status code
+                            if response.status_code != 201:
+                                raise Exception("Got non 201 status code from woo api: {status_code}".format(status_code=response.status_code))
+
+                            # Check order currency with mechant currency
+                            if woocommerce_order_currency != acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"]:
+                                logger.error("Woo order {order} currency {order_currency} didn't match merchant {merchant} template {template} currency {merchant_currency}".format(
+                                    order=woocommerce_order_id,
+                                    order_currency=woocommerce_order_currency,
+                                    merchant=invoice_merchant,
+                                    template=invoice_template,
+                                    merchant_currency=acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"]
+                                ))
+                                raise Exception("Error in currency found")
+
+                            # Compare order total with invoice total
+                            if round(float(woocommerce_order_total), 2) != round(float(client_total), 2):
+                                logger.error("Woo order {order} total {order_total} didn't match invoice total {invoice_total}".format(
+                                    order=woocommerce_order_id,
+                                    order_total=woocommerce_order_total,
+                                    invoice_total=client_total
+                                ))
+                                raise Exception("Error in total found")
+
+                        except Exception as e:
+                            raise Exception("Caught exception on woo api query")
+
+                    # Else just set empty woocommerce_order_id for templates
+                    else:
+                        woocommerce_order_id = ""
+
+                    # Populate invoice rows
+
+                    invoice_row_n = 0
+                    client_doc_invoice_list = []
+                    # Keys in client_per_tariff_plan_total_sum and formatted_client_per_tariff_plan_total_qty are the same, only one iteration needed
+                    # Sort by tariff plan
+                    for tariff_plan in sorted(client_per_tariff_plan_tariff_rate):
+                        
+                        # Invoice row number
+                        invoice_row_n += 1
+
+                        # Format client_per_tariff_plan_total_sum after calcs
+                        if acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["decimal"] == "," and acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["thousands"] == " ":
+                            formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan]).replace(",", " ").replace(".", ",")
+                            formatted_tariff_rate = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan]).replace(",", " ").replace(".", ",")
+                            formatted_client_per_tariff_plan_total_qty = '{:,.2f}'.format(client_per_tariff_plan_total_qty[tariff_plan]).replace(",", " ").replace(".", ",")
                         else:
-                            invoices_rows_emplloyee_row[employee_order_dict["share"] - 1] =                0
-                        invoices_rows_emplloyee_row[employee_order_dict["currency_received"] - 1] =             acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["currency_received"]
-                        invoices_rows_emplloyee_row[employee_order_dict["sum_received"] - 1] =                  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["sum_received"]
-                        invoices_rows_emplloyee_row[employee_order_dict["sum_after_taxes"] - 1] =               acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["sum_after_taxes"]
-                        invoices_rows_emplloyee_row[employee_order_dict["employee_sum"] - 1] =                  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum"]
-                        invoices_rows_emplloyee_row[employee_order_dict["invoice_currency"] - 1] =              acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_currency"]
-                        invoices_rows_emplloyee_row[employee_order_dict["invoice_sum"] - 1] =                   acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_sum"]
-                        invoices_rows_emplloyee_row[employee_order_dict["invoice_sum_after_taxes"] - 1] =       acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_sum_after_taxes"]
-                        invoices_rows_emplloyee_row[employee_order_dict["employee_sum_by_invoice"] - 1] =       acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_by_invoice"]
-                        invoices_rows_emplloyee_row[employee_order_dict["employee_sum_by_invoice_conv"] - 1] =  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_by_invoice_conv"]
-                        invoices_rows_emplloyee_row[employee_order_dict["employee_sum_to_pay_projected"] - 1] = acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_to_pay_projected"]
+                            formatted_client_per_tariff_plan_total_sum = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_total_sum[tariff_plan])
+                            formatted_tariff_rate = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(client_per_tariff_plan_tariff_rate[tariff_plan])
+                            formatted_client_per_tariff_plan_total_qty = '{:,.2f}'.format(client_per_tariff_plan_total_qty[tariff_plan])
 
-                        # Append
-                        invoices_rows_emplloyee.append(invoices_rows_emplloyee_row)
+                        # Rows
+                        client_doc_invoice_list_item = [
+                            str(invoice_row_n),
+                            acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["row_name"].format(plan=tariff_plan),
+                            client_doc_invoice_period,
+                            formatted_client_per_tariff_plan_total_qty,
+                            formatted_tariff_rate,
+                            formatted_client_per_tariff_plan_total_sum
+                        ]
+                        client_doc_invoice_list.append(client_doc_invoice_list_item)
+                    
+                    # Format totals after calcs
+                    if acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["decimal"] == "," and acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["thousands"] == " ":
+                        formatted_client_total = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(client_total).replace(",", " ").replace(".", ",")
+                    else:
+                        formatted_client_total = acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency_symbol"] + '{:,.2f}'.format(client_total)
+                    
+                    # If invoice_template]["languages"] is set then we use two languages in invoice
+                    # Else use one language
+                    if "languages" in acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]:
+                        client_total_written_1 = num2words(client_total,
+                            to='currency',
+                            lang=acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["languages"][0],
+                            currency=acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"])
+                        client_total_written_2 = num2words(client_total,
+                            to='currency',
+                            lang=acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["languages"][1],
+                            currency=acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"])
+                    else:
+                        client_total_written = num2words(client_total,
+                            to='currency',
+                            lang=acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["language"],
+                            currency=acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"])
 
-                # Invoices sheet
+                    # Calc dates
 
-                # Make row of empty values of range size
-                invoices_rows_invoices_row = []
-                for c in range(calculate_range_size(acc_yaml_dict["invoices"]["invoices"]["range"])):
-                    invoices_rows_invoices_row.append("")
+                    # Hourly
+                    if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients:
+                        # Date of last timelog
+                        invoice_act_date = specific_invoice_details[-1]["timelog_updated"]
+                        # Today + 2 weeks
+                        in_two_weeks = used_today + timedelta(days=14)
+                        if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
+                            invoice_date = invoice_act_date
+                        else:
+                            invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                        invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
 
-                # Set needed values row
-                invoices_order_dict = acc_yaml_dict["invoices"]["invoices"]["columns"]["order"]
-                invoices_rows_invoices_row[invoices_order_dict['date_created'] - 1] =           str(used_today.strftime("%Y-%m-%d"))
-                invoices_rows_invoices_row[invoices_order_dict['type'] - 1] =                   invoice_type
-                invoices_rows_invoices_row[invoices_order_dict['period'] - 1] =                 client_doc_invoice_period
-                invoices_rows_invoices_row[invoices_order_dict['client'] - 1] =                 client_dict["name"]
-                invoices_rows_invoices_row[invoices_order_dict['merchant'] - 1] =               client_dict["billing"]["merchant"]
-                invoices_rows_invoices_row[invoices_order_dict['invoice_number'] - 1] =         client_doc_num + "-" + latest_subnum
-                invoices_rows_invoices_row[invoices_order_dict['invoice_currency'] - 1] =       acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["currency"]
-                invoices_rows_invoices_row[invoices_order_dict['invoice_sum'] - 1] =            client_total
-                invoices_rows_invoices_row[invoices_order_dict['status'] - 1] =                 "Prepared"
-                invoices_rows_invoices_row[invoices_order_dict['ext_order_number'] - 1] =       woocommerce_order_id
-                invoices_rows_invoices_row[invoices_order_dict['papers'] - 1] =                 papers_needed
+                    # Monthly
+                    if args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients is not None:
+                        if "monthly_act_last_date_of_month" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["monthly_act_last_date_of_month"]:
+                            # Last day of month by period
+                            next_month = needed_month_per_client[client] + relativedelta(months=1)
+                            first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                            last_day_of_needed_month = first_day_of_next_month - relativedelta(days=1)
+                            invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                        else:
+                            # First day of next month by period
+                            next_month = needed_month_per_client[client] + relativedelta(months=1)
+                            first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                            invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                        # Today + 4 weeks
+                        in_four_weeks = used_today + timedelta(days=28)
+                        invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                        invoice_last_day = str(in_four_weeks.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                    
+                    # Storage
+                    if args.make_storage_invoice_for_client is not None or args.make_storage_invoice_for_all_clients:
+                        if "monthly_act_last_date_of_month" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["monthly_act_last_date_of_month"]:
+                            # Last day of month by period
+                            next_month = datetime.strptime(needed_month, "%Y-%m") + relativedelta(months=1)
+                            first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                            last_day_of_needed_month = first_day_of_next_month - relativedelta(days=1)
+                            invoice_act_date = str(last_day_of_needed_month.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                        else:
+                            # First day of next month by period
+                            next_month = datetime.strptime(needed_month, "%Y-%m") + relativedelta(months=1)
+                            first_day_of_next_month = next_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                            invoice_act_date = str(first_day_of_next_month.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                        # Today + 2 weeks
+                        in_two_weeks = used_today + timedelta(days=14)
+                        if "hourly_and_storage_invoice_date_as_act" in client_dict["billing"]["papers"] and client_dict["billing"]["papers"]["hourly_and_storage_invoice_date_as_act"]:
+                            invoice_date = invoice_act_date
+                        else:
+                            invoice_date = str(used_today.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
+                        invoice_last_day = str(in_two_weeks.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"]))
 
-                invoices_rows_invoices = [invoices_rows_invoices_row]
+                    # Copy templates
 
-                # Fill the data
+                    # Invoice
+                    if not args.dry_run_gsuite:
+                        try:
+                            client_doc_invoice = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["source"],
+                                client_dict["gsuite"]["folder"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
+                                    " " + acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["filename"][1] + " " + str(used_today.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
+                            logger.info("New invoice id: {0}".format(client_doc_invoice))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
 
-                # Invoice
+                    # Details
+                    if not args.dry_run_gsuite:
+                        try:
+                            client_doc_details = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["details"]["source"],
+                                client_dict["gsuite"]["folder"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["details"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
+                                    " " + acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["details"]["filename"][1] + " " + str(used_today.strftime(acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["date_format"])), acc_yaml_dict["gsuite"]["drive_user"])
+                            logger.info("New details id: {0}".format(client_doc_details))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
 
-                # Templates
-                if not args.dry_run_gsuite:
-                    try:
-                        response = docs_replace_all_text(SA_SECRETS_FILE, client_doc_invoice, json.dumps(client_doc_data))
-                        logger.info("{invoice_type} invoice docs_replace_all_text response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    # Act
+                    if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
+                        try:
+                            client_doc_act = drive_cp(SA_SECRETS_FILE, acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["act"]["source"],
+                                client_dict["gsuite"]["folder"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["act"]["filename"][0] + " " + client_doc_num + "-" + latest_subnum + 
+                                    " " + acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["act"]["filename"][1] + " " + invoice_act_date, acc_yaml_dict["gsuite"]["drive_user"])
+                            logger.info("New act id: {0}".format(client_doc_act))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
 
-                # Table rows fill
-                if not args.dry_run_gsuite:
-                    try:
-                        response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_invoice,
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["row_num"],
-                            json.dumps(client_doc_invoice_list))
-                        logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
-                
-                # First row removal
-                if not args.dry_run_gsuite:
-                    try:
-                        response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_invoice,
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["row_num"])
-                        logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    # Templates
+                    
+                    # If invoice_template]["languages"] is set then we use two languages in invoice
+                    # Else use one language
+                    if "languages" in acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]:
+                        client_doc_data = {
+                            "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
+                            "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
+                            "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
+                            "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
+                            "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
+                            "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
+                            "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
+                            "__INVOICE_DATE__":         invoice_date,
+                            "__ACT_DATE__":             invoice_act_date,
+                            "__INV_L_DATE__":           invoice_last_day,
+                            "__TOTAL__":                formatted_client_total,
+                            "__TOTAL_WRITTEN_1__":      client_total_written_1,
+                            "__TOTAL_WRITTEN_2__":      client_total_written_2,
+                            "__ORDER_NUM__":            woocommerce_order_id
+                        }
+                    else:
+                        client_doc_data = {
+                            "__CONTRACT_RECIPIENT__":   client_dict["billing"]["contract"]["recipient"],
+                            "__CONTRACT_DETAILS__":     client_dict["billing"]["contract"]["details"],
+                            "__CONTRACT_NAME__":        client_dict["billing"]["contract"]["name"],
+                            "__CONTRACT_PERSON__":      client_dict["billing"]["contract"]["person"],
+                            "__SIGN__":                 client_dict["billing"]["contract"]["sign"],
+                            "__INVOICE_NUM__":          client_doc_num + "-" + latest_subnum,
+                            "__ACT_NUM__":              client_doc_num + "-" + latest_subnum,
+                            "__INVOICE_DATE__":         invoice_date,
+                            "__ACT_DATE__":             invoice_act_date,
+                            "__INV_L_DATE__":           invoice_last_day,
+                            "__TOTAL__":                formatted_client_total,
+                            "__TOTAL_WRITTEN__":        client_total_written,
+                            "__ORDER_NUM__":            woocommerce_order_id
+                        }
+                    
+                    # Employee Share sheet
 
-                # Details
+                    invoices_rows_emplloyee = []
 
-                # Templates
-                if not args.dry_run_gsuite:
-                    try:
-                        response = docs_replace_all_text(SA_SECRETS_FILE, client_doc_details, json.dumps(client_doc_data))
-                        logger.info("{invoice_type} invoice docs_replace_all_text response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    # Employee Share sheet for Hourly or Monthly
+                    if args.make_hourly_invoice_for_client is not None or args.make_hourly_invoice_for_all_clients \
+                    or args.make_monthly_invoice_for_client is not None or args.make_monthly_invoice_for_all_clients:
+                        for employee in client_per_employee_share:
 
-                # Table rows fill
-                if not args.dry_run_gsuite:
-                    try:
-                        response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_details,
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["row_num"],
-                            json.dumps(client_doc_details_list))
-                        logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
-                
-                # First row removal
-                if not args.dry_run_gsuite:
-                    try:
-                        response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_details,
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["details"]["row_num"])
-                        logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                            # Make row of empty values of range size
+                            invoices_rows_emplloyee_row = []
+                            for c in range(calculate_range_size(acc_yaml_dict["invoices"]["employee_share"]["range"])):
+                                invoices_rows_emplloyee_row.append("")
 
-                # Act
+                            # Set needed values row
+                            employee_order_dict = acc_yaml_dict["invoices"]["employee_share"]["columns"]["order"]
+                            invoices_rows_emplloyee_row[employee_order_dict["employee"] - 1] =             employee
+                            invoices_rows_emplloyee_row[employee_order_dict["invoice_number"] - 1] =       client_doc_num + "-" + latest_subnum
+                            # In case of negative timelogs usage, total time could become zero -> division by zero -> employee share of zero = zero
+                            if client_total != 0:
+                                invoices_rows_emplloyee_row[employee_order_dict["share"] - 1] =                round(((client_per_employee_share[employee] / client_total) * 100), 2)
+                            else:
+                                invoices_rows_emplloyee_row[employee_order_dict["share"] - 1] =                0
+                            invoices_rows_emplloyee_row[employee_order_dict["currency_received"] - 1] =             acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["currency_received"]
+                            invoices_rows_emplloyee_row[employee_order_dict["sum_received"] - 1] =                  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["sum_received"]
+                            invoices_rows_emplloyee_row[employee_order_dict["sum_after_taxes"] - 1] =               acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["sum_after_taxes"]
+                            invoices_rows_emplloyee_row[employee_order_dict["employee_sum"] - 1] =                  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum"]
+                            invoices_rows_emplloyee_row[employee_order_dict["invoice_currency"] - 1] =              acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_currency"]
+                            invoices_rows_emplloyee_row[employee_order_dict["invoice_sum"] - 1] =                   acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_sum"]
+                            invoices_rows_emplloyee_row[employee_order_dict["invoice_sum_after_taxes"] - 1] =       acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_sum_after_taxes"]
+                            invoices_rows_emplloyee_row[employee_order_dict["employee_sum_by_invoice"] - 1] =       acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_by_invoice"]
+                            invoices_rows_emplloyee_row[employee_order_dict["employee_sum_by_invoice_conv"] - 1] =  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_by_invoice_conv"]
+                            invoices_rows_emplloyee_row[employee_order_dict["employee_sum_to_pay_projected"] - 1] = acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_to_pay_projected"]
 
-                # Templates
-                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
-                    try:
-                        response = docs_replace_all_text(SA_SECRETS_FILE, client_doc_act, json.dumps(client_doc_data))
-                        logger.info("{invoice_type} invoice docs_replace_all_text response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                            # Append
+                            invoices_rows_emplloyee.append(invoices_rows_emplloyee_row)
 
-                # Table rows fill
-                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
-                    try:
-                        response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_act,
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["row_num"],
-                            # Act table data is the same as in invoice
-                            json.dumps(client_doc_invoice_list))
-                        logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
-                
-                # First row removal
-                if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
-                    try:
-                        response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_act,
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["table_num"],
-                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["act"]["row_num"])
-                        logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    # Invoices sheet
 
-                # Append Invoices
+                    # Make row of empty values of range size
+                    invoices_rows_invoices_row = []
+                    for c in range(calculate_range_size(acc_yaml_dict["invoices"]["invoices"]["range"])):
+                        invoices_rows_invoices_row.append("")
 
-                # Invoices
-                if not args.dry_run_gsuite:
-                    try:
-                        response = sheets_append_data(SA_SECRETS_FILE, acc_yaml_dict["invoices"]["spreadsheet"], acc_yaml_dict["invoices"]["invoices"]["sheet"], acc_yaml_dict["invoices"]["invoices"]["range"], 'ROWS', json.dumps(invoices_rows_invoices))
-                        logger.info("Invoices - Invoices sheets_append_data response: {0}".format(response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    # Set needed values row
+                    invoices_order_dict = acc_yaml_dict["invoices"]["invoices"]["columns"]["order"]
+                    invoices_rows_invoices_row[invoices_order_dict['date_created'] - 1] =           str(used_today.strftime("%Y-%m-%d"))
+                    invoices_rows_invoices_row[invoices_order_dict['type'] - 1] =                   invoice_type
+                    invoices_rows_invoices_row[invoices_order_dict['period'] - 1] =                 client_doc_invoice_period
+                    invoices_rows_invoices_row[invoices_order_dict['client'] - 1] =                 client_dict["name"]
+                    invoices_rows_invoices_row[invoices_order_dict['merchant'] - 1] =               invoice_merchant
+                    invoices_rows_invoices_row[invoices_order_dict['invoice_number'] - 1] =         client_doc_num + "-" + latest_subnum
+                    invoices_rows_invoices_row[invoices_order_dict['invoice_currency'] - 1] =       acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template]["currency"]
+                    invoices_rows_invoices_row[invoices_order_dict['invoice_sum'] - 1] =            client_total
+                    invoices_rows_invoices_row[invoices_order_dict['status'] - 1] =                 "Prepared"
+                    invoices_rows_invoices_row[invoices_order_dict['ext_order_number'] - 1] =       woocommerce_order_id
+                    invoices_rows_invoices_row[invoices_order_dict['papers'] - 1] =                 papers_needed
 
-                # Employee Share
-                if not args.dry_run_gsuite:
-                    try:
-                        response = sheets_append_data(SA_SECRETS_FILE, acc_yaml_dict["invoices"]["spreadsheet"], acc_yaml_dict["invoices"]["employee_share"]["sheet"], acc_yaml_dict["invoices"]["employee_share"]["range"], 'ROWS', json.dumps(invoices_rows_emplloyee))
-                        logger.info("Invoices - Invoices sheets_append_data response: {0}".format(response))
-                    except Exception as e:
-                        raise Exception("Caught exception on gsuite execution")
+                    invoices_rows_invoices = [invoices_rows_invoices_row]
+
+                    # Fill the data
+
+                    # Invoice
+
+                    # Templates
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = docs_replace_all_text(SA_SECRETS_FILE, client_doc_invoice, json.dumps(client_doc_data))
+                            logger.info("{invoice_type} invoice docs_replace_all_text response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+
+                    # Table rows fill
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_invoice,
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["table_num"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["row_num"],
+                                json.dumps(client_doc_invoice_list))
+                            logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+                    
+                    # First row removal
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_invoice,
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["table_num"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["invoice"]["row_num"])
+                            logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+
+                    # Details
+
+                    # Templates
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = docs_replace_all_text(SA_SECRETS_FILE, client_doc_details, json.dumps(client_doc_data))
+                            logger.info("{invoice_type} invoice docs_replace_all_text response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+
+                    # Table rows fill
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_details,
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["details"]["table_num"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["details"]["row_num"],
+                                json.dumps(client_doc_details_list))
+                            logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+                    
+                    # First row removal
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_details,
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["details"]["table_num"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["details"]["row_num"])
+                            logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+
+                    # Act
+
+                    # Templates
+                    if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
+                        try:
+                            response = docs_replace_all_text(SA_SECRETS_FILE, client_doc_act, json.dumps(client_doc_data))
+                            logger.info("{invoice_type} invoice docs_replace_all_text response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+
+                    # Table rows fill
+                    if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
+                        try:
+                            response = docs_insert_table_rows(SA_SECRETS_FILE, client_doc_act,
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["act"]["table_num"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["act"]["row_num"],
+                                # Act table data is the same as in invoice
+                                json.dumps(client_doc_invoice_list))
+                            logger.info("{invoice_type} invoice docs_insert_table_rows response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+                    
+                    # First row removal
+                    if not args.dry_run_gsuite and (client_dict["billing"]["papers"]["act"]["email"] or client_dict["billing"]["papers"]["act"]["print"]):
+                        try:
+                            response = docs_delete_table_row(SA_SECRETS_FILE, client_doc_act,
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["act"]["table_num"],
+                                acc_yaml_dict["merchants"][invoice_merchant]["templates"][invoice_template][invoice_type.lower()]["act"]["row_num"])
+                            logger.info("{invoice_type} invoice docs_delete_table_row response: {response}".format(invoice_type=invoice_type, response=response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+
+                    # Append Invoices
+
+                    # Invoices
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = sheets_append_data(SA_SECRETS_FILE, acc_yaml_dict["invoices"]["spreadsheet"], acc_yaml_dict["invoices"]["invoices"]["sheet"], acc_yaml_dict["invoices"]["invoices"]["range"], 'ROWS', json.dumps(invoices_rows_invoices))
+                            logger.info("Invoices - Invoices sheets_append_data response: {0}".format(response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
+
+                    # Employee Share
+                    if not args.dry_run_gsuite:
+                        try:
+                            response = sheets_append_data(SA_SECRETS_FILE, acc_yaml_dict["invoices"]["spreadsheet"], acc_yaml_dict["invoices"]["employee_share"]["sheet"], acc_yaml_dict["invoices"]["employee_share"]["range"], 'ROWS', json.dumps(invoices_rows_emplloyee))
+                            logger.info("Invoices - Invoices sheets_append_data response: {0}".format(response))
+                        except Exception as e:
+                            raise Exception("Caught exception on gsuite execution")
 
             # Commit and close cursor
             if not args.dry_run_db:

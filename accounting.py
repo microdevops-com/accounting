@@ -849,247 +849,251 @@ if __name__ == "__main__":
                 if client in invoices_dict and client_dict["active"]:
                     
                     # Make Drafts
-
                     if args.make_gmail_drafts_for_client is not None or args.make_gmail_drafts_for_all_clients:
 
                         # Iterate over each type of Invoice (needed for template file names)
-
                         for invoice_type in INVOICE_TYPES:
 
-                            # Throw error if more than 1 Prepared Invoice of each type, we shouldn't accumulate Prepared Invoices - we need to send them after each preparation as email templates has specific Invoice number
-                            
-                            if sum(invoice["status"] == "Prepared" and invoice["type"] == invoice_type for invoice in invoices_dict[client]) == 1:
-                                
-                                # Find Prepared Invoice (first item of one item list)
-                                client_prepared_invoice = [invoice for invoice in invoices_dict[client] if invoice["status"] == "Prepared" and invoice["type"] == invoice_type][0]
-                                
-                                # Prepare draft debt text template (any invoices with Status == Sent)
-                                if any(invoice["status"] == "Sent" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
-                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
-                                        client_gmail_draft_text_debt = \
-                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
-                                                debt_list="\n".join([
-                                                    "- "
-                                                    + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
-                                                    + " "
-                                                    + invoice["invoice_number"]
-                                                    for invoice in invoices_dict[client] if invoice["status"] == "Sent" and invoice["type"] == invoice_type
-                                                ])
-                                            )
+                            # Find all unique merchants for client
+                            client_merchants = set([invoice["merchant"] for invoice in invoices_dict[client] if invoice["type"] == invoice_type])
+
+                            # For each merchant within client
+                            for client_merchant in client_merchants:
+
+                                # Throw error if more than 1 Prepared Invoice of each type for the same merchant
+                                # We shouldn't accumulate Prepared Invoices - we need to send them after each preparation as email templates has specific Invoice number
+                                if sum(invoice["merchant"] == client_merchant and invoice["status"] == "Prepared" and invoice["type"] == invoice_type for invoice in invoices_dict[client]) == 1:
+                                    
+                                    # Find Prepared Invoice (first item of one item list)
+                                    client_prepared_invoice = [invoice for invoice in invoices_dict[client] if invoice["status"] == "Prepared" and invoice["type"] == invoice_type][0]
+                                    
+                                    # Prepare draft debt text template (any invoices with Status == Sent)
+                                    if any(invoice["status"] == "Sent" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
+                                        if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
+                                            client_gmail_draft_text_debt = \
+                                                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
+                                                    debt_list="\n".join([
+                                                        "- "
+                                                        + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
+                                                        + " "
+                                                        + invoice["invoice_number"]
+                                                        for invoice in invoices_dict[client] if invoice["status"] == "Sent" and invoice["type"] == invoice_type
+                                                    ])
+                                                )
+                                        else:
+                                            client_gmail_draft_text_debt = \
+                                                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
+                                                    debt_list="\n".join([
+                                                        "- "
+                                                        + invoice["invoice_number"]
+                                                        + ".zip"
+                                                        for invoice in invoices_dict[client] if invoice["status"] == "Sent" and invoice["type"] == invoice_type
+                                                    ])
+                                                )
                                     else:
-                                        client_gmail_draft_text_debt = \
-                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["debt"].format(
-                                                debt_list="\n".join([
-                                                    "- "
-                                                    + invoice["invoice_number"]
-                                                    + ".zip"
-                                                    for invoice in invoices_dict[client] if invoice["status"] == "Sent" and invoice["type"] == invoice_type
-                                                ])
-                                            )
-                                else:
-                                    client_gmail_draft_text_debt = ""
+                                        client_gmail_draft_text_debt = ""
 
-                                # Prepare draft partially received text template (any invoices with Status == Partially Received)
-                                if any(invoice["status"] == "Partially Received" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
-                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
-                                        client_gmail_draft_text_part = \
-                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
-                                                part_list="\n".join([
-                                                    "- "
-                                                    + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
-                                                    + " "
-                                                    + invoice["invoice_number"]
-                                                    + " "
-                                                    + "("
-                                                    + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
-                                                    + "/"
-                                                    + invoice["invoice_sum"]
-                                                    + " "
-                                                    + invoice["invoice_currency"]
-                                                    + ")"
-                                                    for invoice in invoices_dict[client] if invoice["status"] == "Partially Received" and invoice["type"] == invoice_type
-                                                ])
-                                            )
+                                    # Prepare draft partially received text template (any invoices with Status == Partially Received)
+                                    if any(invoice["status"] == "Partially Received" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
+                                        if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
+                                            client_gmail_draft_text_part = \
+                                                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
+                                                    part_list="\n".join([
+                                                        "- "
+                                                        + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
+                                                        + " "
+                                                        + invoice["invoice_number"]
+                                                        + " "
+                                                        + "("
+                                                        + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
+                                                        + "/"
+                                                        + invoice["invoice_sum"]
+                                                        + " "
+                                                        + invoice["invoice_currency"]
+                                                        + ")"
+                                                        for invoice in invoices_dict[client] if invoice["status"] == "Partially Received" and invoice["type"] == invoice_type
+                                                    ])
+                                                )
+                                        else:
+                                            client_gmail_draft_text_part = \
+                                                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
+                                                    part_list="\n".join([
+                                                        "- "
+                                                        + invoice["invoice_number"]
+                                                        + ".zip"
+                                                        + " "
+                                                        + "("
+                                                        + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
+                                                        + "/"
+                                                        + invoice["invoice_sum"]
+                                                        + " "
+                                                        + invoice["invoice_currency"]
+                                                        + ")"
+                                                        for invoice in invoices_dict[client] if invoice["status"] == "Partially Received" and invoice["type"] == invoice_type
+                                                    ])
+                                                )
                                     else:
-                                        client_gmail_draft_text_part = \
-                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["part"].format(
-                                                part_list="\n".join([
-                                                    "- "
-                                                    + invoice["invoice_number"]
-                                                    + ".zip"
-                                                    + " "
-                                                    + "("
-                                                    + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
-                                                    + "/"
-                                                    + invoice["invoice_sum"]
-                                                    + " "
-                                                    + invoice["invoice_currency"]
-                                                    + ")"
-                                                    for invoice in invoices_dict[client] if invoice["status"] == "Partially Received" and invoice["type"] == invoice_type
-                                                ])
-                                            )
-                                else:
-                                    client_gmail_draft_text_part = ""
+                                        client_gmail_draft_text_part = ""
 
-                                # Prepare draft over received text template (any invoices with Status == Over Received)
-                                if any(invoice["status"] == "Over Received" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
-                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
-                                        client_gmail_draft_text_over = \
-                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
-                                                over_list="\n".join([
-                                                    "- "
-                                                    + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
-                                                    + " "
-                                                    + invoice["invoice_number"]
-                                                    + " "
-                                                    + "("
-                                                    + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
-                                                    + "/"
-                                                    + invoice["invoice_sum"]
-                                                    + " "
-                                                    + invoice["invoice_currency"]
-                                                    + ")"
-                                                    for invoice in invoices_dict[client] if invoice["status"] == "Over Received" and invoice["type"] == invoice_type
-                                                ])
-                                            )
+                                    # Prepare draft over received text template (any invoices with Status == Over Received)
+                                    if any(invoice["status"] == "Over Received" and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
+                                        if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
+                                            client_gmail_draft_text_over = \
+                                                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
+                                                    over_list="\n".join([
+                                                        "- "
+                                                        + acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]]["number_symbol"]
+                                                        + " "
+                                                        + invoice["invoice_number"]
+                                                        + " "
+                                                        + "("
+                                                        + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
+                                                        + "/"
+                                                        + invoice["invoice_sum"]
+                                                        + " "
+                                                        + invoice["invoice_currency"]
+                                                        + ")"
+                                                        for invoice in invoices_dict[client] if invoice["status"] == "Over Received" and invoice["type"] == invoice_type
+                                                    ])
+                                                )
+                                        else:
+                                            client_gmail_draft_text_over = \
+                                                acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
+                                                    over_list="\n".join([
+                                                        "- "
+                                                        + invoice["invoice_number"]
+                                                        + ".zip"
+                                                        + " "
+                                                        + "("
+                                                        + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
+                                                        + "/"
+                                                        + invoice["invoice_sum"]
+                                                        + " "
+                                                        + invoice["invoice_currency"]
+                                                        + ")"
+                                                        for invoice in invoices_dict[client] if invoice["status"] == "Over Received" and invoice["type"] == invoice_type
+                                                    ])
+                                                )
                                     else:
-                                        client_gmail_draft_text_over = \
-                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["over"].format(
-                                                over_list="\n".join([
-                                                    "- "
-                                                    + invoice["invoice_number"]
-                                                    + ".zip"
-                                                    + " "
-                                                    + "("
-                                                    + (invoice["sum_processed"] if (invoice["sum_processed"] is not None and invoice["sum_processed"] != "") else invoice["sum_received"])
-                                                    + "/"
-                                                    + invoice["invoice_sum"]
-                                                    + " "
-                                                    + invoice["invoice_currency"]
-                                                    + ")"
-                                                    for invoice in invoices_dict[client] if invoice["status"] == "Over Received" and invoice["type"] == invoice_type
-                                                ])
-                                            )
-                                else:
-                                    client_gmail_draft_text_over = ""
+                                        client_gmail_draft_text_over = ""
 
-                                # Prepare draft act text template if act needed
-                                if client_dict["billing"]["papers"]["act"]["email"]:
-                                    client_gmail_draft_text_act = \
-                                        acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["act"]
-                                else:
-                                    client_gmail_draft_text_act = ""
+                                    # Prepare draft act text template if act needed
+                                    if client_dict["billing"]["papers"]["act"]["email"]:
+                                        client_gmail_draft_text_act = \
+                                            acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"]["act"]
+                                    else:
+                                        client_gmail_draft_text_act = ""
 
-                                # Prepare draft final text and remove double newlines several times
-                                if "woocommerce" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]:
-                                    order_link_text = "{woocommerce_url}/my-account/view-order/{order_id}/".format(
-                                        woocommerce_url=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["url"],
-                                        order_id=client_prepared_invoice["ext_order_number"]
-                                    )
-                                else:
-                                    order_link_text = ""
-
-                                # Choose email main text depending on pack_to_archive
-                                if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
-                                    main_text_key = "main_no_pack_to_archive"
-                                else:
-                                    main_text_key = "main"
-
-                                client_gmail_draft_text = \
-                                    acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"][main_text_key].format(
-                                        invoice_number=client_prepared_invoice["invoice_number"],
-                                        act_text=client_gmail_draft_text_act,
-                                        debt_text=client_gmail_draft_text_debt,
-                                        part_text=client_gmail_draft_text_part,
-                                        over_text=client_gmail_draft_text_over,
-                                        order_link=order_link_text
-                                    ).replace("\n\n\n", "\n\n").replace("\n\n\n", "\n\n").replace("\n\n\n", "\n\n")
-                                
-                                # Compose subject
-                                client_gmail_draft_subject = \
-                                    acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["subject"].format(
-                                        client=client,
-                                        invoice_number=client_prepared_invoice["invoice_number"]
-                                    )
-
-                                # Download pdfs
-
-                                client_gmail_draft_attach_list = []
-                                
-                                # Get and save once document list in client folder
-                                try:
-                                    client_folder_files = drive_ls(SA_SECRETS_FILE, client_dict["gsuite"]["folder"], acc_yaml_dict["gsuite"]["drive_user"])
-                                except Exception as e:
-                                    raise Exception("Caught exception on gsuite execution")
-
-                                # Decide if to pack attachments in archives
-                                if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
-                                    pack_to_archive = False
-                                else:
-                                    pack_to_archive = True
-                                
-                                # Attach prepared invoice
-                                if client_dict["billing"]["papers"]["invoice"]["email"]:
-
-                                    try:
-                                        client_gmail_draft_attach_list.extend(download_pdf_package(
-                                            acc_yaml_dict=acc_yaml_dict,
-                                            client_dict=client_dict,
-                                            client_folder_files=client_folder_files,
-                                            invoice_type=invoice_type,
-                                            invoice_number=client_prepared_invoice["invoice_number"],
-                                            invoice_needed=client_dict["billing"]["papers"]["invoice"]["email"],
-                                            act_needed=client_dict["billing"]["papers"]["act"]["email"],
-                                            pack_to_archive=pack_to_archive,
-                                            double_act=False
-                                        ))
-                                    except Exception as e:
-                                        raise Exception("Caught exception on download_pdf_package execution")
-                                
-                                    # Prepare debt/partially received/over received invoices (any invoices with Status in Sent/Partially Received/Over Received)
-                                    if any(invoice["status"] in ["Sent", "Partially Received", "Over Received"] and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
-                                        for invoice in invoices_dict[client]:
-                                            if invoice["status"] in ["Sent", "Partially Received", "Over Received"] and invoice["type"] == invoice_type:
-                                                try:
-                                                    client_gmail_draft_attach_list.extend(download_pdf_package(
-                                                        acc_yaml_dict=acc_yaml_dict,
-                                                        client_dict=client_dict,
-                                                        client_folder_files=client_folder_files,
-                                                        invoice_type=invoice["type"],
-                                                        invoice_number=invoice["invoice_number"],
-                                                        invoice_needed=client_dict["billing"]["papers"]["invoice"]["email"],
-                                                        act_needed=client_dict["billing"]["papers"]["act"]["email"],
-                                                        pack_to_archive=pack_to_archive,
-                                                        double_act=False
-                                                    ))
-                                                except Exception as e:
-                                                    raise Exception("Caught exception on download_pdf_package execution")
-
-                                # Create draft
-                                if not args.dry_run_gsuite:
-                                    try:
-                                        draft_id, draft_message = gmail_create_draft(
-                                            sa_secrets_file=SA_SECRETS_FILE,
-                                            gmail_user=acc_yaml_dict["accounting"]["email"],
-                                            message_from=acc_yaml_dict["accounting"]["email"],
-                                            message_to=client_dict["billing"]["papers"]["email"]["to"],
-                                            message_cc=client_dict["billing"]["papers"]["email"]["cc"] if "cc" in client_dict["billing"]["papers"]["email"] else "",
-                                            message_bcc=client_dict["billing"]["papers"]["email"]["bcc"] if "bcc" in client_dict["billing"]["papers"]["email"] else "",
-                                            message_subject=client_gmail_draft_subject,
-                                            message_text=client_gmail_draft_text,
-                                            attach_str=json.dumps(client_gmail_draft_attach_list)
+                                    # Prepare draft final text and remove double newlines several times
+                                    if "woocommerce" in acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]:
+                                        order_link_text = "{woocommerce_url}/my-account/view-order/{order_id}/".format(
+                                            woocommerce_url=acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["woocommerce"]["url"],
+                                            order_id=client_prepared_invoice["ext_order_number"]
                                         )
-                                        logger.info("Drafts gmail_create_draft response: {0}".format(draft_id))
+                                    else:
+                                        order_link_text = ""
+
+                                    # Choose email main text depending on pack_to_archive
+                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
+                                        main_text_key = "main_no_pack_to_archive"
+                                    else:
+                                        main_text_key = "main"
+
+                                    client_gmail_draft_text = \
+                                        acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["text"][main_text_key].format(
+                                            invoice_number=client_prepared_invoice["invoice_number"],
+                                            act_text=client_gmail_draft_text_act,
+                                            debt_text=client_gmail_draft_text_debt,
+                                            part_text=client_gmail_draft_text_part,
+                                            over_text=client_gmail_draft_text_over,
+                                            order_link=order_link_text
+                                        ).replace("\n\n\n", "\n\n").replace("\n\n\n", "\n\n").replace("\n\n\n", "\n\n")
+                                    
+                                    # Compose subject
+                                    client_gmail_draft_subject = \
+                                        acc_yaml_dict["merchants"][client_dict["billing"]["merchant"]]["templates"][client_dict["billing"]["template"]][invoice_type.lower()]["invoice"]["email"]["subject"].format(
+                                            client=client,
+                                            invoice_number=client_prepared_invoice["invoice_number"]
+                                        )
+
+                                    # Download pdfs
+
+                                    client_gmail_draft_attach_list = []
+                                    
+                                    # Get and save once document list in client folder
+                                    try:
+                                        client_folder_files = drive_ls(SA_SECRETS_FILE, client_dict["gsuite"]["folder"], acc_yaml_dict["gsuite"]["drive_user"])
                                     except Exception as e:
                                         raise Exception("Caught exception on gsuite execution")
-                                            
-                                # Remove all local archives
-                                for file in client_gmail_draft_attach_list:
-                                    if os.path.exists(file):
-                                        os.remove(file)
 
-                            elif sum(invoice["status"] == "Prepared" and invoice["type"] == invoice_type for invoice in invoices_dict[client]) > 1:
-                                raise Exception("Client {client} has more than 1 Prepared Invoice of type {invoice_type}, cannot decide which to take".format(client=client, invoice_type=invoice_type))
+                                    # Decide if to pack attachments in archives
+                                    if "pack_to_archive" in client_dict["billing"]["papers"]["email"] and client_dict["billing"]["papers"]["email"]["pack_to_archive"] == False:
+                                        pack_to_archive = False
+                                    else:
+                                        pack_to_archive = True
+                                    
+                                    # Attach prepared invoice
+                                    if client_dict["billing"]["papers"]["invoice"]["email"]:
+
+                                        try:
+                                            client_gmail_draft_attach_list.extend(download_pdf_package(
+                                                acc_yaml_dict=acc_yaml_dict,
+                                                client_dict=client_dict,
+                                                client_folder_files=client_folder_files,
+                                                invoice_type=invoice_type,
+                                                invoice_number=client_prepared_invoice["invoice_number"],
+                                                invoice_needed=client_dict["billing"]["papers"]["invoice"]["email"],
+                                                act_needed=client_dict["billing"]["papers"]["act"]["email"],
+                                                pack_to_archive=pack_to_archive,
+                                                double_act=False
+                                            ))
+                                        except Exception as e:
+                                            raise Exception("Caught exception on download_pdf_package execution")
+                                    
+                                        # Prepare debt/partially received/over received invoices (any invoices with Status in Sent/Partially Received/Over Received)
+                                        if any(invoice["status"] in ["Sent", "Partially Received", "Over Received"] and invoice["type"] == invoice_type for invoice in invoices_dict[client]):
+                                            for invoice in invoices_dict[client]:
+                                                if invoice["status"] in ["Sent", "Partially Received", "Over Received"] and invoice["type"] == invoice_type:
+                                                    try:
+                                                        client_gmail_draft_attach_list.extend(download_pdf_package(
+                                                            acc_yaml_dict=acc_yaml_dict,
+                                                            client_dict=client_dict,
+                                                            client_folder_files=client_folder_files,
+                                                            invoice_type=invoice["type"],
+                                                            invoice_number=invoice["invoice_number"],
+                                                            invoice_needed=client_dict["billing"]["papers"]["invoice"]["email"],
+                                                            act_needed=client_dict["billing"]["papers"]["act"]["email"],
+                                                            pack_to_archive=pack_to_archive,
+                                                            double_act=False
+                                                        ))
+                                                    except Exception as e:
+                                                        raise Exception("Caught exception on download_pdf_package execution")
+
+                                    # Create draft
+                                    if not args.dry_run_gsuite:
+                                        try:
+                                            draft_id, draft_message = gmail_create_draft(
+                                                sa_secrets_file=SA_SECRETS_FILE,
+                                                gmail_user=acc_yaml_dict["accounting"]["email"],
+                                                message_from=acc_yaml_dict["accounting"]["email"],
+                                                message_to=client_dict["billing"]["papers"]["email"]["to"],
+                                                message_cc=client_dict["billing"]["papers"]["email"]["cc"] if "cc" in client_dict["billing"]["papers"]["email"] else "",
+                                                message_bcc=client_dict["billing"]["papers"]["email"]["bcc"] if "bcc" in client_dict["billing"]["papers"]["email"] else "",
+                                                message_subject=client_gmail_draft_subject,
+                                                message_text=client_gmail_draft_text,
+                                                attach_str=json.dumps(client_gmail_draft_attach_list)
+                                            )
+                                            logger.info("Drafts gmail_create_draft response: {0}".format(draft_id))
+                                        except Exception as e:
+                                            raise Exception("Caught exception on gsuite execution")
+                                                
+                                    # Remove all local archives
+                                    for file in client_gmail_draft_attach_list:
+                                        if os.path.exists(file):
+                                            os.remove(file)
+
+                                elif sum(invoice["merchant"] == client_merchant and invoice["status"] == "Prepared" and invoice["type"] == invoice_type for invoice in invoices_dict[client]) > 1:
+                                    raise Exception("Client {client} with merchant {merchant} has more than 1 Prepared Invoice of type {invoice_type}, cannot decide which to take".format(client=client, merchant=client_merchant, invoice_type=invoice_type))
                         
                     # Print Papers
 

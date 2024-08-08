@@ -805,19 +805,38 @@ if __name__ == "__main__":
                             logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
 
                             templfullpath = os.getcwd() + '/' + PROJECTS_SUBDIR + "/" + project.path_with_namespace + '/' + templated_file["path"]
-                            # Get File from project and save it
-                            print('33333333333 ' + templfullpath + ' 3333333333333333')
-                            if os.path.isdir(templfullpath):
-                                print('22222222222 ' + templfullpath + ' 2222222222222222')
-                            else:
-                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
-                                    logger.info("Getting raw file from GitLab {file_path}".format(file_path=templated_file["sub_client_project_file"]["path"]))
-                                    try:
-                                        sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
-                                    except:
-                                        logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=templated_file["sub_client_project_file"]["path"], project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
-                                        raise
+                            stack = [templated_file["sub_client_project_file"]["path"]]
+                            while stack:
+                                print(stack)
+                                current_path = stack.pop()
+                                try:
+                                    items = sub_client_project.repository_tree(path=current_path, ref="master")
+                                    if items:
+                                        for item in items:
+                                            full_path = f"{current_path}/{item['name']}" if current_path else item['name']
+ 
+                                            # Check if the item is a directory
+                                            print(item['type'])
+                                            if item['type'] == 'tree':
+                                                print(f"{full_path} is a directory.")
+                                          
+                                                stack.append(full_path)
+                                            else:
+                                                print(f'{templated_file["sub_client_project_file"]["path"]} is not a directory.')
+                                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
+                                                    logger.info("Getting raw file from GitLab {file_path}".format(file_path=templated_file["sub_client_project_file"]["path"]))
+                                                    try:
+                                                        sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
+                                                    except:
+                                                        logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=templated_file["sub_client_project_file"]["path"], project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
+                                                        raise
+                                    else:
+                                        print(f"{current_path} does not exist.")
+                          
+                                except gitlab.exceptions.GitlabGetError:
+                                    print(f"Failed to access {current_path} in the repository.")
 
+                                
                     # Prepare the roster file
                     if "skip_roster" in client_dict["configuration_management"] and client_dict["configuration_management"]["skip_roster"]:
                         logger.info("Skipping roster update")

@@ -4952,6 +4952,8 @@ if __name__ == "__main__":
                                                 if (asset["fqdn"], storage_asset, storage_path) in asset_storage_usage_monthly:
 
                                                     # We do round(..., 4) as round of sum is not always equal to sum of rounds, so we need higher precision
+                                                    # And sometimes it also doesn't match with the woocommerce price, so we need to round it to 2
+                                                    # So it is a bug, needs to be fixed in the future
                                                     storage_details_new_item = {
                                                         'client_asset_fqdn':        asset["fqdn"],
                                                         'storage_asset_fqdn':       storage_asset,
@@ -5369,10 +5371,12 @@ if __name__ == "__main__":
 
                             # Compare order total with invoice total
                             if round(float(woocommerce_order_total), 2) != round(float(client_total), 2):
-                                logger.error("Woo order {order} total {order_total} didn't match invoice total {invoice_total}".format(
+                                logger.error("Woo order {order} total {order_total} (rounded {rounded_order_total}) didn't match invoice total {invoice_total} (rounded {rounded_client_total})".format(
                                     order=woocommerce_order_id,
                                     order_total=woocommerce_order_total,
-                                    invoice_total=client_total
+                                    invoice_total=client_total,
+                                    rounded_order_total=round(float(woocommerce_order_total), 2),
+                                    rounded_client_total=round(float(client_total), 2)
                                 ))
                                 raise Exception("Error in total found")
 

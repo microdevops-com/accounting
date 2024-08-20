@@ -334,9 +334,9 @@ jobs:
     minutes:
       - 0
   # 15:30
-  bash_misc:
+  users_unix:
     type: salt_cmd
-    cmd: state.apply bash.misc queue=True
+    cmd: state.apply users.unix queue=True
     timeout: 300
     tz: Europe/Kiev
     each:
@@ -352,9 +352,9 @@ jobs:
         - 2019Server
         - unknown
   # 16:00
-  users_unix:
+  bash_misc: # Must be after users_unix
     type: salt_cmd
-    cmd: state.apply users.unix queue=True
+    cmd: state.apply bash.misc queue=True
     timeout: 300
     tz: Europe/Kiev
     each:

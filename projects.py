@@ -859,7 +859,6 @@ if __name__ == "__main__":
                                     logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=templated_file["sub_client_project_file"]["path"], project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
                                     raise
 
-                                
                     # Prepare the roster file
                     if "skip_roster" in client_dict["configuration_management"] and client_dict["configuration_management"]["skip_roster"]:
                         logger.info("Skipping roster update")

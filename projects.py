@@ -815,7 +815,8 @@ if __name__ == "__main__":
                                     print('items -' + str(items) )
                                     if items:
                                         for item in items:
-                                            full_path = f"{current_path}{item['name']}" if current_path else item['name']
+                                            full_path = f"{current_path}/{item['name']}" if current_path else item['name']
+                                            full_path = full_path.replace('//', '/')
                                             print('full_path - ' + full_path)
                                             print(item['name'])
  
@@ -826,7 +827,7 @@ if __name__ == "__main__":
                                           
                                                 stack.append(full_path)
                                             else:
-                                                print(f'{templated_file["sub_client_project_file"]["path"]} is not a directory.')
+                                                print(f'{full_path} is not a directory.')
                                                 with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, full_path, "wb") as templated_file_handler:
                                                     logger.info("Getting raw file from GitLab {file_path}".format(file_path=full_path))
                                                     print(templated_file["sub_client_project_file"]["path"])
@@ -836,7 +837,15 @@ if __name__ == "__main__":
                                                         logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=full_path, project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
                                                         raise
                                     else:
-                                        print(f"{current_path} does not exist.")
+                                        print(f"{current_path} is not tree.")
+                                        full_path = templated_file["sub_client_project_file"]["path"]
+                                        with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, full_path, "wb") as templated_file_handler:
+                                            logger.info("Getting raw file from GitLab {file_path}".format(file_path=full_path))
+                                            print(templated_file["sub_client_project_file"]["path"])
+                                            try:
+                                                sub_client_project.files.raw(file_path=full_path, ref="master", streamed=True, action=templated_file_handler.write)
+                                            except:
+                                                logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=full_path, project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
                           
                                 except gitlab.exceptions.GitlabGetError:
                                     print(f"Failed to access {current_path} in the repository.")

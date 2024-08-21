@@ -797,15 +797,15 @@ if __name__ == "__main__":
                             with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "w") as templated_file_handler:
                                 templated_file_handler.write(rendered_template)
 
-                        # Copy files from other projects
-                        if "sub_client_project_file" in templated_file:
+                        # Copy dirs from other projects
+                        if "sub_client_project_dir" in templated_file:
 
                             # Get Gitlab project
-                            sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])
-                            logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
+                            sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"])
+                            logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_dir"]["sub_client"]))
 
                             templfullpath = os.getcwd() + '/' + PROJECTS_SUBDIR + "/" + project.path_with_namespace + '/' + templated_file["path"]
-                            stack = [templated_file["sub_client_project_file"]["path"]]
+                            stack = [templated_file["sub_client_project_dir"]["path"]]
                             while stack:
                                 print("stack - " + str(stack))
                                 current_path = stack.pop()
@@ -817,6 +817,8 @@ if __name__ == "__main__":
                                         for item in items:
                                             full_path = f"{current_path}/{item['name']}" if current_path else item['name']
                                             full_path = full_path.replace('//', '/')
+                                            dest_full_path = full_path.replace(templated_file["sub_client_project_dir"]["path"], templated_file["path"])
+                                            print('dest - ' + dest_full_path)
                                             print('full_path - ' + full_path)
                                             print(item['name'])
  
@@ -828,27 +830,34 @@ if __name__ == "__main__":
                                                 stack.append(full_path)
                                             else:
                                                 print(f'{full_path} is not a directory.')
-                                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, full_path, "wb") as templated_file_handler:
+                                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, dest_full_path, "wb") as templated_file_handler:
                                                     logger.info("Getting raw file from GitLab {file_path}".format(file_path=full_path))
-                                                    print(templated_file["sub_client_project_file"]["path"])
+                                                    print(templated_file["sub_client_project_dir"]["path"])
                                                     try:
                                                         sub_client_project.files.raw(file_path=full_path, ref="master", streamed=True, action=templated_file_handler.write)
                                                     except:
-                                                        logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=full_path, project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
+                                                        logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=full_path, project=template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
                                                         raise
                                     else:
                                         print(f"{current_path} is not tree.")
-                                        full_path = templated_file["sub_client_project_file"]["path"]
-                                        with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, full_path, "wb") as templated_file_handler:
-                                            logger.info("Getting raw file from GitLab {file_path}".format(file_path=full_path))
-                                            print(templated_file["sub_client_project_file"]["path"])
-                                            try:
-                                                sub_client_project.files.raw(file_path=full_path, ref="master", streamed=True, action=templated_file_handler.write)
-                                            except:
-                                                logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=full_path, project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
-                          
                                 except gitlab.exceptions.GitlabGetError:
                                     print(f"Failed to access {current_path} in the repository.")
+
+                        # Copy files from other projects
+                        if "sub_client_project_file" in templated_file:
+
+                            # Get Gitlab project
+                            sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])
+                            logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_file"]["sub_client"]))
+
+                            # Get File from project and save it
+                            with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "wb") as templated_file_handler:
+                                logger.info("Getting raw file from GitLab {file_path}".format(file_path=templated_file["sub_client_project_file"]["path"]))
+                                try:
+                                    sub_client_project.files.raw(file_path=templated_file["sub_client_project_file"]["path"], ref="master", streamed=True, action=templated_file_handler.write)
+                                except:
+                                    logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=templated_file["sub_client_project_file"]["path"], project=template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
+                                    raise
 
                                 
                     # Prepare the roster file

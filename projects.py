@@ -15,6 +15,7 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from datetime import datetime
 from datetime import time
 import prettytable
+import shutil
 
 # Constants and envs
 
@@ -796,6 +797,43 @@ if __name__ == "__main__":
                             logger.info("Saving jinja template to file: {0}".format(templated_file["path"]))
                             with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, templated_file["path"], "w") as templated_file_handler:
                                 templated_file_handler.write(rendered_template)
+
+                        # Copy dirs from other projects
+                        if "sub_client_project_dir" in templated_file:
+
+                            # Get Gitlab project
+                            sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"])
+                            logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_dir"]["sub_client"]))
+
+                            stack = [templated_file["sub_client_project_dir"]["path"]]
+                            start_dest_path = PROJECTS_SUBDIR + "/" + project.path_with_namespace + "/" + templated_file["path"]
+                            start_dest_path=start_dest_path.replace('//', '/')
+                            if os.path.exists(start_dest_path):
+                                shutil.rmtree(start_dest_path)
+                            while stack:
+                                current_path = stack.pop()
+                                try:
+                                    items = sub_client_project.repository_tree(path=current_path, ref="master")
+                                    if items:
+                                        for item in items:
+                                            full_path = f"{current_path}/{item['name']}" if current_path else item['name']
+                                            full_path = full_path.replace('//', '/')
+                                            dest_full_path = full_path.replace(templated_file["sub_client_project_dir"]["path"], templated_file["path"])
+ 
+                                            if item['type'] == 'tree':
+                                                stack.append(full_path)
+                                            else:
+                                                with open_file(PROJECTS_SUBDIR + "/" + project.path_with_namespace, dest_full_path, "wb") as templated_file_handler:
+                                                    logger.info("Getting raw file from GitLab {file_path}".format(file_path=full_path))
+                                                    try:
+                                                        sub_client_project.files.raw(file_path=full_path, ref="master", streamed=True, action=templated_file_handler.write)
+                                                    except:
+                                                        logger.error("Failed getting raw file from GitLab {file_path} from project {project}".format(file_path=full_path, project=template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"]))
+                                                        raise
+                                    else:
+                                        print(f"{current_path} is not tree.")
+                                except gitlab.exceptions.GitlabGetError:
+                                    print(f"Failed to access {current_path} in the repository.")
 
                         # Copy files from other projects
                         if "sub_client_project_file" in templated_file:

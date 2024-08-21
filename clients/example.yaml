@@ -150,6 +150,10 @@ configuration_management:
         sub_client_project_file:
           sub_client: OtherClient1
           path: pillar/rsnapshot_backup/otherclient1/backup.sls
+      - path: include/otherclient1/pillar/rsnapshot_backup/otherclient2
+        sub_client_project_dir:
+          sub_client: OtherClient2
+          path: pillar/rsnapshot_backup/otherclient2
   # 8< ============================================================
   salt-ssh:
     version: 3004

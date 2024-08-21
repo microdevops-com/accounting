@@ -15,6 +15,7 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from datetime import datetime
 from datetime import time
 import prettytable
+import shutil
 
 # Constants and envs
 
@@ -804,8 +805,12 @@ if __name__ == "__main__":
                             sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"])
                             logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_dir"]["sub_client"]))
 
-                            templfullpath = os.getcwd() + '/' + PROJECTS_SUBDIR + "/" + project.path_with_namespace + '/' + templated_file["path"]
                             stack = [templated_file["sub_client_project_dir"]["path"]]
+                            start_dest_path = PROJECTS_SUBDIR + "/" + project.path_with_namespace + "/" + templated_file["path"]
+                            start_dest_path=start_dest_path.replace('//', '/')
+                            if os.path.exists(start_dest_path):
+                                print("removing " + start_dest_path)
+                                shutil.rmtree(start_dest_path)
                             while stack:
                                 print("stack - " + str(stack))
                                 current_path = stack.pop()

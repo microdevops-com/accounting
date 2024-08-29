@@ -237,12 +237,18 @@ if __name__ == "__main__":
                             if "deploy_keys" in client_dict["gitlab"]["salt_project"]:
                                 for deploy_key in client_dict["gitlab"]["salt_project"]["deploy_keys"]:
                                     key = project.keys.create({'title': deploy_key["title"], 'key': deploy_key["key"]})
-                            # This is deprecated but kept for history
-                            # Protected tags
-                            #if any(project_tag.name == 'run_*' for project_tag in project.protectedtags.list(all=True)):
-                            #    p_tag = project.protectedtags.get('run_*')
-                            #    p_tag.delete()
-                            #project.protectedtags.create({'name': 'run_*', 'create_access_level': str(acc_yaml_dict["gitlab"]["salt_project"]["run_tag_create_access_level"])})
+                            # Protect master branch with needed levels
+                            # It seems that you cannot change it after creation, so delete and create
+                            if any(protected_branch.name == "master" for protected_branch in project.protectedbranches.list()):
+                                project.protectedbranches.get("master").delete()
+                            project.protectedbranches.create(
+                                {
+                                    "name": "master",
+                                    "push_access_level": 40,
+                                    "merge_access_level": 30,
+                                    "allow_force_push": False
+                                }
+                            )
                             # Runner for salt
                             if client_dict["configuration_management"]["type"] == "salt":
                                 dev_runner_to_add = client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"]

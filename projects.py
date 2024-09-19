@@ -813,7 +813,7 @@ if __name__ == "__main__":
                             while stack:
                                 current_path = stack.pop()
                                 try:
-                                    items = sub_client_project.repository_tree(path=current_path, ref="master")
+                                    items = sub_client_project.repository_tree(path=current_path, ref="master", all=True
                                     if items:
                                         for item in items:
                                             full_path = f"{current_path}/{item['name']}" if current_path else item['name']

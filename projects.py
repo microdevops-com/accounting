@@ -523,10 +523,23 @@ if __name__ == "__main__":
                             git clone {ssh_url_to_repo} {PROJECTS_SUBDIR}/{path_with_namespace}
                             cd {PROJECTS_SUBDIR}/{path_with_namespace}
                         fi
+                        ln -sf ../../.githooks/pre-push .git/hooks/pre-push
+
                         git submodule init
                         git submodule update -f --checkout
-                        git submodule foreach "git checkout master && git pull"
-                        ln -sf ../../.githooks/pre-push .git/hooks/pre-push
+
+                        declare -a pids=(); declare ECODE=0
+                        mapfile -t submodules < <(git submodule --quiet foreach "pwd")
+                        for submodule in "${{submodules[@]}}"; do
+                            (cd "$submodule" || break; git switch master && git fetch && git reset origin/master --hard) &
+                            pids+=($!)
+                        done
+                        for pid in ${{pids[@]}}; do
+                            wait $pid; ecode=$?
+                            printf "%s\n" "Job ${{pid}} exited with $ecode"
+                            [[ $ecode -gt $ECODE ]] && ECODE=$ecode
+                        done
+                        exit $ECODE
                         """
                     ).format(ssh_url_to_repo=project.ssh_url_to_repo, PROJECTS_SUBDIR=PROJECTS_SUBDIR, path_with_namespace=project.path_with_namespace, fetch=git_fetch_text, reset=git_reset_text, clean=git_clean_text)
                     logger.info("Running bash script:")
@@ -621,6 +634,7 @@ if __name__ == "__main__":
                                     SALTSSH_RUNNER_SOURCE_IP_2={SALTSSH_RUNNER_SOURCE_IP_2} \
                                     SALT_VERSION={SALT_VERSION} \
                                     UFW={UFW} \
+                                    SUBMODULES_DONE=true \
                                     ./install.sh ../{PROJECTS_SUBDIR}/{path_with_namespace} salt-ssh
                             
                             cd ../.salt-project-private-template
@@ -720,6 +734,7 @@ if __name__ == "__main__":
                                     SALT_MASTER_PORT_1={SALT_MASTER_PORT_1} \
                                     SALT_MASTER_PORT_2={SALT_MASTER_PORT_2} \
                                     UFW={UFW} \
+                                    SUBMODULES_DONE=true \
                                     ./install.sh ../{PROJECTS_SUBDIR}/{path_with_namespace} salt
                             
                             cd ../.salt-project-private-template

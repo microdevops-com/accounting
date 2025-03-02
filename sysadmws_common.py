@@ -324,4 +324,7 @@ def load_client_yaml(WORK_DIR, f, CLIENTS_SUBDIR, YAML_GLOB, logger):
                     yaml_dict["servers"] = old_servers + new_servers
                     yaml_dict["assets"] = old_assets + new_assets
 
+    # Make sure client name is string
+    yaml_dict["name"] = str(yaml_dict["name"])
+
     return yaml_dict

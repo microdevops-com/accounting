@@ -822,6 +822,9 @@ if __name__ == "__main__":
                         # Copy dirs from other projects
                         if "sub_client_project_dir" in templated_file:
 
+                            # Make sure templated_file["sub_client_project_dir"]["sub_client"] is string
+                            templated_file["sub_client_project_dir"]["sub_client"] = str(templated_file["sub_client_project_dir"]["sub_client"])
+
                             # Get Gitlab project
                             sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"])
                             logger.info("Sub client salt project {project} for client {client} loaded".format(project=template_var_clients[templated_file["sub_client_project_dir"]["sub_client"]]["gitlab"]["salt_project"]["path"], client=templated_file["sub_client_project_dir"]["sub_client"]))
@@ -858,6 +861,9 @@ if __name__ == "__main__":
 
                         # Copy files from other projects
                         if "sub_client_project_file" in templated_file:
+
+                            # Make sure templated_file["sub_client_project_file"]["sub_client"] is string
+                            templated_file["sub_client_project_file"]["sub_client"] = str(templated_file["sub_client_project_file"]["sub_client"])
 
                             # Get Gitlab project
                             sub_client_project = gl.projects.get(template_var_clients[templated_file["sub_client_project_file"]["sub_client"]]["gitlab"]["salt_project"]["path"])

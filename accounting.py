@@ -4136,7 +4136,7 @@ if __name__ == "__main__":
                                 checked_tariffs = None
 
                                 # Get client name
-                                client_name = acc_yaml_dict["projects"][row_project_path_with_namespace]["client"].lower()
+                                client_name = str(acc_yaml_dict["projects"][row_project_path_with_namespace]["client"]).lower()
 
                                 # Load client YAML
                                 client_dict = load_client_yaml(WORK_DIR, "{0}/{1}.{2}".format(CLIENTS_SUBDIR, client_name, YAML_EXT), CLIENTS_SUBDIR, YAML_GLOB, logger)
@@ -5094,7 +5094,7 @@ if __name__ == "__main__":
                         raise Exception("Caught exception on gsuite execution")
 
                     # Doc number
-                    client_doc_num = invoice_prefix + client_dict["billing"]["code"] + "-" + acc_yaml_dict["merchants"][invoice_merchant]["code"] + "-" + str(used_today.strftime("%Y-%m-%d"))
+                    client_doc_num = invoice_prefix + str(client_dict["billing"]["code"]) + "-" + str(acc_yaml_dict["merchants"][invoice_merchant]["code"]) + "-" + str(used_today.strftime("%Y-%m-%d"))
                     latest_subnum = "01"
 
                     # Get latest invoice for client for today and increase latest_subnum if found

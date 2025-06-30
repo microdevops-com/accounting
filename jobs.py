@@ -535,6 +535,12 @@ if __name__ == "__main__":
                                         if not args.dry_run_pipeline:
                                             subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                                     elif job["type"] == "rsnapshot_backup_salt":
+
+                                        if "salt-ssh" in job and job["salt-ssh"]:
+                                            salt_ssh_in_salt_part = "SALT_SSH_IN_SALT=true"
+                                        else:
+                                            salt_ssh_in_salt_part = ""
+
                                         script = textwrap.dedent(
                                             """
                                             .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT {salt_ssh_in_salt_part}

@@ -667,7 +667,7 @@ if __name__ == "__main__":
                     # For every file that is not pdf and do not have pdf copy and has mimeType = application/vnd.google-apps.document
                     for item in client_folder_files:
 
-                        if not re.match("^.*\.pdf$", item["name"]) and not any(subitem["name"] == item["name"] + ".pdf" for subitem in client_folder_files) and item["mimeType"] == "application/vnd.google-apps.document":
+                        if not re.match(r"^.*\.pdf$", item["name"]) and not any(subitem["name"] == item["name"] + ".pdf" for subitem in client_folder_files) and item["mimeType"] == "application/vnd.google-apps.document":
 
                             # Remove tmp file
                             if os.path.exists(item["name"] + ".pdf"):

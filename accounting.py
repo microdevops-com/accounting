@@ -206,6 +206,7 @@ if __name__ == "__main__":
     # Set parser and parse args
     parser = argparse.ArgumentParser(description='{LOGO} functions.'.format(LOGO=LOGO))
     parser.add_argument("--debug", dest="debug", help="enable debug", action="store_true")
+    parser.add_argument("--debug-gitlab", dest="debug_gitlab", help="enable gitlab api debug", action="store_true")
     parser.add_argument("--no-exceptions-on-label-errors", dest="no_exceptions_on_label_errors", help="use with dry-runs to bulk check label errors", action="store_true")
     parser.add_argument("--dry-run-db", dest="dry_run_db", help="do not commit to database", action="store_true")
     parser.add_argument("--dry-run-gitlab", dest="dry_run_gitlab", help="no new objects created in gitlab", action="store_true")
@@ -733,6 +734,8 @@ if __name__ == "__main__":
             # Connect to GitLab as Bot
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
             gl.auth()
+            if args.debug_gitlab:
+                gl.enable_debug()
 
             # Post report as an issue in GitLab
             logger.info("Going to create new issue:")
@@ -1307,6 +1310,8 @@ if __name__ == "__main__":
             # Connect to GitLab
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)
             gl.auth()
+            if args.debug_gitlab:
+                gl.enable_debug()
         
             # For *.yaml in client dir
             for client_file in sorted(glob.glob("{0}/{1}".format(CLIENTS_SUBDIR, YAML_GLOB))):
@@ -1379,19 +1384,19 @@ if __name__ == "__main__":
 
                             # Check if label with the same description exists
                             if any(label.name == asset["fqdn"] and label.description == asset_label_description and label.color == asset_color for label in labels):
-                                logger.info("Existing label found: {0}, {1}, {2}".format(asset["fqdn"], asset_label_description, asset_color))
+                                logger.info("Existing label found: {0}, {1}, {2}, {3}".format(project.path_with_namespace, asset["fqdn"], asset_label_description, asset_color))
                             # Else if exists with not the same
                             elif any(label.name == asset["fqdn"] for label in labels):
                                 for label in labels:
                                     if label.name == asset["fqdn"]:
                                         label.description = asset_label_description
                                         label.color = asset_color
-                                        logger.info("Existing label found but description or color didn't match, updated: {0}, {1}, {2}".format(asset["fqdn"], asset_label_description, asset_color))
+                                        logger.info("Existing label found but description or color didn't match, updating: {0}, {1}, {2}, {3}".format(project.path_with_namespace, asset["fqdn"], asset_label_description, asset_color))
                                         if not args.dry_run_gitlab:
                                             label.save()
                             # Add if not exists
                             else:
-                                logger.info("No existing label found, added: {0}, {1}, {2}".format(asset["fqdn"], asset_label_description, asset_color))
+                                logger.info("No existing label found, adding: {0}, {1}, {2}, {3}".format(project.path_with_namespace, asset["fqdn"], asset_label_description, asset_color))
                                 if not args.dry_run_gitlab:
                                     label = project.labels.create({"name": asset["fqdn"], "color": asset_color, "description": asset_label_description})
 
@@ -2061,6 +2066,8 @@ if __name__ == "__main__":
             # Connect to GitLab as Bot
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
             gl.auth()
+            if args.debug_gitlab:
+                gl.enable_debug()
 
             # Post report as an issue in GitLab
             logger.info("Going to create new issue:")
@@ -2728,6 +2735,8 @@ if __name__ == "__main__":
             # Connect to GitLab as Bot
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
             gl.auth()
+            if args.debug_gitlab:
+                gl.enable_debug()
 
             # Post report as an issue in GitLab
             logger.info("Going to create new issue:")
@@ -3126,6 +3135,8 @@ if __name__ == "__main__":
             # Connect to GitLab as Bot
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
             gl.auth()
+            if args.debug_gitlab:
+                gl.enable_debug()
 
             # Post report as an issue in GitLab
             logger.info("Going to create new issue:")
@@ -3411,6 +3422,8 @@ if __name__ == "__main__":
             # Connect to GitLab as Bot
             gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_BOT_PRIVATE_TOKEN)
             gl.auth()
+            if args.debug_gitlab:
+                gl.enable_debug()
 
             # Post report as an issue in GitLab
             logger.info("Going to create new issue:")
@@ -3555,6 +3568,8 @@ if __name__ == "__main__":
                     # Connect to GitLab
                     gl = gitlab.Gitlab(acc_yaml_dict["gitlab"]["url"], private_token=GL_ADMIN_PRIVATE_TOKEN)
                     gl.auth()
+                    if args.debug_gitlab:
+                        gl.enable_debug()
 
                     # Get admin project and other client projects from accounting yaml ids to search in query
                     c_project = gl.projects.get(client_dict["gitlab"]["admin_project"]["path"])

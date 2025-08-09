@@ -572,7 +572,8 @@ if __name__ == "__main__":
                                     )
 
                                     # Save job log
-                                    sql = """
+                                    # r""" here to avoid SyntaxWarning: invalid escape sequence '\ '
+                                    sql = r"""
                                     INSERT INTO
                                             jobs_log
                                             (

@@ -1,0 +1,33 @@
+#!/bin/bash
+docker run -it --rm \
+  -u $(id -u):$(id -g) \
+  -v /etc/localtime:/etc/localtime:ro \
+  -v /etc/timezone:/etc/timezone:ro \
+  -v /etc/passwd:/etc/passwd:ro \
+  -v /etc/group:/etc/group:ro \
+  -v ${PWD}/.projects:/opt/sysadmws/accounting/.projects \
+  -v ${PWD}/log:/opt/sysadmws/accounting/log \
+  -v ${PWD}/tmp:/opt/sysadmws/accounting/tmp \
+  -v ${PWD}/.accounting:/opt/sysadmws/accounting/.accounting \
+  -v ${PWD}/.salt-project-private-template:/opt/sysadmws/accounting/.salt-project-private-template \
+  -v ${PWD}/.salt-project-template:/opt/sysadmws/accounting/.salt-project-template \
+  -e GL_URL \
+  -e GL_ADMIN_PRIVATE_TOKEN \
+  -e GL_BOT_PRIVATE_TOKEN \
+  -e GL_USER_PRIVATE_TOKEN \
+  -e GL_PG_DB_USER \
+  -e GL_PG_DB_PASS \
+  -e GL_PG_DB_NAME \
+  -e GL_PG_DB_HOST \
+  -e GL_PG_DB_PORT \
+  -e PG_DB_USER \
+  -e PG_DB_PASS \
+  -e PG_DB_NAME \
+  -e PG_DB_HOST \
+  -e PG_DB_PORT \
+  -e ACC_WORKDIR \
+  -e ACC_LOGDIR \
+  -e SA_SECRETS_FILE \
+  -e SSH_DU_S_M_KEYFILE \
+  -e SSH_DU_S_M_USER \
+  ${PWD##*/}:$USER "$@"

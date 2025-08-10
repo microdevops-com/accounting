@@ -603,6 +603,9 @@ if __name__ == "__main__":
                             raise Exception("Caught exception on gsuite execution")
 
                     # PDF
+
+                    # Change dir to tmp
+                    os.chdir("tmp")
                     
                     # Remove tmp file
                     if os.path.exists(envelope_file_name + ".pdf"):
@@ -634,6 +637,9 @@ if __name__ == "__main__":
                     # Remove tmp file
                     if os.path.exists(envelope_file_name + ".pdf"):
                         os.remove(envelope_file_name + ".pdf")
+
+                    # Change dir back to work dir
+                    os.chdir("..")
 
         if args.make_pdfs_for_all_clients or args.make_pdfs_for_client is not None:
 
@@ -670,6 +676,9 @@ if __name__ == "__main__":
 
                         if not re.match(r"^.*\.pdf$", item["name"]) and not any(subitem["name"] == item["name"] + ".pdf" for subitem in client_folder_files) and item["mimeType"] == "application/vnd.google-apps.document":
 
+                            # Change dir to tmp
+                            os.chdir("tmp")
+
                             # Remove tmp file
                             if os.path.exists(item["name"] + ".pdf"):
                                 os.remove(item["name"] + ".pdf")
@@ -696,6 +705,9 @@ if __name__ == "__main__":
                             # Remove tmp file
                             if os.path.exists(item["name"] + ".pdf"):
                                 os.remove(item["name"] + ".pdf")
+
+                            # Change dir back to work dir
+                            os.chdir("..")
 
             print("New PDFs to check:")
             for item in uploaded_pdfs:
@@ -1021,6 +1033,9 @@ if __name__ == "__main__":
 
                                     # Download pdfs
 
+                                    # Change dir to tmp
+                                    os.chdir("tmp")
+
                                     client_gmail_draft_attach_list = []
                                     
                                     # Get and save once document list in client folder
@@ -1095,6 +1110,9 @@ if __name__ == "__main__":
                                         if os.path.exists(file):
                                             os.remove(file)
 
+                                    # Change dir back to work dir
+                                    os.chdir("..")
+
                                 elif sum(invoice["merchant"] == client_merchant and invoice["status"] == "Prepared" and invoice["type"] == invoice_type for invoice in invoices_dict[client]) > 1:
                                     raise Exception("Client {client} with merchant {merchant} has more than 1 Prepared Invoice of type {invoice_type}, cannot decide which to take".format(client=client, merchant=client_merchant, invoice_type=invoice_type))
                         
@@ -1113,6 +1131,9 @@ if __name__ == "__main__":
                         if any(invoice["papers"] not in printed_paper_statuses for invoice in invoices_dict[client]) and (client_dict["billing"]["papers"]["invoice"]["print"] or client_dict["billing"]["papers"]["act"]["print"]):
 
                             # Print envelope
+
+                            # Change dir to tmp
+                            os.chdir("tmp")
                 
                             # Download PDF
                             client_envelope_file_name = client_dict["name"] + " - " + client_dict["billing"]["merchant"] + " - " + client_dict["billing"]["template"] + ".pdf"
@@ -1199,6 +1220,9 @@ if __name__ == "__main__":
                                             # Remove pdf file
                                             if os.path.exists(pdf):
                                                 os.remove(pdf)
+
+                            # Change dir back to work dir
+                            os.chdir("..")
                         
                         # Else log no invoices for client
                         else:
@@ -5601,18 +5625,40 @@ if __name__ == "__main__":
                             employee_order_dict = acc_yaml_dict["invoices"]["employee_share"]["columns"]["order"]
                             invoices_rows_emplloyee_row[employee_order_dict["employee"] - 1] =             employee
                             invoices_rows_emplloyee_row[employee_order_dict["invoice_number"] - 1] =       client_doc_num + "-" + latest_subnum
+
                             # In case of negative timelogs usage, total time could become zero -> division by zero -> employee share of zero = zero
                             if client_total != 0:
                                 invoices_rows_emplloyee_row[employee_order_dict["share"] - 1] =                round(((client_per_employee_share[employee] / client_total) * 100), 2)
                             else:
                                 invoices_rows_emplloyee_row[employee_order_dict["share"] - 1] =                0
+
                             invoices_rows_emplloyee_row[employee_order_dict["currency_received"] - 1] =             acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["currency_received"]
                             invoices_rows_emplloyee_row[employee_order_dict["sum_received"] - 1] =                  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["sum_received"]
-                            invoices_rows_emplloyee_row[employee_order_dict["sum_after_taxes"] - 1] =               acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["sum_after_taxes"]
+
+                            if (
+                                "per_merchant_per_employee" in acc_yaml_dict["invoices"]["employee_share"]["columns"]
+                                and invoice_merchant in acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"]
+                                and employee in acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"][invoice_merchant]
+                                and "sum_after_taxes" in acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"][invoice_merchant][employee]
+                            ):
+                                invoices_rows_emplloyee_row[employee_order_dict["sum_after_taxes"] - 1] =           acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"][invoice_merchant][employee]["sum_after_taxes"]
+                            else:
+                                invoices_rows_emplloyee_row[employee_order_dict["sum_after_taxes"] - 1] =           acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["sum_after_taxes"]
+
                             invoices_rows_emplloyee_row[employee_order_dict["employee_sum"] - 1] =                  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum"]
                             invoices_rows_emplloyee_row[employee_order_dict["invoice_currency"] - 1] =              acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_currency"]
                             invoices_rows_emplloyee_row[employee_order_dict["invoice_sum"] - 1] =                   acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_sum"]
-                            invoices_rows_emplloyee_row[employee_order_dict["invoice_sum_after_taxes"] - 1] =       acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_sum_after_taxes"]
+
+                            if (
+                                "per_merchant_per_employee" in acc_yaml_dict["invoices"]["employee_share"]["columns"]
+                                and invoice_merchant in acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"]
+                                and employee in acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"][invoice_merchant]
+                                and "invoice_sum_after_taxes" in acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"][invoice_merchant][employee]
+                            ):
+                                invoices_rows_emplloyee_row[employee_order_dict["invoice_sum_after_taxes"] - 1] =   acc_yaml_dict["invoices"]["employee_share"]["columns"]["per_merchant_per_employee"][invoice_merchant][employee]["invoice_sum_after_taxes"]
+                            else:
+                                invoices_rows_emplloyee_row[employee_order_dict["invoice_sum_after_taxes"] - 1] =   acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["invoice_sum_after_taxes"]
+
                             invoices_rows_emplloyee_row[employee_order_dict["employee_sum_by_invoice"] - 1] =       acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_by_invoice"]
                             invoices_rows_emplloyee_row[employee_order_dict["employee_sum_by_invoice_conv"] - 1] =  acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_by_invoice_conv"]
                             invoices_rows_emplloyee_row[employee_order_dict["employee_sum_to_pay_projected"] - 1] = acc_yaml_dict["invoices"]["employee_share"]["columns"]["defaults"]["employee_sum_to_pay_projected"]

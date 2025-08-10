@@ -1,18 +1,18 @@
-python-gitlab==6.2.*
-PyYAML
-psycopg2-binary
+python-gitlab==6.2.0
+PyYAML==6.0.2
+psycopg2-binary==2.9.10
 google-api-python-client==2.42.*
 oauth2client==4.1.3
-num2words==0.5.12
+num2words @ git+https://github.com/microdevops-com/num2words@master
 WooCommerce==3.0.0
 python-dateutil==2.8.0
 cryptography==36.0.2
 paramiko==3.4.0
 filelock==3.0.12
 pytz
-retrying
-ruamel.yaml
-jinja2==2.11.*
-mergedeep
+retrying==1.4.2
+ruamel.yaml==0.18.14
+Jinja2==2.11.3
+mergedeep==1.3.4
 MarkupSafe==2.0.1
-prettytable
+prettytable==3.16.0

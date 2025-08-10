@@ -8,6 +8,7 @@ docker run -it --rm \
   -v ${PWD}/.projects:/opt/sysadmws/accounting/.projects \
   -v ${PWD}/log:/opt/sysadmws/accounting/log \
   -v ${PWD}/tmp:/opt/sysadmws/accounting/tmp \
+  -v ${PWD}/.gsuite:/opt/sysadmws/accounting/.gsuite \
   -v ${PWD}/.accounting:/opt/sysadmws/accounting/.accounting \
   -v ${PWD}/.salt-project-private-template:/opt/sysadmws/accounting/.salt-project-private-template \
   -v ${PWD}/.salt-project-template:/opt/sysadmws/accounting/.salt-project-template \

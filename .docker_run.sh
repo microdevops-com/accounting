@@ -13,7 +13,7 @@ docker run -it --rm \
   -v ${PWD}/.salt-project-private-template:/opt/sysadmws/accounting/.salt-project-private-template \
   -v ${PWD}/.salt-project-template:/opt/sysadmws/accounting/.salt-project-template \
   -v "$SSH_AUTH_SOCK":/ssh-agent \
-  -v "$HOME/.ssh/known_hosts":"$HOME/.ssh/known_hosts":ro \
+  -v "$HOME/.ssh/known_hosts":"$HOME/.ssh/known_hosts":rw \
   -e SSH_AUTH_SOCK=/ssh-agent \
   -e GL_URL \
   -e GL_ADMIN_PRIVATE_TOKEN \

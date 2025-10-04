@@ -193,6 +193,9 @@ if __name__ == "__main__":
                             # Build job list
                             job_list = []
 
+                            # Print asset id
+                            print("Asset: {client} {asset_fqdn}".format(client=client_dict["name"], asset_fqdn=asset["fqdn"]))
+
                             # Add global jobs from accounting yaml
                             if "jobs" in acc_yaml_dict:
                                 

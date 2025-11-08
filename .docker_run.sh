@@ -1,6 +1,7 @@
 #!/bin/bash
 docker run -it --rm \
   -u $(id -u):$(id -g) \
+  --group-add $(getent group docker | cut -d: -f3) \
   -v /etc/localtime:/etc/localtime:ro \
   -v /etc/timezone:/etc/timezone:ro \
   -v /etc/passwd:/etc/passwd:ro \
@@ -14,6 +15,9 @@ docker run -it --rm \
   -v ${PWD}/.salt-project-template:/opt/sysadmws/accounting/.salt-project-template \
   -v "$SSH_AUTH_SOCK":/ssh-agent \
   -v "$HOME/.ssh":"$HOME/.ssh":rw \
+  -v "$HOME/.gitconfig":"$HOME/.gitconfig":ro \
+  -v /var/run/docker.sock:/var/run/docker.sock:rw \
+  -v /usr/bin/docker:/usr/bin/docker \
   -e SSH_AUTH_SOCK=/ssh-agent \
   -e GL_URL \
   -e GL_ADMIN_PRIVATE_TOKEN \
@@ -34,4 +38,5 @@ docker run -it --rm \
   -e SA_SECRETS_FILE \
   -e SSH_DU_S_M_KEYFILE \
   -e SSH_DU_S_M_USER \
+  -e USER \
   ${PWD##*/}:$USER "$@"

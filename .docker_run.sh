@@ -1,5 +1,6 @@
 #!/bin/bash
 docker run -it --rm \
+  --hostname accounting_docker \
   -u $(id -u):$(id -g) \
   --group-add $(getent group docker | cut -d: -f3) \
   -v /etc/localtime:/etc/localtime:ro \
@@ -16,8 +17,10 @@ docker run -it --rm \
   -v "$SSH_AUTH_SOCK":/ssh-agent \
   -v "$HOME/.ssh":"$HOME/.ssh":rw \
   -v "$HOME/.gitconfig":"$HOME/.gitconfig":ro \
+  -v "$HOME/.docker":"$HOME/.docker":rw \
   -v /var/run/docker.sock:/var/run/docker.sock:rw \
   -v /usr/bin/docker:/usr/bin/docker \
+  -v /usr/libexec/docker/cli-plugins:/usr/libexec/docker/cli-plugins \
   -e SSH_AUTH_SOCK=/ssh-agent \
   -e GL_URL \
   -e GL_ADMIN_PRIVATE_TOKEN \

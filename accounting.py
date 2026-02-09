@@ -4602,11 +4602,7 @@ if __name__ == "__main__":
                                             else:
                                                 asset_tariff["migrated"] = False
                                             
-                                            # Add monthly_employee_share key as dict
-                                            if "monthly_employee_share" in asset_tariff:
-                                                asset_tariff["monthly_employee_share"] = {}
-                                                for empl_email, empl_share in asset_tariff["monthly_employee_share"].items():
-                                                    asset_tariff["monthly_employee_share"][empl_email] = empl_share
+                                            # No need to add monthly_employee_share as with file tariff, it is already there
                                 
                                             # Add tariff to the tariff list for the asset
                                             client_asset_tariffs_dict[client][asset["fqdn"]].append(asset_tariff)

@@ -382,7 +382,7 @@ if __name__ == "__main__":
                                                         minutes_rewrited.append(m)
                                                 else:
                                                     # Apply MINUTES_JITTER
-                                                    for m in range(minutes, minutes + MINUTES_JITTER):
+                                                    for m in range(int(minutes), int(minutes) + MINUTES_JITTER):
                                                         minutes_rewrited.append(m)
                                             logger.info("Job {asset}/{job} should be run on minutes: {mins}".format(asset=asset["fqdn"], job=job["id"], mins=minutes_rewrited))
                                             now_minute = int(datetime.strftime(now, "%M"))
@@ -398,7 +398,7 @@ if __name__ == "__main__":
                                                     for h in range(int(str(hours).split("-")[0]), int(str(hours).split("-")[1])+1):
                                                         hours_rewrited.append(h)
                                                 else:
-                                                    hours_rewrited.append(hours)
+                                                    hours_rewrited.append(int(hours))
                                             logger.info("Job {asset}/{job} should be run on hours: {hours}".format(asset=asset["fqdn"], job=job["id"], hours=hours_rewrited))
                                             now_hour = int(datetime.strftime(now, "%H"))
                                             logger.info("Job {asset}/{job} now hour is: {hour}".format(asset=asset["fqdn"], job=job["id"], hour=now_hour))
@@ -413,7 +413,7 @@ if __name__ == "__main__":
                                                     for d in range(int(str(days).split("-")[0]), int(str(days).split("-")[1])+1):
                                                         days_rewrited.append(d)
                                                 else:
-                                                    days_rewrited.append(days)
+                                                    days_rewrited.append(int(days))
                                             logger.info("Job {asset}/{job} should be run on days: {days}".format(asset=asset["fqdn"], job=job["id"], days=days_rewrited))
                                             now_day = int(datetime.strftime(now, "%d"))
                                             logger.info("Job {asset}/{job} now day is: {day}".format(asset=asset["fqdn"], job=job["id"], day=now_day))
@@ -428,7 +428,7 @@ if __name__ == "__main__":
                                                     for m in range(int(str(months).split("-")[0]), int(str(months).split("-")[1])+1):
                                                         months_rewrited.append(m)
                                                 else:
-                                                    months_rewrited.append(months)
+                                                    months_rewrited.append(int(months))
                                             logger.info("Job {asset}/{job} should be run on months: {months}".format(asset=asset["fqdn"], job=job["id"], months=months_rewrited))
                                             now_month = int(datetime.strftime(now, "%m"))
                                             logger.info("Job {asset}/{job} now month is: {month}".format(asset=asset["fqdn"], job=job["id"], month=now_month))
@@ -443,7 +443,7 @@ if __name__ == "__main__":
                                                     for y in range(int(str(years).split("-")[0]), int(str(years).split("-")[1])+1):
                                                         years_rewrited.append(y)
                                                 else:
-                                                    years_rewrited.append(years)
+                                                    years_rewrited.append(int(years))
                                             logger.info("Job {asset}/{job} should be run on years: {years}".format(asset=asset["fqdn"], job=job["id"], years=years_rewrited))
                                             now_year = int(datetime.strftime(now, "%Y"))
                                             logger.info("Job {asset}/{job} now year is: {year}".format(asset=asset["fqdn"], job=job["id"], year=now_year))

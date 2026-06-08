@@ -12,6 +12,7 @@ gitlab:
   # salt-ssh
   salt_project:
     path: example/devops/example-salt
+    #build_timeout: 86400 # pipeline job timeout in seconds, default 86400 (24h)
     #runners: # optional, override runners from accounting.yaml
     #  dev: dev-runner1.example.com
     #  prod: prod-runner1.example.com
@@ -27,6 +28,7 @@ gitlab:
   # salt
   salt_project:
     path: example/devops/example-salt
+    #build_timeout: 86400 # pipeline job timeout in seconds, default 86400 (24h)
     deploy_keys:
       - title: root@saltX.example.com # use `./gen_ssh_priv_pub.sh saltX.example.com`
         key: ssh-ed25519 AAAAC3Nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx root@saltX.example.com

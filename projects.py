@@ -228,7 +228,7 @@ if __name__ == "__main__":
                             project.auto_cancel_pending_pipelines = "disabled"
                             # Disable "Skip outdated deployment jobs" as well
                             project.ci_forward_deployment_enabled = False
-                            project.build_timeout = 86400
+                            project.build_timeout = client_dict["gitlab"]["salt_project"].get("build_timeout", 86400)
                             # Maintainer group
                             if "salt_project" in acc_yaml_dict["gitlab"] and "maintainers_group_id" in acc_yaml_dict["gitlab"]["salt_project"]:
                                 if not any(shared_group["group_id"] == acc_yaml_dict["gitlab"]["salt_project"]["maintainers_group_id"] for shared_group in project.shared_with_groups):

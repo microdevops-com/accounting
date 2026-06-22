@@ -137,6 +137,9 @@ configuration_management:
     sentry_org_user_token: ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc1 # cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 64 | head -n 1
     default_tz: Etc_UTC
     client_domain: example.com
+    #vault_salt_sdb: # optional, enable vault_salt_sdb secrets backend; both keys required when set
+    #  url: https://vault.example.com # Vault address
+    #  prefix: iac/example # per-repo KV path prefix
     heartbeat_mesh:
       sender:
         receiver: alerta1.example.com

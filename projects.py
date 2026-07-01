@@ -629,6 +629,7 @@ if __name__ == "__main__":
                                     CLIENT_DOMAIN={CLIENT_DOMAIN} \
                                     VAULT_SALT_SDB_URL={VAULT_SALT_SDB_URL} \
                                     VAULT_SALT_SDB_PREFIX={VAULT_SALT_SDB_PREFIX} \
+                                    VAULT_SALT_SDB_JWT_ROLE={VAULT_SALT_SDB_JWT_ROLE} \
                                     DEV_RUNNER={DEV_RUNNER} \
                                     PROD_RUNNER={PROD_RUNNER} \
                                     SALTSSH_ROOT_ED25519_PUB="{SALTSSH_ROOT_ED25519_PUB}" \
@@ -664,6 +665,7 @@ if __name__ == "__main__":
                             CLIENT_DOMAIN=client_dict["configuration_management"]["templates"]["client_domain"],
                             VAULT_SALT_SDB_URL=client_dict["configuration_management"]["templates"].get("vault_salt_sdb", {}).get("url", ""),
                             VAULT_SALT_SDB_PREFIX=client_dict["configuration_management"]["templates"].get("vault_salt_sdb", {}).get("prefix", ""),
+                            VAULT_SALT_SDB_JWT_ROLE=client_dict["configuration_management"]["templates"].get("vault_salt_sdb", {}).get("jwt_role", ""),
                             DEV_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
                             PROD_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["prod"] if "runners" in client_dict["gitlab"]["salt_project"] and "prod" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["prod"],
                             SALTSSH_ROOT_ED25519_PUB=client_dict["gitlab"]["salt_project"]["variables"]["SALTSSH_ROOT_ED25519_PUB"],
@@ -724,6 +726,7 @@ if __name__ == "__main__":
                                     CLIENT_DOMAIN={CLIENT_DOMAIN} \
                                     VAULT_SALT_SDB_URL={VAULT_SALT_SDB_URL} \
                                     VAULT_SALT_SDB_PREFIX={VAULT_SALT_SDB_PREFIX} \
+                                    VAULT_SALT_SDB_JWT_ROLE={VAULT_SALT_SDB_JWT_ROLE} \
                                     DEV_RUNNER={DEV_RUNNER} \
                                     SALT_MINION_VERSION={SALT_MINION_VERSION} \
                                     SALT_MASTER_VERSION={SALT_MASTER_VERSION} \
@@ -782,6 +785,7 @@ if __name__ == "__main__":
                             CLIENT_DOMAIN=client_dict["configuration_management"]["templates"]["client_domain"],
                             VAULT_SALT_SDB_URL=client_dict["configuration_management"]["templates"].get("vault_salt_sdb", {}).get("url", ""),
                             VAULT_SALT_SDB_PREFIX=client_dict["configuration_management"]["templates"].get("vault_salt_sdb", {}).get("prefix", ""),
+                            VAULT_SALT_SDB_JWT_ROLE=client_dict["configuration_management"]["templates"].get("vault_salt_sdb", {}).get("jwt_role", ""),
                             DEV_RUNNER=client_dict["gitlab"]["salt_project"]["runners"]["dev"] if "runners" in client_dict["gitlab"]["salt_project"] and "dev" in client_dict["gitlab"]["salt_project"]["runners"] else acc_yaml_dict["gitlab"]["salt_project"]["runners"]["dev"],
                             UFW=ufw_type
                         )

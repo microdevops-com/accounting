@@ -1797,7 +1797,7 @@ if __name__ == "__main__":
                     row_issue_link = row_issue_namespace_path + "/" + row_project_path + "/issues/" + str(row_issue_iid)
 
                     # Get client name
-                    client_name = acc_yaml_dict["projects"][row_project_path_with_namespace]["client"].lower()
+                    client_name = str(acc_yaml_dict["projects"][row_project_path_with_namespace]["client"]).lower()
 
                     # Title not bold by default
                     title_bold = ""
@@ -2473,7 +2473,7 @@ if __name__ == "__main__":
                     row_merge_request_link = row_merge_request_namespace_path + "/" + row_project_path + "/merge_requests/" + str(row_merge_request_iid)
 
                     # Get client name
-                    client_name = acc_yaml_dict["projects"][row_project_path_with_namespace]["client"].lower()
+                    client_name = str(acc_yaml_dict["projects"][row_project_path_with_namespace]["client"]).lower()
 
                     # Title not bold by default
                     title_bold = ""

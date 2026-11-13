@@ -26,6 +26,27 @@ YAML_EXT = "yaml"
 ACC_YAML = "accounting.yaml"
 LOCK_TIMEOUT = 600 # Supposed to be run each 10 minutes, so lock for 10 minutes
 MINUTES_JITTER = 10 # Jobs are run on some minute between 00 and 10 minutes each 10 minutes
+RSNAPSHOT_BACKUP_CHECK_DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
+
+
+def interval_to_seconds(interval):
+    """Convert an accounting `each` interval mapping to seconds."""
+    seconds = 0
+    seconds += 365 * 24 * 60 * 60 * int(interval.get("years", 0))
+    seconds += 31 * 24 * 60 * 60 * int(interval.get("months", 0))
+    seconds += 7 * 24 * 60 * 60 * int(interval.get("weeks", 0))
+    seconds += 24 * 60 * 60 * int(interval.get("days", 0))
+    seconds += 60 * 60 * int(interval.get("hours", 0))
+    seconds += 60 * int(interval.get("minutes", 0))
+    return seconds
+
+
+def rsnapshot_backup_check_max_age_seconds(job):
+    """Scale the current one-day check threshold to the configured run interval."""
+    return (
+        interval_to_seconds(job.get("each", {}))
+        or RSNAPSHOT_BACKUP_CHECK_DEFAULT_MAX_AGE_SECONDS
+    )
 
 # Main
 
@@ -491,6 +512,8 @@ if __name__ == "__main__":
                                         if not args.dry_run_pipeline:
                                             subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                                     elif job["type"] == "rsnapshot_backup_ssh":
+
+                                        check_max_age_seconds = rsnapshot_backup_check_max_age_seconds(job)
                                         
                                         # Decide which connect host:port to use
                                         if "ssh" in asset:
@@ -523,7 +546,7 @@ if __name__ == "__main__":
 
                                         script = textwrap.dedent(
                                             """
-                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {asset} SSH SSH_HOST={ssh_host} SSH_PORT={ssh_port} {ssh_jump} {salt_ssh_in_salt_part}
+                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {asset} SSH SSH_HOST={ssh_host} SSH_PORT={ssh_port} {ssh_jump} {salt_ssh_in_salt_part} RSNAPSHOT_BACKUP_CHECK_MAX_AGE_SECONDS={check_max_age_seconds}
                                             """
                                         ).format(
                                             salt_project=client_dict["gitlab"]["salt_project"]["path"],
@@ -531,13 +554,16 @@ if __name__ == "__main__":
                                             ssh_host=ssh_host,
                                             ssh_port=ssh_port,
                                             ssh_jump=ssh_jump,
-                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part
+                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part,
+                                            check_max_age_seconds=check_max_age_seconds
                                         )
                                         logger.info("Running bash script:")
                                         logger.info(script)
                                         if not args.dry_run_pipeline:
                                             subprocess.run(script, shell=True, universal_newlines=True, check=True, executable="/bin/bash")
                                     elif job["type"] == "rsnapshot_backup_salt":
+
+                                        check_max_age_seconds = rsnapshot_backup_check_max_age_seconds(job)
 
                                         if "salt-ssh" in job and job["salt-ssh"]:
                                             salt_ssh_in_salt_part = "SALT_SSH_IN_SALT=true"
@@ -546,13 +572,14 @@ if __name__ == "__main__":
 
                                         script = textwrap.dedent(
                                             """
-                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT {salt_ssh_in_salt_part}
+                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT {salt_ssh_in_salt_part} RSNAPSHOT_BACKUP_CHECK_MAX_AGE_SECONDS={check_max_age_seconds}
                                             """
                                         ).format(
                                             salt_project=client_dict["gitlab"]["salt_project"]["path"],
                                             timeout=job["timeout"],
                                             asset=asset["fqdn"],
-                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part
+                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part,
+                                            check_max_age_seconds=check_max_age_seconds
                                         )
                                         logger.info("Running bash script:")
                                         logger.info(script)

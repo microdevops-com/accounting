@@ -496,7 +496,7 @@ if __name__ == "__main__":
 
                                         script = textwrap.dedent(
                                             """
-                                            .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}" {severity_override_part} {salt_ssh_in_salt_part}
+                                            .gitlab-server-job/pipeline_salt_cmd.sh nowait {salt_project} {timeout} {asset} "{job_cmd}" {severity_override_part} {salt_ssh_in_salt_part} PIPELINE_NAME={asset}:{job_id}
                                             """
                                         ).format(
                                             salt_project=client_dict["gitlab"]["salt_project"]["path"],
@@ -504,7 +504,8 @@ if __name__ == "__main__":
                                             asset=asset["fqdn"],
                                             job_cmd=job["cmd"],
                                             severity_override_part=severity_override_part,
-                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part
+                                            salt_ssh_in_salt_part=salt_ssh_in_salt_part,
+                                            job_id=job["id"]
                                         )
 
                                         logger.info("Running bash script:")
@@ -546,7 +547,7 @@ if __name__ == "__main__":
 
                                         script = textwrap.dedent(
                                             """
-                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {asset} SSH SSH_HOST={ssh_host} SSH_PORT={ssh_port} {ssh_jump} {salt_ssh_in_salt_part} RSNAPSHOT_BACKUP_CHECK_MAX_AGE_SECONDS={check_max_age_seconds}
+                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} 0 {asset} SSH SSH_HOST={ssh_host} SSH_PORT={ssh_port} {ssh_jump} {salt_ssh_in_salt_part} RSNAPSHOT_BACKUP_CHECK_MAX_AGE_SECONDS={check_max_age_seconds} PIPELINE_NAME={asset}:{job_id}
                                             """
                                         ).format(
                                             salt_project=client_dict["gitlab"]["salt_project"]["path"],
@@ -555,7 +556,8 @@ if __name__ == "__main__":
                                             ssh_port=ssh_port,
                                             ssh_jump=ssh_jump,
                                             salt_ssh_in_salt_part=salt_ssh_in_salt_part,
-                                            check_max_age_seconds=check_max_age_seconds
+                                            check_max_age_seconds=check_max_age_seconds,
+                                            job_id=job["id"]
                                         )
                                         logger.info("Running bash script:")
                                         logger.info(script)
@@ -572,14 +574,15 @@ if __name__ == "__main__":
 
                                         script = textwrap.dedent(
                                             """
-                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT {salt_ssh_in_salt_part} RSNAPSHOT_BACKUP_CHECK_MAX_AGE_SECONDS={check_max_age_seconds}
+                                            .gitlab-server-job/pipeline_rsnapshot_backup.sh nowait {salt_project} {timeout} {asset} SALT {salt_ssh_in_salt_part} RSNAPSHOT_BACKUP_CHECK_MAX_AGE_SECONDS={check_max_age_seconds} PIPELINE_NAME={asset}:{job_id}
                                             """
                                         ).format(
                                             salt_project=client_dict["gitlab"]["salt_project"]["path"],
                                             timeout=job["timeout"],
                                             asset=asset["fqdn"],
                                             salt_ssh_in_salt_part=salt_ssh_in_salt_part,
-                                            check_max_age_seconds=check_max_age_seconds
+                                            check_max_age_seconds=check_max_age_seconds,
+                                            job_id=job["id"]
                                         )
                                         logger.info("Running bash script:")
                                         logger.info(script)
